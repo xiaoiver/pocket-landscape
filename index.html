@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>口袋景观 · Pocket Landscape</title>
+    <link
+      rel="icon"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ccircle cx='8' cy='8' r='6' fill='%238fbf7a'/%3E%3C/svg%3E"
+    />
+  </head>
+  <body>
+    <canvas id="renderCanvas" aria-label="微型景观预览"></canvas>
+    <header class="topbar">
+      <h1>口袋景观</h1>
+      <p>Pocket Landscape</p>
+    </header>
+    <aside class="panel panel-assets" aria-label="资产">
+      <h2>资产</h2>
+      <p class="hint">模型库尚未导入。下面的条目只是占位，点击会记一条日志。</p>
+      <div id="asset-list"></div>
+    </aside>
+    <aside class="panel panel-weather" aria-label="天气与光照">
+      <h2>天气 / 光照</h2>
+      <p class="hint">切换预设会改天色、雾和灯光。玻璃瓶还是浅盘占位。</p>
+      <div id="preset-list" role="group" aria-label="光照预设"></div>
+    </aside>
+    <p id="status" class="status" role="status"></p>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
