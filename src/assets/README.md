@@ -1,5 +1,10 @@
 # 资产目录
 
-这里留给以后的 glTF / 贴图。当前提交不放入二进制模型。
+样板的静态 glTF、贴图和 HDRI 存放在 `public/assets/`，由相同源地址加载。
 
-计划中的 CC0 来源见仓库根目录的 README。玻璃器皿、网纹草和小人偶仍缺现成可用素材，后续再自制。
+- 来源与许可：`public/assets/CREDITS.md`
+- 重新下载：`python3 scripts/download-assets.py`
+- 玻璃与植物几何：`src/scene/terrarium.ts`、`src/scene/vegetation.ts`
+- 自制叶脉与土壤纹理：`src/scene/textures.ts`
+
+无需 Blender。实物参考照片未打包。

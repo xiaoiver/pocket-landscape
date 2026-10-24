@@ -1,67 +1,36 @@
 # 口袋景观 Pocket Landscape
 
-在浏览器里布置一座微型景观：玻璃生态瓶风格的苔藓、岩石与植物，并切换天气和光照。
+基于 Babylon.js 的交互微景观样板：敞口厚壁玻璃瓶、粉脉网纹草、背景绿叶、苔藓和土壤。相机可旋转与缩放，可切换三组灯光及四个场景图层。无需 Blender。
 
-A small browser app for arranging terrarium-style miniature landscapes and switching weather and lighting presets.
+## 运行
 
-## 技术栈
+Node.js 20 或以上：
 
-- [Vite](https://vite.dev/)
-- TypeScript
-- [Babylon.js](https://www.babylonjs.com/)（`@babylonjs/core`）
-
-## 本地运行
-
-需要 Node.js 20 或更高版本。
-
-```bash
-npm install
+```sh
+npm ci
 npm run dev
+npm run build
+npm run preview
 ```
 
-浏览器打开终端提示的本地地址（默认 `http://localhost:5173`）。按住左键旋转，滚轮缩放。
+依赖与模型均随项目锁定；模型和 HDRI 在 `public/assets/`，运行时从本站加载，不依赖素材站 CDN。初次打开会在 GPU 上预过滤 HDRI。默认使用 WebGL 2；手机性能尚需在实机上评估。
 
-```bash
-npm run build     # 类型检查并打包到 dist/
-npm run preview   # 预览生产构建
+## 场景实现
+
+- `src/scene/terrarium.ts`：按截面旋转生成玻璃内外壁、厚底和圆润瓶口；PBR 折射纹理采样瓶内场景。场景单位为 10 cm，普通壁厚约 2.5 mm。
+- `src/scene/vegetation.ts`：弯曲叶片、成对叶序、叶柄与藤茎；12 种 Poly Haven 苔藓枝叶用 5,760 个 GPU thin instances 铺在起伏土壤上。独立 Alpha 遮罩使用 alpha test，避免贴片黑底及透明排序。
+- `src/scene/textures.ts`：可重复生成的 1K 粉红叶脉与绿叶纹理，及土壤颗粒纹理。
+- `src/scene/createScene.ts`：本地棚拍 HDRI、PBR 环境反射、PCSS 接触硬化软阴影、ACES 色调映射、MSAA / FXAA。像素比上限 1.5，折射目标使用主画面 75% 分辨率。
+- `src/ui/`：玻璃 / 植物 / 苔藓 / 土壤图层开关，以及晴朗 / 阴天 / 黄昏灯光。
+
+网纹草为程序化形态近似，尚未采用实拍叶片扫描纹理。实时玻璃使用屏幕投影采样，不是离线路径追踪，复杂多层折射和焦散仍有近似。默认关闭雾和景深以便检查模型。
+
+## 素材与授权
+
+Poly Haven **Moss 01**（Rob Tuytel）和 **Studio Small 09**（Sergej Majboroda）均为 CC0。来源、处理方式与许可见 [资产说明](public/assets/CREDITS.md)。可使用 Python 标准库重新下载：
+
+```sh
+python3 scripts/download-assets.py
 ```
 
-左侧「资产」是占位按钮。右侧可以在晴朗、阴天、黄昏三组光照之间切换，天色、雾和灯光会一起变。
-
-## 计划中的功能
-
-- 资产库：把苔藓、岩石、蕨类、砂土等摆进场景
-- 天气与光照预设：晴、阴、黄昏，以及以后更细的雾和天色
-- 玻璃器皿场景：生态瓶或浅盘。眼下场景里只有代码生成的浅盘、石块和一株锥形小苗
-
-这一版是可运行的空场景、界面壳和说明。模型文件以后单独加。
-
-## 后续素材来源（CC0）
-
-正式放进仓库前，再逐份核对授权。计划使用：
-
-| 来源 | 打算用来做什么 |
-| --- | --- |
-| [Poly Haven](https://polyhaven.com/) | 苔藓、岩石、蕨、竹芋（Calathea）、红掌（Anthurium）、砂 |
-| [Kenney Nature Kit](https://kenney.nl/assets/nature-kit) | 自然小品 |
-| [Quaternius](https://quaternius.com/) | 低模植物与环境件 |
-| floraZia 的 Fern Moss（[Sketchfab](https://sketchfab.com/)） | 蕨苔 |
-
-还缺现成素材，准备以后自己做，或用 Tripo 一类工具生成：
-
-- 玻璃器皿
-- 网纹草（Fittonia）
-- 小人偶 / 摆件
-
-## 目录
-
-```
-src/scene/     场景、相机、光照与天气预设
-src/ui/        资产面板和天气 / 光照面板
-src/assets/    以后放模型的位置（目前只有说明）
-public/        静态文件
-```
-
-## 许可证
-
-代码以 [MIT](LICENSE) 为占位许可。以后引进的模型和贴图遵循各自的许可证，CC0 素材不因放进本仓库而改变授权。
+自制程序化几何、纹理和代码采用 [MIT](LICENSE)。实物参考照片未打包进仓库。

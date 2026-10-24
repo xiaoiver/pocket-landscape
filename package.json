@@ -9,7 +9,8 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@babylonjs/core": "^8.24.0"
+    "@babylonjs/core": "8.56.2",
+    "@babylonjs/loaders": "8.56.2"
   },
   "devDependencies": {
     "typescript": "~5.9.2",

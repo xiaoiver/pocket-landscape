@@ -13,6 +13,7 @@ const initialPreset = "clear" as const;
 mountUi({
   initialPreset,
   onPreset: (id) => landscape.applyPreset(id),
+  onLayer: (id, visible) => landscape.setLayerVisible(id, visible),
 });
 
 const onResize = (): void => {
@@ -31,3 +32,14 @@ if (import.meta.hot) {
     landscape.engine.dispose();
   });
 }
+
+const status = document.querySelector<HTMLElement>("#status");
+if (status) status.textContent = "正在加载苔藓与棚拍环境…";
+landscape.ready
+  .then(() => {
+    if (status) status.textContent = "样板已就绪 · 拖动旋转 / 滚轮缩放";
+  })
+  .catch((error: unknown) => {
+    if (status) status.textContent = "苔藓或环境加载失败，请刷新重试";
+    console.error("[场景加载]", error);
+  });

@@ -1,9 +1,10 @@
 import { weatherPresetList, type WeatherPresetId } from "../scene/presets";
-import { assetStubs } from "./catalog";
+import { sceneLayers } from "./catalog";
 
 export interface UiOptions {
   initialPreset: WeatherPresetId;
   onPreset: (id: WeatherPresetId) => void;
+  onLayer: (id: string, visible: boolean) => void;
 }
 
 export function mountUi(options: UiOptions): void {
@@ -14,15 +15,17 @@ export function mountUi(options: UiOptions): void {
     throw new Error("界面节点缺失：需要 #asset-list、#preset-list 和 #status");
   }
 
-  for (const asset of assetStubs) {
+  for (const asset of sceneLayers) {
     const button = document.createElement("button");
     button.type = "button";
     button.className = "chip";
     fillChip(button, asset.label, asset.source);
+    button.setAttribute("aria-pressed", "true");
     button.addEventListener("click", () => {
-      const message = `「${asset.label}」还在素材清单里，模型尚未导入。`;
-      status.textContent = message;
-      console.info("[资产]", asset.id, message);
+      const visible = button.getAttribute("aria-pressed") !== "true";
+      button.setAttribute("aria-pressed", String(visible));
+      options.onLayer(asset.id, visible);
+      status.textContent = `${asset.label}已${visible ? "显示" : "隐藏"}`;
     });
     assetRoot.append(button);
   }
@@ -56,7 +59,11 @@ export function mountUi(options: UiOptions): void {
   select(options.initialPreset);
 }
 
-function fillChip(button: HTMLButtonElement, label: string, note: string): void {
+function fillChip(
+  button: HTMLButtonElement,
+  label: string,
+  note: string,
+): void {
   const name = document.createElement("span");
   name.textContent = label;
   const meta = document.createElement("span");

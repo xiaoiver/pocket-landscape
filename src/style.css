@@ -1,11 +1,12 @@
 :root {
-  color-scheme: dark;
-  --panel: rgba(16, 26, 22, 0.78);
-  --line: rgba(198, 214, 190, 0.24);
-  --text: #e8f1e4;
-  --muted: #a8bba4;
-  --accent: #8fbf7a;
-  --font: "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Noto Sans SC",
+  color-scheme: light;
+  --panel: rgba(246, 245, 239, 0.86);
+  --line: rgba(64, 77, 56, 0.18);
+  --text: #28372d;
+  --muted: #667261;
+  --accent: #50724e;
+  --font:
+    "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Noto Sans SC",
     "Microsoft YaHei", sans-serif;
 }
 
@@ -22,7 +23,7 @@ body {
 body {
   font-family: var(--font);
   color: var(--text);
-  background: #1a2420;
+  background: #c7c4ba;
   overflow: hidden;
 }
 
@@ -170,5 +171,47 @@ body {
     max-width: calc(100vw - 24px);
     overflow: hidden;
     text-overflow: ellipsis;
+  }
+}
+@media (max-width: 1000px) {
+  #renderCanvas {
+    height: calc(100% - 220px);
+  }
+  .panel {
+    top: auto;
+    bottom: 12px;
+    width: calc(50vw - 24px);
+    max-height: 205px;
+    padding: 12px;
+    border-radius: 12px;
+  }
+  .panel-assets {
+    left: 16px;
+  }
+  .panel-weather {
+    right: 16px;
+  }
+  .hint {
+    display: none;
+  }
+  .chip {
+    margin-bottom: 5px;
+    padding: 7px 10px;
+    font-size: 0.8rem;
+  }
+  .panel h2 {
+    font-size: 0.8rem;
+  }
+  .status {
+    top: 65px;
+    bottom: auto;
+  }
+}
+@media (max-width: 480px) {
+  .note {
+    display: none;
+  }
+  #renderCanvas {
+    height: calc(100% - 210px);
   }
 }
