@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test:glass": "node scripts/check-glass.mjs"
   },
   "dependencies": {
     "@babylonjs/core": "8.56.2",

@@ -22,7 +22,8 @@ import { HDRCubeTexture } from "@babylonjs/core/Materials/Textures/hdrCubeTextur
 import { ImageProcessingConfiguration } from "@babylonjs/core/Materials/imageProcessingConfiguration";
 import { DefaultRenderingPipeline } from "@babylonjs/core/PostProcesses/RenderPipeline/Pipelines/defaultRenderingPipeline";
 import { Scene } from "@babylonjs/core/scene";
-import { buildGlass, buildGround } from "./terrarium";
+import { buildGround } from "./terrarium";
+import { buildGlass } from "./glass";
 import { buildPlants, buildMoss } from "./vegetation";
 import { weatherPresets, type WeatherPresetId } from "./presets";
 
@@ -97,6 +98,25 @@ export function createLandscapeScene(
     (message) =>
       environmentFailed(new Error(message || "HDR environment failed to load")),
   );
+  let reflectionsLoaded!: () => void;
+  let reflectionsFailed!: (reason: Error) => void;
+  const reflectionsReady = new Promise<void>((resolve, reject) => {
+    reflectionsLoaded = resolve;
+    reflectionsFailed = reject;
+  });
+  const glassReflections = new HDRCubeTexture(
+    "/assets/environment/glass-studio.hdr",
+    scene,
+    256,
+    false,
+    true,
+    false,
+    true,
+    reflectionsLoaded,
+    (message) =>
+      reflectionsFailed(new Error(message || "Glass studio failed to load")),
+  );
+  glassReflections.level = 0.85;
   environment.rotationY = 0.5;
   scene.environmentTexture = environment;
   scene.imageProcessingConfiguration.toneMappingEnabled = true;
@@ -112,18 +132,16 @@ export function createLandscapeScene(
   pipeline.bloomEnabled = false;
   const ground = buildGround(scene, shadow);
   const plants = buildPlants(scene, shadow);
-  const { glass, rim, refraction } = buildGlass(scene);
+  const glass = buildGlass(scene, glassReflections);
   const layers = new Map<string, { setEnabled: (value: boolean) => void }[]>([
-    ["glass", [glass, rim]],
+    ["glass", glass.meshes],
     ["plants", plants],
     ["soil", ground.slice(1)],
     ["moss", []],
   ]);
   const visibility = new Map<string, boolean>();
   const updateRefraction = () => {
-    refraction.renderList = scene.meshes.filter(
-      (m) => m.material !== glass.material && m.isEnabled() && m.isVisible,
-    );
+    glass.updateContents(scene.meshes);
   };
   const applyPreset = (id: WeatherPresetId): void => {
     const p = weatherPresets[id];
@@ -135,39 +153,43 @@ export function createLandscapeScene(
     hemi.diffuse = Color3.FromArray([...p.fillColor]);
     scene.environmentIntensity = p.environmentIntensity;
     environment.rotationY = p.environmentRotation;
+    glassReflections.rotationY = p.environmentRotation;
     scene.imageProcessingConfiguration.exposure = p.exposure;
   };
   applyPreset("clear");
   updateRefraction();
-  const ready = Promise.all([buildMoss(scene), environmentReady]).then(
-    ([moss]) => {
-      if (scene.isDisposed) return;
-      layers.set("moss", moss);
-      for (const m of moss) m.setEnabled(visibility.get("moss") ?? true);
-      updateRefraction();
-      return scene.whenReadyAsync().then(() => {
-        if (import.meta.env.DEV)
-          console.info(
-            "[场景就绪]",
-            JSON.stringify({
-              meshes: scene.meshes.length,
-              triangles: scene.meshes.reduce(
-                (sum, mesh) =>
-                  sum +
-                  (mesh.getTotalIndices() / 3) *
-                    Math.max(
-                      1,
-                      "thinInstanceCount" in mesh
-                        ? Number(mesh.thinInstanceCount)
-                        : 1,
-                    ),
-                0,
-              ),
-            }),
-          );
-      });
-    },
-  );
+  const ready = Promise.all([
+    buildMoss(scene),
+    environmentReady,
+    reflectionsReady,
+  ]).then(([moss]) => {
+    if (scene.isDisposed) return;
+    layers.set("moss", moss);
+    for (const m of moss) m.setEnabled(visibility.get("moss") ?? true);
+    updateRefraction();
+    return scene.whenReadyAsync().then(() => {
+      if (import.meta.env.DEV)
+        console.info(
+          "[场景就绪]",
+          JSON.stringify({
+            meshes: scene.meshes.length,
+            glassCaptureType: glass.refraction.textureType,
+            triangles: scene.meshes.reduce(
+              (sum, mesh) =>
+                sum +
+                (mesh.getTotalIndices() / 3) *
+                  Math.max(
+                    1,
+                    "thinInstanceCount" in mesh
+                      ? Number(mesh.thinInstanceCount)
+                      : 1,
+                  ),
+              0,
+            ),
+          }),
+        );
+    });
+  });
   return {
     engine,
     scene,
