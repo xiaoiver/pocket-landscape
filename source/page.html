@@ -4,24 +4,22 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>蕨间小径 · 口袋景观</title>
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"3DModel","name":"Pink Angel Fittonia","creator":{"@type":"Person","name":"harenil"},"url":"https://sketchfab.com/3d-models/pink-angel-fittonia-130670511c9144b6ac8aeb7b9f00482c","license":"https://creativecommons.org/licenses/by/4.0/","description":"Adapted for the terrarium with simplified geometry and resized textures."}
+</script>
 <style>
 *{box-sizing:border-box}
 :root{--ink:#333d31;--muted:#596152;--paper:#f8f6ed;--line:#c9cbbb;--fern:#40583f}
 body{margin:0;background:#e9e5da;color:var(--ink);font-family:"PingFang SC","Hiragino Sans GB",sans-serif}
 #garden{display:block;width:100vw;height:100dvh;touch-action:none;outline:0}
-header,footer,#status{position:fixed}
-header,footer{pointer-events:none}
+header,#status{position:fixed}
+header{pointer-events:none}
 header{top:max(4.6vh,env(safe-area-inset-top));left:4.2vw;z-index:2}
 .brand{display:flex;align-items:baseline;gap:12px}
 .brand b{font-size:17px;letter-spacing:.14em;font-weight:600}
 .brand i{font:italic 16px Georgia,serif;color:#57614f}
-.rainy .brand,.rainy footer{color:#f4f3e9;text-shadow:0 1px 3px #16222acc}
-.rainy .brand i,.rainy .hint,.rainy .credit{color:#ebede6}
-footer{left:4.2vw;bottom:max(5.5vh,env(safe-area-inset-bottom))}
-h1{font:500 clamp(26px,3.4vw,48px)/1.3 "Songti SC","Noto Serif CJK SC",serif;letter-spacing:.07em;margin:0 0 8px}
-.hint{font-size:12px;letter-spacing:.04em;margin:0;color:#575e50}
-.credit{font-size:11px;margin:7px 0 0;color:#5d6358}
-.credit a{pointer-events:auto;color:inherit;text-underline-offset:2px}
+.rainy .brand{color:#f4f3e9;text-shadow:0 1px 3px #16222acc}
+.rainy .brand i{color:#ebede6}
 #status{inset:50% 0 auto;text-align:center;font-size:14px;pointer-events:none}
 [hidden]{display:none!important}
 button{font:inherit;color:inherit;cursor:pointer}
@@ -46,7 +44,7 @@ button:focus-visible{outline:2px solid var(--fern);outline-offset:3px}
 .animal[data-status]::after{content:"";position:absolute;top:4px;right:5px;width:12px;height:12px}
 .animal[data-status=loading]::after{border:2px dotted var(--fern);border-radius:50%}
 .animal[data-status=error]::after{background:center/contain no-repeat url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%23814a24' stroke-width='1.8'%3E%3Cpath d='M2 8a6 6 0 1 1 1.6 4M2 3v5h5'/%3E%3C/svg%3E")}
-@media(max-width:650px){header,footer{left:6vw}.brand i{font-size:14px}header{top:max(4vh,env(safe-area-inset-top))}footer{bottom:max(5vh,env(safe-area-inset-bottom))}h1{font-size:32px}.hint{font-size:11px}.credit{font-size:10px}.controls{margin-top:12px}}
+@media(max-width:650px){header{left:6vw}.brand i{font-size:14px}header{top:max(4vh,env(safe-area-inset-top))}.controls{margin-top:12px}}
 @media(prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
 </head>
@@ -70,7 +68,6 @@ button:focus-visible{outline:2px solid var(--fern);outline-offset:3px}
     </section>
   </div>
 </header>
-<footer><h1>蕨间小径</h1><p class="hint">拖动旋转 · 滚轮或双指缩放</p><p class="credit"><a href="https://sketchfab.com/3d-models/pink-angel-fittonia-130670511c9144b6ac8aeb7b9f00482c" target="_blank" rel="noreferrer">Pink Angel Fittonia · harenil</a> · <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noreferrer">CC BY 4.0</a></p></footer>
 <div id="status" role="status">正在打开小径…</div>
 <!--APP-->
 </body>
