@@ -27,12 +27,12 @@ h1{font:500 clamp(26px,3.4vw,48px)/1.3 "Songti SC","Noto Serif CJK SC",serif;let
 button{font:inherit;color:inherit;cursor:pointer}
 button:focus-visible{outline:2px solid var(--fern);outline-offset:3px}
 .controls{pointer-events:auto;margin-top:17px;width:max-content;max-width:calc(100vw - 32px)}
-.tools{display:flex;gap:8px;align-items:stretch}
+.tools{display:flex;gap:8px;align-items:center}
 .weather{display:flex;align-items:stretch;padding:3px;border:1px solid var(--line);background:var(--paper);border-radius:24px}
 .weather button{display:flex;align-items:center;justify-content:center;min-width:44px;min-height:44px;background:transparent;border:0;border-radius:22px;padding:0}
 .weather button[aria-pressed=true]{background:var(--fern);color:var(--paper)}
 .weather .icon{width:18px;height:18px}
-.trigger{border:1px solid var(--line);background:var(--paper);border-radius:24px;min-height:44px;min-width:48px;display:grid;place-items:center;padding:0}
+.trigger{border:1px solid var(--line);background:var(--paper);border-radius:50%;width:52px;height:52px;flex:none;display:grid;place-items:center;padding:0}
 .trigger[aria-expanded=true]{background:var(--fern);color:var(--paper);border-color:var(--fern)}
 .icon{width:17px;height:17px;fill:none;stroke:currentColor;stroke-linecap:round;stroke-linejoin:round;stroke-width:1.6}
 .sheet{position:absolute;margin-top:8px;max-height:calc(100dvh - 145px);overflow:auto;width:min(294px,calc(100vw - 32px));padding:15px;background:var(--paper);border:1px solid var(--line);border-radius:16px;box-shadow:0 8px 24px #35382b17}
@@ -46,7 +46,7 @@ button:focus-visible{outline:2px solid var(--fern);outline-offset:3px}
 .animal[data-status]::after{content:"";position:absolute;top:4px;right:5px;width:12px;height:12px}
 .animal[data-status=loading]::after{border:2px dotted var(--fern);border-radius:50%}
 .animal[data-status=error]::after{background:center/contain no-repeat url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%23814a24' stroke-width='1.8'%3E%3Cpath d='M2 8a6 6 0 1 1 1.6 4M2 3v5h5'/%3E%3C/svg%3E")}
-@media(max-width:650px){header,footer{left:6vw}.brand i{font-size:14px}header{top:max(4vh,env(safe-area-inset-top))}footer{bottom:max(5vh,env(safe-area-inset-bottom))}h1{font-size:32px}.hint{font-size:11px}.credit{font-size:10px}.controls{margin-top:12px}.trigger{min-height:44px}}
+@media(max-width:650px){header,footer{left:6vw}.brand i{font-size:14px}header{top:max(4vh,env(safe-area-inset-top))}footer{bottom:max(5vh,env(safe-area-inset-bottom))}h1{font-size:32px}.hint{font-size:11px}.credit{font-size:10px}.controls{margin-top:12px}}
 @media(prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
 </head>
