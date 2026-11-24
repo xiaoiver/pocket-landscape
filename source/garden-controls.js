@@ -60,7 +60,9 @@ export function installGardenControls({base, loadPlantedModel, shadows, glass, c
       if (!cache.has(id)) {
         cache.set(id, prepare(id).catch(error => { cache.delete(id); throw error; }));
       }
-      const name = button.textContent.trim();
+      const name = button.getAttribute('aria-label');
+      for (const choice of buttons) delete choice.dataset.status;
+      button.dataset.status = 'loading';
       notice.textContent = '正在摆放' + name + '…';
       try {
         const next = await cache.get(id);
@@ -71,9 +73,11 @@ export function installGardenControls({base, loadPlantedModel, shadows, glass, c
         contacts.setAnimal(id);
         for (const choice of buttons) choice.setAttribute('aria-pressed', String(choice === button));
         document.getElementById('garden').setAttribute('aria-label', '可旋转的玻璃微景观，陶土' + name + '在蕨间小径旁');
+        delete button.dataset.status;
         notice.textContent = '';
       } catch (error) {
         if (ticket !== request) return;
+        button.dataset.status = 'error';
         console.error(error);
         notice.textContent = name + '加载失败，点选可重试。';
       }

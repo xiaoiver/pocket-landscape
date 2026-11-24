@@ -22,8 +22,8 @@ async function buildViewer() {
   const animalNames = {fox:'狐狸', deer:'小鹿', hedgehog:'刺猬'};
   const figurine = (name, extension) => fs.readFileSync(path.join(__dirname, 'assets/terrarium', name+'.'+extension));
   const animals = Object.entries(animalNames).map(([id, label]) =>
-    '<button class="animal" data-animal="'+id+'" aria-pressed="'+(id==='fox')+'"><img alt="" src="data:image/png;base64,'+
-    figurine(id,'png').toString('base64')+'"><span>'+label+'</span></button>').join('');
+    '<button class="animal" data-animal="'+id+'" aria-label="'+label+'" aria-pressed="'+(id==='fox')+'"><img alt="" src="data:image/png;base64,'+
+    figurine(id,'png').toString('base64')+'"></button>').join('');
   const companions = Object.keys(animalNames).filter(id => id !== 'fox').map(id =>
     embeddedData('animal-'+id, zlib.gzipSync(figurine(id,'glb'))));
   const script = bundle.outputFiles[0].text.replace(/<\/script/gi, '<\\/script');

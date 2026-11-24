@@ -17,9 +17,9 @@ npm run build
 
 Open the generated `index.html` in a WebGL 2 browser to explore offline. Drag to orbit, and use the scroll wheel or pinch to zoom.
 
-Open **小动物** (Animals) in the upper left to choose the fox, resting fawn or hedgehog.
+Select the paw icon in the upper left, then the thumbnail of the fox, resting fawn or hedgehog.
 
-Select **晨光** (Morning) or **雨天** (Rain) beside the animal selector. On rainy days, dim blue-grey light catches the rim and leaves, fading across the desk into the room. Beads cling to the pane and merge on contact. Heavier drops run down the glass, clearing fine droplets and leaving a broken trail. With reduced motion enabled, the drops stay still.
+Select the sun or rain cloud beside the paw to change the weather. On rainy days, dim blue-grey light catches the rim and leaves, fading across the desk into the room. Beads cling to the pane and merge on contact. Heavier drops run down the glass, clearing fine droplets and leaving a broken trail. With reduced motion enabled, the drops stay still.
 
 ![The fawn resting on the moss with all three figurines in the animal selector](docs/animal-controls.jpg)
 

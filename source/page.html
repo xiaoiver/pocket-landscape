@@ -29,23 +29,23 @@ button:focus-visible{outline:2px solid var(--fern);outline-offset:3px}
 .controls{pointer-events:auto;margin-top:17px;width:max-content;max-width:calc(100vw - 32px)}
 .tools{display:flex;gap:8px;align-items:stretch}
 .weather{display:flex;align-items:stretch;padding:3px;border:1px solid var(--line);background:var(--paper);border-radius:24px}
-.weather button{display:flex;align-items:center;gap:5px;font-size:12px;background:transparent;border:0;border-radius:20px;padding:0 9px}
+.weather button{display:flex;align-items:center;justify-content:center;min-width:44px;min-height:44px;background:transparent;border:0;border-radius:22px;padding:0}
 .weather button[aria-pressed=true]{background:var(--fern);color:var(--paper)}
-.weather .icon{width:15px;height:15px}
-.trigger{border:1px solid var(--line);background:var(--paper);border-radius:24px;min-height:40px;display:flex;align-items:center;gap:8px;padding:0 13px;font-size:13px}
+.weather .icon{width:18px;height:18px}
+.trigger{border:1px solid var(--line);background:var(--paper);border-radius:24px;min-height:44px;min-width:48px;display:grid;place-items:center;padding:0}
 .trigger[aria-expanded=true]{background:var(--fern);color:var(--paper);border-color:var(--fern)}
 .icon{width:17px;height:17px;fill:none;stroke:currentColor;stroke-linecap:round;stroke-linejoin:round;stroke-width:1.6}
-.chevron{width:10px;height:10px;transition:transform .16s ease-out}
-[aria-expanded=true] .chevron{transform:rotate(180deg)}
 .sheet{position:absolute;margin-top:8px;max-height:calc(100dvh - 145px);overflow:auto;width:min(294px,calc(100vw - 32px));padding:15px;background:var(--paper);border:1px solid var(--line);border-radius:16px;box-shadow:0 8px 24px #35382b17}
 .animals{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
-.animal{position:relative;display:grid;justify-items:center;gap:1px;border:1px solid transparent;background:transparent;border-radius:11px;padding:5px 2px 8px;font-size:13px}
+.animal{position:relative;display:grid;justify-items:center;border:1px solid transparent;background:transparent;border-radius:11px;padding:6px 2px}
 .animal:hover{background:#eeeee3}
 .animal[aria-pressed=true]{background:#e6ebdc;border-color:#a0b293}
 .animal[aria-pressed=true]::after{content:"✓";position:absolute;top:4px;right:5px;font-size:11px;color:var(--fern);font-weight:bold}
 .animal img{width:64px;height:60px;object-fit:contain}
-.notice{margin:9px 3px 0;font-size:12px;color:var(--muted)}
-.notice:empty{display:none}
+.notice{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+.animal[data-status]::after{content:"";position:absolute;top:4px;right:5px;width:12px;height:12px}
+.animal[data-status=loading]::after{border:2px dotted var(--fern);border-radius:50%}
+.animal[data-status=error]::after{background:center/contain no-repeat url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%23814a24' stroke-width='1.8'%3E%3Cpath d='M2 8a6 6 0 1 1 1.6 4M2 3v5h5'/%3E%3C/svg%3E")}
 @media(max-width:650px){header,footer{left:6vw}.brand i{font-size:14px}header{top:max(4vh,env(safe-area-inset-top))}footer{bottom:max(5vh,env(safe-area-inset-bottom))}h1{font-size:32px}.hint{font-size:11px}.credit{font-size:10px}.controls{margin-top:12px}.trigger{min-height:44px}}
 @media(prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
@@ -56,13 +56,12 @@ button:focus-visible{outline:2px solid var(--fern);outline-offset:3px}
   <div class="brand"><b>口袋景观</b><i>Pocket Landscape</i></div>
   <div class="controls" id="controls" hidden>
     <div class="tools">
-      <button class="trigger" id="animal-trigger" aria-controls="animal-sheet" aria-expanded="false">
+      <button class="trigger" id="animal-trigger" aria-label="小动物" aria-controls="animal-sheet" aria-expanded="false">
         <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><ellipse cx="5" cy="10" rx="2" ry="2.6" transform="rotate(-22 5 10)"/><ellipse cx="10" cy="6.5" rx="1.9" ry="2.6"/><ellipse cx="16" cy="7.4" rx="1.9" ry="2.6" transform="rotate(17 16 7.4)"/><path d="M7 16c1.4-1.2 2.2-4.6 5-4.6s3.4 2.9 5.1 4.6c2.1 2.3.5 4.4-2 4-2.3-.4-3.4-1.2-5.8-.4C6.4 20.6 4.8 18 7 16Z"/></svg>
-        小动物<svg class="icon chevron" viewBox="0 0 12 12" aria-hidden="true"><path d="m2 4 4 4 4-4"/></svg>
       </button>
       <div class="weather" role="group" aria-label="窗边天气">
-        <button data-weather="sun" aria-pressed="true"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M5 5l2 2m10 10 2 2M5 19l2-2M17 7l2-2"/></svg>晨光</button>
-        <button data-weather="rain" aria-pressed="false"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 14a4 4 0 0 1 0-8 6 6 0 0 1 11.7.8A3.6 3.6 0 0 1 18.2 14H5ZM8 17l-1 2m6-2-1 3m6-3-1 2"/></svg>雨天</button>
+        <button data-weather="sun" aria-label="晨光" aria-pressed="true"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M5 5l2 2m10 10 2 2M5 19l2-2M17 7l2-2"/></svg></button>
+        <button data-weather="rain" aria-label="雨天" aria-pressed="false"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 14a4 4 0 0 1 0-8 6 6 0 0 1 11.7.8A3.6 3.6 0 0 1 18.2 14H5ZM8 17l-1 2m6-2-1 3m6-3-1 2"/></svg></button>
       </div>
     </div>
     <section class="sheet" id="animal-sheet" aria-labelledby="animal-trigger" hidden>
