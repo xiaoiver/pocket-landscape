@@ -1,5 +1,6 @@
-import {Engine,Scene,ArcRotateCamera,Vector3,Color3,Color4,DirectionalLight,HemisphericLight,ShadowGenerator,MeshBuilder,Mesh,StandardMaterial,ShaderMaterial,DynamicTexture,Texture,HDRCubeTexture,VertexData,ImportMeshAsync} from '@babylonjs/core';
+import {Engine,Scene,ArcRotateCamera,Vector3,Color3,Color4,DirectionalLight,HemisphericLight,ShadowGenerator,MeshBuilder,Mesh,StandardMaterial,DynamicTexture,Texture,HDRCubeTexture,VertexData,ImportMeshAsync} from '@babylonjs/core';
 import '@babylonjs/loaders/glTF/2.0';
+import {installGlass} from './glass.js';
 const canvas=document.getElementById('garden');
 const status=document.getElementById('status');
 async function start(){
@@ -76,20 +77,9 @@ async function start(){
   }
   versions.forEach(button => button.onclick = () => selectPlanting(button.dataset.planting === 'specimens'));
   selectPlanting(true);
-  // Single thin wall with view-dependent studio highlights. The turned lip and weighted foot have their own profiles.
-  const vs='precision highp float;attribute vec3 position;attribute vec3 normal;uniform mat4 world;uniform mat4 worldViewProjection;varying vec3 n;varying vec3 p;void main(){p=(world*vec4(position,1.)).xyz;n=normalize(mat3(world)*normal);gl_Position=worldViewProjection*vec4(position,1.);}';
-  const fs='precision highp float;varying vec3 n;varying vec3 p;uniform vec3 eye;uniform float edge;void main(){vec3 N=normalize(n);vec3 V=normalize(eye-p);float f=pow(1.-abs(dot(N,V)),3.);vec3 r=reflect(-V,N);float a=atan(r.x,r.z);float strip=exp(-pow((a+.95)/.15,2.))+0.72*exp(-pow((a-1.33)/.045,2.));float h=smoothstep(.07,.19,p.y)*(1.-smoothstep(1.47,1.62,p.y));float b=clamp(strip*h,0.,1.);vec3 c=mix(vec3(.49,.57,.51),vec3(1.,.995,.96),max(b,clamp(r.y*1.2+.2,0.,1.)*edge));float opacity=.014+f*.29+b*.20+edge*(.19+.28*f);gl_FragColor=vec4(c,opacity);}';
-  const glassMaterials=[];
-  function glass(name,profile,edge,order){
-    const m=new ShaderMaterial(name,scene,{vertexSource:vs,fragmentSource:fs},{attributes:['position','normal'],uniforms:['world','worldViewProjection','eye','edge'],needAlphaBlending:true});
-    m.backFaceCulling=false;m.setFloat('edge',edge);glassMaterials.push(m);
-    const mesh=MeshBuilder.CreateLathe(name,{shape:profile.map(([r,y])=>new Vector3(r,y,0)),tessellation:160,sideOrientation:Mesh.FRONTSIDE},scene);
-    mesh.material=m;mesh.alphaIndex=order;mesh.isPickable=false;
-  }
-  glass('Clear handblown wall',[[1.315,.08],[1.34,.12],[1.351,.24],[1.367,1.39],[1.366,1.43]],0,1);
-  glass('Polished foot',[[1.22,.030],[1.295,.021],[1.332,.041],[1.345,.066],[1.346,.095],[1.333,.115],[1.299,.123],[1.24,.105]],.88,2);
-  const lip=[];for(let i=0;i<=20;i++){let a=i*Math.PI/10;lip.push([1.365+.017*Math.cos(a),1.43+.018*Math.sin(a)]);}
-  glass('Rounded glass lip',lip,.88,3);
+  const lightweightGlass = new URLSearchParams(location.search).get('glass') === 'lightweight' ||
+    matchMedia('(pointer: coarse)').matches;
+  const glass = installGlass(scene, camera, hdr, [ground, shadowPlane, ...base, ...specimens], lightweightGlass);
   let rotate=false;const spin=document.getElementById('spin');
   function spinning(on){rotate=on;spin.setAttribute('aria-pressed',String(on));spin.querySelector('span').textContent=on?'暂停环绕':'环绕观察';}
   spin.onclick=()=>spinning(!rotate);
@@ -104,9 +94,9 @@ async function start(){
   function lookAtLeaf(){frame(new Vector3(-.62,1.15,.22),1.90,1.12,fit()*.43);}
   document.getElementById('reset').onclick=reset;
   document.getElementById('detail').onclick=lookAtLeaf;
-  function resize(){engine.setHardwareScalingLevel(1/Math.min(window.devicePixelRatio||1,2));engine.resize();camera.upperRadiusLimit=Math.max(17,fit()*1.35);}
+  function resize(){engine.setHardwareScalingLevel(1/Math.min(window.devicePixelRatio||1,2));engine.resize();glass.resize?.();camera.upperRadiusLimit=Math.max(17,fit()*1.35);}
   resize();reset();window.addEventListener('resize',()=>{resize();camera.radius=fit();});
-  engine.runRenderLoop(()=>{if(rotate)camera.alpha+=Math.min(engine.getDeltaTime(),70)*.00013;for(const m of glassMaterials)m.setVector3('eye',camera.position);scene.render();});
+  engine.runRenderLoop(()=>{if(rotate)camera.alpha+=Math.min(engine.getDeltaTime(),70)*.00013;glass.update();scene.render();});
   await scene.whenReadyAsync();status.hidden=true;document.body.classList.add('ready');
 }
 start().catch(error=>{console.error(error);status.textContent='场景加载失败，请使用支持 WebGL 的浏览器重新打开。';});
