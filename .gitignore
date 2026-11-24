@@ -1,0 +1,6 @@
+node_modules/
+/index.html
+/source/textures/
+*.blend1
+.DS_Store
+__pycache__/

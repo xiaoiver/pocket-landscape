@@ -1,1 +1,48 @@
-# pocket-landscape
+# Pocket Landscape · 蕨间小径
+
+使用 Babylon.js 渲染的可旋转玻璃微景观，包含网纹草、蕨类、苔藓和陶土狐狸。
+
+![素材版景观](docs/preview.png)
+
+在仓库根目录运行以下命令构建离线网页。
+
+```sh
+npm ci
+npm run build
+```
+
+在支持 WebGL 2 的桌面浏览器中打开生成的 `index.html` 即可离线观察。拖动旋转，滚轮或双指缩放。环绕按钮启动慢速旋转，右侧箭头恢复默认视角。
+
+woodland.blend 是内景的可编辑 Blender 工程，已经打包纹理。woodland.glb 是导出的内景。玻璃器皿、窗光、桌面和观察相机在 source/scene.js 中实时创建。
+
+## 重新构建
+
+网页构建使用仓库内的 GLB 和纹理，可独立于 Blender 运行。若通过 Blender 调整了植物位置，将 GLB 导出到原位置，再在 `source` 中运行 `python3 shadow.py ../woodland.glb assets/shadow.png` 更新桌面投影。这个脚本需要 Pillow。
+
+从头生成内景时，在 source 中依次执行以下命令。将 blender 替换为本机 Blender 可执行文件路径。
+
+```sh
+python3 textures.py ./textures
+blender -b -P model.py -- "$PWD/textures" "$PWD/.."
+python3 shadow.py ../woodland.glb assets/shadow.png
+cd ..
+npm run build
+```
+
+## 素材来源
+
+苔藓枝叶采用 Rob Tuytel 的 Moss 01，环境光采用 Sergej Majboroda 的 Studio Small 09。两者为 Poly Haven 的 CC0 资源，取自原 PR 已收录的副本。[Moss 01](https://polyhaven.com/a/moss_01) · [Studio Small 09](https://polyhaven.com/a/studio_small_09) · [许可](https://polyhaven.com/license)
+
+造景参考了苔むすび的微缩山道和カキクケ苔的白砂小径。这里的陶土狐狸、植物布局、叶脉纹理和缸体另行制作。[階段の風景](https://kokemusubi-shop.com/products/kaidanll_selectfigure) · [流木の隠れ家と森の番人](https://minne.com/items/46157867)
+
+## 植物对照版
+
+![粉脉网纹草近景，可见粉色叶脉与卷曲的叶缘](docs/leaf-detail.png)
+
+页面默认展示素材版。右上角可在两版植物之间切换，观察相机保持在当前位置。「近看叶片」将相机对准前景网纹草。woodland-specimens.blend 和 woodland-specimens.glb 包含完整的素材版内景。woodland.blend 和 woodland.glb 对应原版内景。网页将两版共有的几何体加载一次。
+
+前景使用 harenil 摄影扫描的 Pink Angel Fittonia，依据 CC BY 4.0 修改。修改包括缩放、旋转、定位、几何简化至 45,397 个三角形，以及将 8K 漫反射贴图缩为 2K。作者、来源与许可也标注在离线网页中。[原作品](https://sketchfab.com/3d-models/pink-angel-fittonia-130670511c9144b6ac8aeb7b9f00482c) · [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/)
+
+后景采用 Rico Cilliers 和 Rob Tuytel 的 Fern 02 中 B、C 两丛，使用独立的叶缘透明遮罩，调整了尺寸和朝向。[Fern 02](https://polyhaven.com/a/fern_02) · [CC0](https://polyhaven.com/license)
+
+需要从原始扫描重新生成素材版时，先将 Sketchfab 原始 ZIP 内的 source 压缩包解到一个目录，保留 model.glb 和同目录贴图。用 Blender 运行 source/specimens.py，两个参数依次为解压目录和本项目目录。再用 source/shadow.py 将 woodland-specimens.glb 的桌面投影写入 source/assets/specimens/shadow.png，最后在仓库根目录运行 `npm run build`。直接重建网页只需要已打包的文件。
