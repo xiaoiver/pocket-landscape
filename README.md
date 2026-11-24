@@ -35,6 +35,10 @@ npm run build
 
 ## 素材来源
 
+植株间的六块景石采用 Kless Gyzen 的 Rock Moss Set 01。六块石形分别简化，沿坡度旋转、埋入苔床，颜色贴图降低了棕色饱和度，保留苔斑、法线与粗糙度细节。[Rock Moss Set 01](https://polyhaven.com/a/rock_moss_set_01) · [CC0](https://polyhaven.com/license)
+
+![网纹草下和狐狸身后的景石，同机位调整前后对照](docs/outcrop-detail.jpg)
+
 苔面使用 ambientCG 的 Moss 003 颜色、法线和高度纹理。地形和表面的细叶簇在 Blender 中生成，小径边缘与狐狸脚下留出裸土。[Moss 003](https://ambientcg.com/a/Moss003) · [CC0](https://docs.ambientcg.com/license/)
 
 环境光采用 Sergej Majboroda 的 Studio Small 09。[Studio Small 09](https://polyhaven.com/a/studio_small_09) · [CC0](https://polyhaven.com/license)

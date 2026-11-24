@@ -48,7 +48,7 @@ def blob(g,center,sc,n=12,k=7,angle=0,jitter=0):
     for j in range(k):
         for i in range(n):
             q=j*n+i; p=j*n+(i+1)%n;f.append((q,p,p+n,q+n))
-    g.add(v,f,[(i%n/n,(i//n)/k) for i in range(len(v))] if g.name.startswith('Weathered') else None)
+    g.add(v,f)
 def rod(g,p,q,r,end=None):
     p,q=Vector(p),Vector(q); t=(q-p).normalized()
     u=t.cross(Vector((0,0,1)) if abs(t.z)<.95 else Vector((1,0,0))).normalized(); v=t.cross(u)
@@ -123,9 +123,10 @@ for j in range(9000):
         if d<1:z=max(z,cz+h*(1-d)**.5)
     vs,uv,faces=rng.choice(sprigs);scale=R(1.25,2.45);spin=R(0,tau);c=cos(spin)*scale;sn=sin(spin)*scale
     sprout.add([(x+vx*c+vz*sn,y+vx*sn-vz*c,z+vy*scale-.012) for vx,vy,vz in vs],faces,uv)
-bark=[group('Weathered granite '+str(i),c,.89,'granite.jpg') for i,c in enumerate(['777666','929080','6c7063'])]
-for i,(x,y,s) in enumerate([(-.36,.18,.30),(-.61,.25,.14),(.61,-.12,.20),(.72,-.28,.095),(-.54,-.53,.105),(.32,.53,.18)]):
-    blob(bark[i%3],(x,y,land(x,y)+s*.29),(s,s*.72,s*1.1),9,5,R(0,pi),.23)
+# Preserve the planting sequence after replacing the six original rock blobs.
+# Each used one spin and 9 vertices on each of 6 latitude rings.
+for _ in range(6 * (1 + 9*6)):
+    rng.random()
 stems=group('Petioles','708147')
 rose=group('Fittonia · rose','ffffff',.65,'rose.jpg'); ivory=group('Fittonia · ivory','ffffff',.65,'ivory.jpg')
 def leaf(g,base,angle,length,width,rise,arch,roll):
@@ -179,7 +180,9 @@ for g in groups:
     if not g.name.startswith(('Cushion moss','Living moss')):
         g.finish()
 from runpy import run_path
-run_path(str(Path(__file__).with_name('terrarium-floor.py')))['install']()
+floor=run_path(str(Path(__file__).with_name('terrarium-floor.py')))
+floor['install']()
+run_path(str(Path(__file__).with_name('scenery-rocks.py')))['install'](land,floor['bed'])
 run_path(str(Path(__file__).with_name('path-gravel.py')))['install'](land)
 bpy.context.preferences.filepaths.save_version=0
 bpy.ops.wm.save_as_mainfile(filepath=str(out/'woodland.blend'))
