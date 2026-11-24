@@ -1,5 +1,6 @@
 import {Engine,Scene,ArcRotateCamera,Vector3,Color3,Color4,DirectionalLight,HemisphericLight,ShadowGenerator,MeshBuilder,Mesh,StandardMaterial,DynamicTexture,Texture,HDRCubeTexture,VertexData,ImportMeshAsync} from '@babylonjs/core';
 import '@babylonjs/loaders/glTF/2.0';
+import {installGardenControls} from './garden-controls.js';
 import {installGlass} from './glass.js';
 import {installDrainage} from './drainage.js';
 import {prepareSubstrate} from './substrate.js';
@@ -109,6 +110,8 @@ async function start(){
   resize();
   window.addEventListener('resize',resize);
   engine.runRenderLoop(()=>{glass.update();scene.render();});
-  await scene.whenReadyAsync();status.hidden=true;document.body.classList.add('ready');
+  await scene.whenReadyAsync();
+  installGardenControls({base, loadPlantedModel, shadows, glass, contacts, sun, shadowPlane});
+  status.hidden=true;document.body.classList.add('ready');
 }
 start().catch(error=>{console.error(error);status.textContent='场景加载失败，请使用支持 WebGL 的浏览器重新打开。';});

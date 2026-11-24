@@ -371,6 +371,7 @@ export function installGlass(scene, camera, hdr, contents, {forceLightweight = f
   rim.material = transmission(scene, 'Rolled optical rim', hdr, capture, .034, .017, .66);
   return {
     highQuality:true, setLayer,
+    addContents(meshes) { capture.renderList.push(...meshes); },
     update() {
       const projection = camera.getProjectionMatrix().m;
       viewScale.set(projection[0],projection[5]);

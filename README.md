@@ -17,6 +17,10 @@ npm run build
 
 用支持 WebGL 2 的浏览器打开生成的 `index.html` 即可离线观察。拖动旋转视角，滚轮或双指缩放。
 
+展开左上角的「小动物」可在狐狸、卧姿小鹿和刺猬之间切换。展开「日光」可调节方位角和仰角，点击「恢复晨光」可回到初始光照。
+
+![小鹿卧在苔坡上，左上角的动物选择面板展示三款陶土摆件](docs/animal-controls.jpg)
+
 ## 渲染技术
 
 | 看哪里 | 如何渲染 |
@@ -59,6 +63,6 @@ npm run build
 - **六块景石**来自 Kless Gyzen 的 Rock Moss Set 01。六种石形分别简化、旋转并埋入苔床。颜色贴图降低了棕色饱和度，保留苔斑、法线和粗糙度细节。[Rock Moss Set 01](https://polyhaven.com/a/rock_moss_set_01) · [CC0](https://polyhaven.com/license) · [景石近景](docs/outcrop-detail.jpg)
 - **苔面与泥土**分别使用 ambientCG 的 Moss 003 和 Poly Haven 的 Brown Mud Rocks 01。前者提供颜色、法线和高度细节，后者提供土壤法线和粗糙度。[Moss 003](https://ambientcg.com/a/Moss003) · [ambientCG CC0](https://docs.ambientcg.com/license/) · [Brown Mud Rocks 01](https://polyhaven.com/a/brown_mud_rocks_01) · [Poly Haven CC0](https://polyhaven.com/license) · [小径与排水层近景](docs/pebble-detail.jpg)
 - **环境光**采用 Sergej Majboroda 的 Studio Small 09。[Studio Small 09](https://polyhaven.com/a/studio_small_09) · [CC0](https://polyhaven.com/license)
-- **陶土狐狸**使用项目作者提供的 Tripo 模型《圆润陶土狐狸摆件》，保留原模型的颜色、法线和粗糙度贴图。造景参考了苔むすび的微缩山道和カキクケ苔的白砂小径。[階段の風景](https://kokemusubi-shop.com/products/kaidanll_selectfigure) · [流木の隠れ家と森の番人](https://minne.com/items/46157867)
+- **陶土摆件**使用项目作者提供的狐狸、小鹿和刺猬模型。两款新摆件各简化至 33,000 个三角形，使用 1K 贴图；离线页面在首次选中时解码对应的 GLB。造景参考了苔むすび的微缩山道和カキクケ苔的白砂小径。[階段の風景](https://kokemusubi-shop.com/products/kaidanll_selectfigure) · [流木の隠れ家と森の番人](https://minne.com/items/46157867)
 
 ![粉脉网纹草近景，可见叶脉、卷曲的叶缘与下方的苔床](docs/leaf-detail.png)
