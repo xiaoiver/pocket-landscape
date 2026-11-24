@@ -2,6 +2,7 @@ import {Engine,Scene,ArcRotateCamera,Vector3,Color3,Color4,DirectionalLight,Hemi
 import '@babylonjs/loaders/glTF/2.0';
 import {createMorningWindow} from './morning-window.js';
 import {installGardenControls} from './garden-controls.js';
+import {createMossMist} from './moss-mist.js';
 import {installGlass} from './glass.js';
 import {installDrainage} from './drainage.js';
 import {prepareSubstrate} from './substrate.js';
@@ -110,6 +111,9 @@ async function start(){
   const glass = installGlass(scene, camera, hdr, [ground, shadowPlane, ...casement.meshes, ...base, ...specimens, ...(drainage ? [drainage.gravel] : []), ...(mossBranchlets ? [mossBranchlets] : []), ...(mossPad?.meshes ?? [])], {
     forceLightweight, sunlight:sun, layers, animateDrops:!matchMedia('(prefers-reduced-motion: reduce)').matches,
   });
+  const mist = createMossMist(scene, !glass.highQuality);
+  mist.mesh.setEnabled(query.get('mist') !== '0');
+  glass.addContents?.([mist.mesh]);
   function resize() {
     engine.setHardwareScalingLevel(1/Math.min(window.devicePixelRatio||1,2));
     engine.resize();
@@ -123,6 +127,7 @@ async function start(){
   await scene.whenReadyAsync();
   function setRain(raining) {
     casement.setRain(raining);
+    mist.setRain(raining);
     sun.intensity = raining ? .18 : 1.55;
     if (raining) sun.diffuse.set(.84,.91,1);
     else sun.diffuse.set(1,.94,.82);
