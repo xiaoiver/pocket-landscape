@@ -35,11 +35,15 @@ async function start(){
   for(let i=0;i<1024*1024;i++){
     const x=(i%1024-512)*60/1024,y=(Math.floor(i/1024)-512)*60/1024;
     const radial=Math.exp(-((x-.20)**2/1.3+(y+.09)**2/.90));
-    const band=(1+Math.tanh(2.2*Math.sin(.91*x+.47*y+1.3)))*.5;
-    const shade=1-.035*band-.285*radial;
+    // One blurred mullion falls beside the pot. Limit its length so the
+    // distant tabletop stays quiet when seen at a grazing angle.
+    const across=.52*x-.854*y+2.30;
+    const along=.854*x+.52*y+1.10;
+    const frameShadow=Math.exp(-.5*(across/.16)**2-.5*(along/3.4)**2);
+    const shade=1-.078*frameShadow-.285*radial;
     img.data.set([222*shade,216*shade,201*shade,255],i*4);
   }
-  ctx.putImageData(img,0,0);texture.update();texture.uScale=texture.vScale=350/60;texture.uOffset=texture.vOffset=(1-350/60)/2;floorMat.diffuseTexture=texture;ground.material=floorMat;
+  ctx.putImageData(img,0,0);texture.update();texture.wrapU=texture.wrapV=Texture.CLAMP_ADDRESSMODE;texture.uScale=texture.vScale=350/60;texture.uOffset=texture.vOffset=(1-350/60)/2;floorMat.diffuseTexture=texture;ground.material=floorMat;
   const hdr=new HDRCubeTexture('data:application/octet-stream;base64,'+document.getElementById('studio-data').textContent,scene,64,false,true,false,false);
   scene.environmentTexture=hdr;scene.environmentIntensity=.42;
   const shadowPlane=new Mesh('Soft silhouette on tabletop',scene);

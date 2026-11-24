@@ -17,16 +17,15 @@ void main() {
   gl_Position = worldViewProjection * vec4(position, 1.);
 }`;
 
-// Studio windows and a dark flag give curved clear glass a reflection to carry
-// across both pale tabletop and dark foliage. Directions stay fixed in the room.
+// A narrow pane on the morning-light side, with soft room fill above.
+// Reflection directions stay fixed as the camera orbits the glass.
 const studioCards = `
 vec2 glassStudio(vec3 r) {
   float a = atan(r.x,r.z);
   float tall = smoothstep(-.62,-.40,r.y)*(1.-smoothstep(.54,.80,r.y));
-  float left = 1.-smoothstep(.10,.24,abs(a+.95));
-  float right = 1.-smoothstep(.035,.085,abs(a-1.33));
+  float pane = 1.-smoothstep(.035,.11,abs(a+.86));
   float ceiling = smoothstep(.38,.72,r.y)*(1.-smoothstep(.85,.99,r.y));
-  float white = max(tall*max(left,.75*right), .83*ceiling);
+  float white = max(tall*pane, .56*ceiling);
   float flag = max(1.-smoothstep(-.65,-.25,r.y),
                    .69*tall*(1.-smoothstep(.09,.25,abs(a+1.31))));
   return vec2(white,flag);
