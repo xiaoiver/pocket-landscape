@@ -1,5 +1,6 @@
 import {Engine,Scene,ArcRotateCamera,Vector3,Color3,Color4,DirectionalLight,HemisphericLight,ShadowGenerator,MeshBuilder,Mesh,StandardMaterial,DynamicTexture,Texture,HDRCubeTexture,VertexData,ImportMeshAsync} from '@babylonjs/core';
 import '@babylonjs/loaders/glTF/2.0';
+import {createMorningWindow} from './morning-window.js';
 import {installGardenControls} from './garden-controls.js';
 import {installGlass} from './glass.js';
 import {installDrainage} from './drainage.js';
@@ -44,6 +45,7 @@ async function start(){
     img.data.set([222*shade,216*shade,201*shade,255],i*4);
   }
   ctx.putImageData(img,0,0);texture.update();texture.wrapU=texture.wrapV=Texture.CLAMP_ADDRESSMODE;texture.uScale=texture.vScale=350/60;texture.uOffset=texture.vOffset=(1-350/60)/2;floorMat.diffuseTexture=texture;ground.material=floorMat;
+  const casement = createMorningWindow(scene, camera);
   const hdr=new HDRCubeTexture('data:application/octet-stream;base64,'+document.getElementById('studio-data').textContent,scene,64,false,true,false,false);
   scene.environmentTexture=hdr;scene.environmentIntensity=.42;
   const shadowPlane=new Mesh('Soft silhouette on tabletop',scene);
@@ -101,7 +103,7 @@ async function start(){
   const mossBranchlets=!hasModelledMoss && !mossPad && installMossBranchlets(scene,
     base.filter(mesh=>mesh.name.startsWith('Cushion moss ')),
     pathStones,sun);
-  const glass = installGlass(scene, camera, hdr, [ground, shadowPlane, ...base, ...specimens, ...(drainage ? [drainage.gravel] : []), ...(mossBranchlets ? [mossBranchlets] : []), ...(mossPad?.meshes ?? [])], {
+  const glass = installGlass(scene, camera, hdr, [ground, shadowPlane, ...casement, ...base, ...specimens, ...(drainage ? [drainage.gravel] : []), ...(mossBranchlets ? [mossBranchlets] : []), ...(mossPad?.meshes ?? [])], {
     forceLightweight, sunlight:sun, layers, animateDrops:!matchMedia('(prefers-reduced-motion: reduce)').matches,
   });
   function resize() {
