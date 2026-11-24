@@ -4,6 +4,7 @@ import {installGlass} from './glass.js';
 import {installDrainage} from './drainage.js';
 import {prepareSubstrate} from './substrate.js';
 import {applyFittoniaLight} from './fittonia-light.js';
+import {installMossBranchlets} from './moss-branchlets.js';
 const canvas=document.getElementById('garden');
 const status=document.getElementById('status');
 async function start(){
@@ -98,7 +99,10 @@ async function start(){
     drainageToggle.hidden = false;
     drainageToggle.onclick = () => enableDrainage(!drainage.gravel.isEnabled());
   }
-  const glass = installGlass(scene, camera, hdr, [ground, shadowPlane, ...base, ...specimens, ...(drainage ? [drainage.gravel] : [])], {
+  const mossBranchlets=installMossBranchlets(scene,
+    base.filter(mesh=>mesh.name.startsWith('Cushion moss ')),
+    base.filter(mesh=>mesh.name.startsWith('River gravel ')),sun);
+  const glass = installGlass(scene, camera, hdr, [ground, shadowPlane, ...base, ...specimens, ...(drainage ? [drainage.gravel] : []), ...(mossBranchlets ? [mossBranchlets] : [])], {
     forceLightweight, sunlight:sun, layers, animateDrops:!matchMedia('(prefers-reduced-motion: reduce)').matches,
   });
   if (glass.highQuality) {
