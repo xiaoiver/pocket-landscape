@@ -19,7 +19,7 @@ npm run build
 
 展开左上角的「小动物」可在狐狸、卧姿小鹿和刺猬之间切换。
 
-点击旁边的「晨光」或「雨天」切换天气。阴雨天里，微弱的灰蓝色窗光勾出杯沿和叶片轮廓，桌面朝室内渐暗。窗上较大的雨滴缓慢滑落，折射窗外的树影。启用系统的「减少动态效果」时，雨滴保持静止。
+点击旁边的「晨光」或「雨天」切换天气。阴雨天里，微弱的灰蓝色窗光勾出杯沿和叶片轮廓，桌面朝室内渐暗。小水珠附在窗上，相遇后会合并；较重的水滴沿玻璃滑落，扫开细珠并留下断续的水痕。启用系统的「减少动态效果」时，雨滴保持静止。
 
 ![小鹿卧在苔坡上，左上角的动物选择面板展示三款陶土摆件](docs/animal-controls.jpg)
 
@@ -66,6 +66,7 @@ npm run build
 - **蕨类**采用 Rico Cilliers 和 Rob Tuytel 的 Fern 02 中 B、C 两丛，按杯体调整了尺寸和朝向。靠壁羽片绕各自叶柄向内转，在杯口内侧留出间隙，保留下垂的轮廓。[Fern 02](https://polyhaven.com/a/fern_02) · [CC0](https://polyhaven.com/license)
 - **六块景石**来自 Kless Gyzen 的 Rock Moss Set 01。六种石形分别简化、旋转并埋入苔床。颜色贴图降低了棕色饱和度，保留苔斑、法线和粗糙度细节。[Rock Moss Set 01](https://polyhaven.com/a/rock_moss_set_01) · [CC0](https://polyhaven.com/license) · [景石近景](docs/outcrop-detail.jpg)
 - **苔面与泥土**分别使用 ambientCG 的 Moss 003 和 Poly Haven 的 Brown Mud Rocks 01。前者提供颜色、法线和高度细节，后者提供土壤法线和粗糙度。[Moss 003](https://ambientcg.com/a/Moss003) · [ambientCG CC0](https://docs.ambientcg.com/license/) · [Brown Mud Rocks 01](https://polyhaven.com/a/brown_mud_rocks_01) · [Poly Haven CC0](https://polyhaven.com/license) · [小径与排水层近景](docs/pebble-detail.jpg)
+- **窗上雨滴**采用 Lucas Bebber 为 Codrops 绘制的水滴形状与折射方向贴图。水量图记录水滴的厚度和覆盖范围，着色器在滴内采样另一张更清晰的窗外照片。[Rain & Water Effect Experiments](https://github.com/codrops/RainEffect)
 - **窗外晨景**截取自 Greg Zaal 的 Spruit Sunrise 全景照片，经过柔焦和降饱和处理。[Spruit Sunrise](https://polyhaven.com/a/spruit_sunrise) · [CC0](https://polyhaven.com/license)
 - **环境光**采用 Sergej Majboroda 的 Studio Small 09。[Studio Small 09](https://polyhaven.com/a/studio_small_09) · [CC0](https://polyhaven.com/license)
 - **陶土摆件**使用项目作者提供的狐狸、小鹿和刺猬模型。两款新摆件各简化至 33,000 个三角形，使用 1K 贴图；离线页面在首次选中时解码对应的 GLB。造景参考了苔むすび的微缩山道和カキクケ苔的白砂小径。[階段の風景](https://kokemusubi-shop.com/products/kaidanll_selectfigure) · [流木の隠れ家と森の番人](https://minne.com/items/46157867)

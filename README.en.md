@@ -19,7 +19,7 @@ Open the generated `index.html` in a WebGL 2 browser to explore offline. Drag to
 
 Open **小动物** (Animals) in the upper left to choose the fox, resting fawn or hedgehog.
 
-Select **晨光** (Morning) or **雨天** (Rain) beside the animal selector. On rainy days, dim blue-grey light catches the rim and leaves, fading across the desk into the room. Larger drops slide down the window and refract the landscape outside. With reduced motion enabled, the drops stay still.
+Select **晨光** (Morning) or **雨天** (Rain) beside the animal selector. On rainy days, dim blue-grey light catches the rim and leaves, fading across the desk into the room. Beads cling to the pane and merge on contact. Heavier drops run down the glass, clearing fine droplets and leaving a broken trail. With reduced motion enabled, the drops stay still.
 
 ![The fawn resting on the moss with all three figurines in the animal selector](docs/animal-controls.jpg)
 
@@ -66,6 +66,7 @@ npm run build
 - **Ferns** use variants B and C of Fern 02 by Rico Cilliers and Rob Tuytel, scaled and oriented to fit the glass. Fronds near the wall turn inward about their petioles, keeping their drooping shape and clearing the rolled rim. [Fern 02](https://polyhaven.com/a/fern_02) · [CC0](https://polyhaven.com/license)
 - **The six landscape rocks** come from Rock Moss Set 01 by Kless Gyzen. Each rock was simplified, rotated and seated in the moss bed. The color map was adjusted to mute the brown tones while preserving moss patches, normals and roughness detail. [Rock Moss Set 01](https://polyhaven.com/a/rock_moss_set_01) · [CC0](https://polyhaven.com/license) · [Rock close-ups](docs/outcrop-detail.jpg)
 - **Moss and soil** use Moss 003 from ambientCG and Brown Mud Rocks 01 from Poly Haven. The former supplies moss color, normal and height detail. The latter supplies soil normals and roughness. [Moss 003](https://ambientcg.com/a/Moss003) · [ambientCG CC0](https://docs.ambientcg.com/license/) · [Brown Mud Rocks 01](https://polyhaven.com/a/brown_mud_rocks_01) · [Poly Haven CC0](https://polyhaven.com/license) · [Path and drainage close-ups](docs/pebble-detail.jpg)
+- **Window raindrops** use the droplet shape and refraction maps by Lucas Bebber for Codrops. A water map tracks thickness and coverage. The shader samples a sharper version of the outdoor photograph inside each drop. [Rain & Water Effect Experiments](https://github.com/codrops/RainEffect)
 - **The view through the window** is a desaturated, defocused crop of Spruit Sunrise by Greg Zaal. [Spruit Sunrise](https://polyhaven.com/a/spruit_sunrise) · [CC0](https://polyhaven.com/license)
 - **Environment lighting** uses Studio Small 09 by Sergej Majboroda. [Studio Small 09](https://polyhaven.com/a/studio_small_09) · [CC0](https://polyhaven.com/license)
 - **The clay figurines** use fox, fawn and hedgehog models supplied by the project author. Each new model has 33,000 triangles and 1K textures. The offline viewer decodes each GLB on first selection. The planting draws on a miniature hillside path by Kokemusubi and a white-gravel path by Kakikuke Koke. [Hillside path](https://kokemusubi-shop.com/products/kaidanll_selectfigure) · [White-gravel path](https://minne.com/items/46157867)

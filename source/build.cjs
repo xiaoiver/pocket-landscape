@@ -29,6 +29,8 @@ async function buildViewer() {
   const script = bundle.outputFiles[0].text.replace(/<\/script/gi, '<\\/script');
   const content = [embeddedData('studio-data', studio), embeddedData('shadow-data', shadow),
     embeddedData('window-view', fs.readFileSync(path.join(__dirname, 'assets/window-morning.jpg'))),
+    embeddedData('window-detail', fs.readFileSync(path.join(__dirname, 'assets/window-refraction.jpg'))),
+    embeddedData('drop-atlas', fs.readFileSync(path.join(__dirname, 'assets/window-drop-atlas.png'))),
     embeddedData('specimen-data', specimens), embeddedData('model-data', model), ...substrate, ...companions, '<script>' + script + '</script>'].join('\n');
   const template = fs.readFileSync(path.join(__dirname, 'page.html'), 'utf8');
   fs.writeFileSync(path.join(project, 'index.html'), template.replace('<!--ANIMALS-->', () => animals).replace('<!--APP-->', () => content));

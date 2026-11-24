@@ -1,4 +1,5 @@
-import { ShaderMaterial } from '@babylonjs/core';
+import { createWindowWater } from './window-water.js';
+import { ShaderMaterial, Texture } from '@babylonjs/core';
 
 const vertexSource = `
 precision highp float;
@@ -14,34 +15,9 @@ void main() {
 const fragmentSource = `
 precision highp float;
 uniform sampler2D garden;
-uniform float seconds;
+uniform sampler2D detail;
+uniform sampler2D water;
 varying vec2 paneUV;
-
-float noiseAt(vec2 id) {
-  vec3 p = fract(id.xyx * vec3(.1031,.1030,.0973));
-  p += dot(p, p.yzx + 33.33);
-  return fract((p.x + p.y) * p.z);
-}
-
-// Local surface tilt, coverage and trailing film. Every column has its own
-// offset and speed, while smaller pinned drops stay fixed to the glass.
-vec4 droplets(vec2 uv, vec2 cells, float moving) {
-  vec2 grid = uv * cells;
-  float lane = noiseAt(vec2(floor(grid.x), 7.));
-  grid.y += lane * 9. + moving * seconds * (.12 + .24*lane);
-  vec2 id = floor(grid);
-  float seed = noiseAt(id);
-  vec2 center = vec2(.21+.58*noiseAt(id+13.), .30+.32*noiseAt(id+31.));
-  vec2 d = fract(grid) - center;
-  d.x += moving * .018 * sin(19.*uv.y + lane*37.);
-  float radius = mix(.044,.15,seed*seed);
-  vec2 axis = d / (radius * vec2(1., (cells.y/cells.x)*2.14*(1.15+.82*moving)));
-  float r = length(axis);
-  float cover = (1.-smoothstep(.77,1.05,r))*smoothstep(.18,.36,seed);
-  float trail = moving * (1.-smoothstep(.008,.034,abs(d.x))) *
-                smoothstep(.04,.16,d.y)*(1.-smoothstep(.27,.36,d.y))*seed;
-  return vec4(axis*cover, cover, trail);
-}
 
 vec3 overcast(vec3 color) {
   float grey = dot(color,vec3(.24,.65,.11));
@@ -49,24 +25,41 @@ vec3 overcast(vec3 color) {
 }
 
 void main() {
-  vec4 still = droplets(paneUV,vec2(61.,29.),0.);
-  vec4 sliding = droplets(paneUV+vec2(.31,.19),vec2(28.,9.),1.);
-  vec4 drop = sliding.z > still.z ? sliding : still;
-  vec2 slope = drop.xy;
+  vec4 lens = texture2D(water,paneUV);
   vec3 outside = overcast(texture2D(garden,paneUV).rgb);
-  vec2 refractedUV = clamp(paneUV - slope*vec2(.026,.060), .001,.999);
-  vec3 refracted = overcast(texture2D(garden,refractedUV).rgb);
-  float glint = exp(-13.*dot(slope-vec2(-.27,.51),slope-vec2(-.27,.51)));
-  float lowerEdge = smoothstep(.08,.68,-slope.y);
-  vec3 wet = refracted * (1.-.24*lowerEdge) + vec3(.14,.17,.19)*glint;
-  gl_FragColor = vec4(mix(outside, wet, drop.z) + .028*sliding.w, 1.);
+  // Map axes follow the Codrops sprite: green bends horizontally; red is
+  // measured down the image, opposite the pane's upward V coordinate.
+  vec2 bend = (lens.gr*2.-1.) * vec2(1.,-1.);
+  vec2 ray = vec2(paneUV.x, mix(paneUV.y,.52,.42)) + bend*vec2(.34,.85)*(.55+.45*lens.b);
+  vec3 inside = overcast(texture2D(detail,clamp(ray,.001,.999)).rgb);
+  // The curved lower lip catches the pale sky. Its extent follows the
+  // sampled water normal, so a newly spread drop has a different rim.
+  float skyRim = smoothstep(.10,.40,bend.y) * clamp(.82+.6*bend.x,0.,1.);
+  inside = mix(inside,outside,.22) + vec3(.18,.20,.21)*skyRim;
+  float coverage = smoothstep(.19,.63,lens.a);
+  gl_FragColor = vec4(mix(outside,inside*1.05,coverage),1.);
 }`;
 
-export function createRainGlazing(scene, garden) {
+export async function createRainGlazing(scene, garden) {
+  const atlas = new Image();
+  atlas.src = 'data:image/png;base64,' + document.getElementById('drop-atlas').textContent;
+  await atlas.decode();
+  const detail = new Texture('data:image/jpeg;base64,' + document.getElementById('window-detail').textContent, scene);
+  detail.wrapU = detail.wrapV = Texture.CLAMP_ADDRESSMODE;
   const material = new ShaderMaterial('Rain on window glass', scene, {vertexSource, fragmentSource}, {
-    attributes:['position','uv'], uniforms:['worldViewProjection','seconds'], samplers:['garden'],
+    attributes:['position','uv'], uniforms:['worldViewProjection'], samplers:['garden','detail','water'],
   });
   material.setTexture('garden',garden);
-  material.setFloat('seconds',0);
-  return material;
+  material.setTexture('detail',detail);
+  let water;
+  return {
+    wetMaterial() {
+      if (!water) {
+        water = createWindowWater(scene,atlas);
+        material.setTexture('water',water.map);
+      }
+      return material;
+    },
+    advance(seconds) { water?.advance(seconds); },
+  };
 }

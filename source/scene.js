@@ -49,7 +49,7 @@ async function start(){
     overcastDesk.data.set([211*contact,216*contact,215*contact,255],i*4);
   }
   ctx.putImageData(img,0,0);texture.update();texture.wrapU=texture.wrapV=Texture.CLAMP_ADDRESSMODE;texture.uScale=texture.vScale=350/60;texture.uOffset=texture.vOffset=(1-350/60)/2;floorMat.diffuseTexture=texture;ground.material=floorMat;
-  const casement = createMorningWindow(scene, camera);
+  const casement = await createMorningWindow(scene, camera);
   const hdr=new HDRCubeTexture('data:application/octet-stream;base64,'+document.getElementById('studio-data').textContent,scene,64,false,true,false,false);
   scene.environmentTexture=hdr;scene.environmentIntensity=.42;
   const shadowPlane=new Mesh('Soft silhouette on tabletop',scene);
