@@ -33,6 +33,7 @@ async function start(){
   const floorMat=new StandardMaterial('Warm stone',scene);floorMat.specularColor=Color3.Black();floorMat.disableLighting=false;
   const texture=new DynamicTexture('Daylight across the desk',1024,scene,false);
   const ctx=texture.getContext();const img=ctx.createImageData(1024,1024);
+  const overcastDesk=ctx.createImageData(1024,1024);
   for(let i=0;i<1024*1024;i++){
     const x=(i%1024-512)*60/1024,y=(Math.floor(i/1024)-512)*60/1024;
     const radial=Math.exp(-((x-.20)**2/1.3+(y+.09)**2/.90));
@@ -43,6 +44,8 @@ async function start(){
     const frameShadow=Math.exp(-.5*(across/.16)**2-.5*(along/3.4)**2);
     const shade=1-.078*frameShadow-.285*radial;
     img.data.set([222*shade,216*shade,201*shade,255],i*4);
+    const contact=1-.21*radial;
+    overcastDesk.data.set([211*contact,216*contact,215*contact,255],i*4);
   }
   ctx.putImageData(img,0,0);texture.update();texture.wrapU=texture.wrapV=Texture.CLAMP_ADDRESSMODE;texture.uScale=texture.vScale=350/60;texture.uOffset=texture.vOffset=(1-350/60)/2;floorMat.diffuseTexture=texture;ground.material=floorMat;
   const casement = createMorningWindow(scene, camera);
@@ -103,7 +106,7 @@ async function start(){
   const mossBranchlets=!hasModelledMoss && !mossPad && installMossBranchlets(scene,
     base.filter(mesh=>mesh.name.startsWith('Cushion moss ')),
     pathStones,sun);
-  const glass = installGlass(scene, camera, hdr, [ground, shadowPlane, ...casement, ...base, ...specimens, ...(drainage ? [drainage.gravel] : []), ...(mossBranchlets ? [mossBranchlets] : []), ...(mossPad?.meshes ?? [])], {
+  const glass = installGlass(scene, camera, hdr, [ground, shadowPlane, ...casement.meshes, ...base, ...specimens, ...(drainage ? [drainage.gravel] : []), ...(mossBranchlets ? [mossBranchlets] : []), ...(mossPad?.meshes ?? [])], {
     forceLightweight, sunlight:sun, layers, animateDrops:!matchMedia('(prefers-reduced-motion: reduce)').matches,
   });
   function resize() {
@@ -117,7 +120,21 @@ async function start(){
   window.addEventListener('resize',resize);
   engine.runRenderLoop(()=>{glass.update();scene.render();});
   await scene.whenReadyAsync();
-  installGardenControls({base, loadPlantedModel, shadows, glass, contacts});
+  function setRain(raining) {
+    casement.setRain(raining);
+    sun.intensity = raining ? .38 : 1.55;
+    if (raining) sun.diffuse.set(.84,.91,1);
+    else sun.diffuse.set(1,.94,.82);
+    sky.intensity = raining ? 1.02 : .78;
+    if (raining) sky.diffuse.set(.84,.92,.99);
+    else sky.diffuse.set(1,1,1);
+    shadows.setDarkness(raining ? .74 : .33);
+    shadeMat.alpha = raining ? .22 : 1;
+    glass.setLayer?.('caustic', !raining && layers.caustic);
+    ctx.putImageData(raining ? overcastDesk : img,0,0);
+    texture.update();
+  }
+  installGardenControls({base, loadPlantedModel, shadows, glass, contacts, setRain});
   status.hidden=true;document.body.classList.add('ready');
 }
 start().catch(error=>{console.error(error);status.textContent='场景加载失败，请使用支持 WebGL 的浏览器重新打开。';});

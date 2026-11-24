@@ -1,5 +1,7 @@
 import { Color3, Mesh, MeshBuilder, StandardMaterial, Texture, TransformNode, Vector3 } from '@babylonjs/core';
 
+import { createRainGlazing } from './rain-glazing.js';
+
 // One fixed casement behind the table. Keep the opening in local XY so a
 // weather material can use continuous pane UVs behind the sash bars.
 export function createMorningWindow(scene, camera) {
@@ -76,6 +78,9 @@ export function createMorningWindow(scene, camera) {
   glass.alpha = .055;
   const pane = panel('Window glass', glass, -.08);
   pane.alphaIndex = -1;
+  const rainGlass = createRainGlazing(scene, photo);
+  const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
+  let seconds = 0;
   for (const mesh of meshes) {
     mesh.parent = root;
     mesh.isPickable = false;
@@ -86,6 +91,15 @@ export function createMorningWindow(scene, camera) {
   scene.onBeforeRenderObservable.add(() => {
     const distance = Vector3.Dot(camera.position, inward) - Vector3.Dot(root.position, inward);
     root.setEnabled(distance > .32);
+    if (root.isEnabled() && pane.material === rainGlass && !reducedMotion.matches) {
+      seconds += Math.min(scene.getEngine().getDeltaTime(), 100) / 1000;
+      rainGlass.setFloat('seconds', seconds);
+    }
   });
-  return meshes;
+  return {
+    meshes,
+    setRain(raining) {
+      pane.material = raining ? rainGlass : glass;
+    },
+  };
 }

@@ -19,7 +19,11 @@ Open the generated `index.html` in a WebGL 2 browser to explore offline. Drag to
 
 Open **小动物** (Animals) in the upper left to choose the fox, resting fawn or hedgehog.
 
+Select **晨光** (Morning) or **雨天** (Rain) beside the animal selector. Under overcast light the tabletop shadows fade. Larger drops slide down the window and refract the landscape outside. With reduced motion enabled, the drops stay still.
+
 ![The fawn resting on the moss with all three figurines in the animal selector](docs/animal-controls.jpg)
+
+![Rain on the window behind the terrarium under cool, diffuse light](docs/rain-window.jpg)
 
 ## Rendering techniques
 

@@ -15,6 +15,7 @@ function installSheets() {
   for (const trigger of triggers) {
     trigger.addEventListener('click', () => show(open === trigger ? null : trigger));
   }
+  controls.querySelector('.weather').addEventListener('click', () => show(null));
   document.addEventListener('pointerdown', event => {
     if (open && !controls.contains(event.target)) show(null);
   });
@@ -30,7 +31,7 @@ function installSheets() {
   controls.hidden = false;
 }
 
-export function installGardenControls({base, loadPlantedModel, shadows, glass, contacts}) {
+export function installGardenControls({base, loadPlantedModel, shadows, glass, contacts, setRain}) {
   const fox = base.find(mesh => mesh.name.startsWith('Fox ·'));
   const cache = new Map([['fox', Promise.resolve([fox])]]);
   const notice = document.getElementById('animal-notice');
@@ -76,6 +77,14 @@ export function installGardenControls({base, loadPlantedModel, shadows, glass, c
         console.error(error);
         notice.textContent = name + '加载失败，点选可重试。';
       }
+    });
+  }
+  const weatherChoices = [...document.querySelectorAll('[data-weather]')];
+  for (const choice of weatherChoices) {
+    choice.addEventListener('click', () => {
+      if (choice.getAttribute('aria-pressed') === 'true') return;
+      setRain(choice.dataset.weather === 'rain');
+      for (const item of weatherChoices) item.setAttribute('aria-pressed', String(item === choice));
     });
   }
   installSheets();
