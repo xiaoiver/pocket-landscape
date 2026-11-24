@@ -1,5 +1,24 @@
 import {Color3, MaterialPluginBase, PBRMaterial, RawTexture, Texture, Vector3, VertexBuffer} from '@babylonjs/core';
 
+// Retain the painted roughness variation but soften the small, sharp
+// highlights that the imported ORM maps give unglazed clay.
+class ClayFinish extends MaterialPluginBase {
+  constructor(material) {
+    super(material, 'Terracotta finish', 214);
+    this._enable(true);
+  }
+  getCustomCode(stage) {
+    return stage === 'fragment' ? {CUSTOM_FRAGMENT_UPDATE_METALLICROUGHNESS:
+      'metallicRoughness.g = mix(.84,metallicRoughness.g,.24);'} : null;
+  }
+}
+
+export function prepareClay(material) {
+  if (!(material instanceof PBRMaterial) || material.pluginManager?.getPlugin('Terracotta finish')) return;
+  material.specularIntensity = .52;
+  new ClayFinish(material);
+}
+
 // Both Fern 02 clumps share one cutout atlas. At 32:1 minification the
 // original 0.5 threshold holds its area; at 64:1 the measured threshold is 0.45.
 class FernCoverage extends MaterialPluginBase {
@@ -96,6 +115,7 @@ export function prepareFoliage(scene, meshes) {
     const fittonia = scan || name.startsWith('Fittonia ·');
     const mossTips = name === 'Living moss · rosettes';
 
+    if (name.startsWith('Woodland outcrop')) m.roughness = .76;
     if (!(fern || canopy || fittonia || mossTips)) {
       // The closed props and the upward-facing ground use their exterior normals.
       // Keep the imported culling mode on legacy card meshes.
@@ -115,7 +135,7 @@ export function prepareFoliage(scene, meshes) {
     tissue.isTranslucencyEnabled = true;
     // Tint direct backlight as well as HDR irradiance with the original leaf pigment.
     tissue.translucencyColorTexture = m.albedoTexture;
-    tissue.translucencyIntensity = fern ? .14 : canopy ? .19 : .16;
+    tissue.translucencyIntensity = fern ? .29 : .19;
     tissue.translucencyColor = fittonia ? new Color3(1,.85,.78) : new Color3(.82,1,.62);
     tissue.maximumThickness = .10;
     if (canopy || (fittonia && !scan)) {
@@ -124,11 +144,11 @@ export function prepareFoliage(scene, meshes) {
     }
     if (fern) {
       m.clearCoat.isEnabled = true;
-      m.clearCoat.intensity = .075;
+      m.clearCoat.intensity = .10;
       m.clearCoat.roughness = .37;
       new FernCoverage(m);
     } else if (fittonia) {
-      m.roughness = scan ? 1 : .89;
+      m.roughness = scan ? .88 : .73;
       m.specularIntensity = .55;
       m.enableSpecularAntiAliasing = true;
       m.metallicF0Factor = .60;

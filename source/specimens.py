@@ -57,6 +57,8 @@ prepared(plant,placement,'Pink Angel Fittonia · harenil')
 bpy.context.view_layer.objects.active=plant
 m=plant.modifiers.new('Web geometry','DECIMATE');m.ratio=.40
 bpy.ops.object.modifier_apply(modifier=m.name)
+remove_fillers = run_path(str(Path(__file__).with_name('fittonia-cleanup.py')))['remove_scan_fillers']
+remove_fillers(plant.data)
 for mat in plant.data.materials:
     if not mat or not mat.use_nodes:continue
     for node in mat.node_tree.nodes:
