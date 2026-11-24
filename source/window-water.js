@@ -14,6 +14,8 @@ export function createWindowWater(scene, atlas) {
   fine.width = width;
   fine.height = height;
   const bed = fine.getContext('2d');
+  const wake = fine.cloneNode(false);
+  const film = wake.getContext('2d');
   let drops = [], spawnBudget = 0, fineBudget = 0, fadeTime = 0, pending = 0;
 
   let wind = .09, gustTarget = .09, gustTime = 0;
@@ -71,6 +73,11 @@ export function createWindowWater(scene, atlas) {
       spawnBudget--;
     }
 
+    // The thin film recedes much sooner than the beads left on the pane.
+    film.globalCompositeOperation = 'destination-out';
+    film.fillStyle = 'rgba(0,0,0,' + (1-Math.exp(-1.25*dt)) + ')';
+    film.fillRect(0,0,width,height);
+    film.globalCompositeOperation = 'source-over';
     for (const d of drops) {
       d.life -= dt;
       if (d.life < 0 && d.r < d.grip) d.r = Math.max(0,d.r-.9*dt);
@@ -98,14 +105,25 @@ export function createWindowWater(scene, atlas) {
       bed.beginPath(); bed.moveTo(oldX,oldY); bed.lineTo(d.x,d.y); bed.stroke();
       bed.globalCompositeOperation = 'source-over';
       const travel = Math.hypot(side,distance);
+      if (!travel) continue;
+      const flow = Math.min(1,d.speed/105);
+      if (flow > .15) {
+        // Stretch a transverse strip of the lens map along this exact step.
+        // The two edges refract in opposite directions as the trail thins.
+        const breadth = d.r*(.38+.92*flow);
+        film.setTransform(distance/travel,-side/travel,side/travel,distance/travel,oldX,oldY);
+        film.drawImage(atlas,sprite,30,sprite,4,-breadth/2,-.6,breadth,travel+1.2);
+        film.resetTransform();
+      }
       d.nextBead -= travel;
       if (d.nextBead <= 0) {
         const r = d.r*(.15+.20*Math.random());
         const behind = d.r*1.3/travel;
-        stamp(bed, d.x-side*behind+(Math.random()-.5)*d.r*.45,
-          d.y-distance*behind, r,r*1.45,1);
+        stamp(bed, d.x-side*behind+(Math.random()-.5)*d.r*.26,
+          d.y-distance*behind, r,r*(1.35+1.2*flow),1);
         d.r = Math.sqrt(Math.max(0,d.r*d.r-r*r));
-        d.nextBead = 5+Math.random()*d.r*1.8;
+        d.nextBead += Math.max(3.5, d.r*(.85+Math.random()*.8)*(1-.62*flow));
+        d.nextBead = Math.max(0,d.nextBead);
       }
     }
 
@@ -133,6 +151,7 @@ export function createWindowWater(scene, atlas) {
   }
   function draw() {
     ctx.clearRect(0,0,width,height);
+    ctx.drawImage(wake,0,0);
     ctx.drawImage(fine,0,0);
     for (const d of drops) {
       const depth=Math.min(7,Math.round(d.r/2.8));
