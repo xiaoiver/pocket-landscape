@@ -2,6 +2,7 @@ import {Engine,Scene,ArcRotateCamera,Vector3,Color3,Color4,DirectionalLight,Hemi
 import '@babylonjs/loaders/glTF/2.0';
 import {createMorningWindow} from './morning-window.js';
 import {installGardenControls} from './garden-controls.js';
+import {installDepthOfField} from './depth-of-field.js';
 import {createMossMist} from './moss-mist.js';
 import {installGlass} from './glass.js';
 import {installDrainage} from './drainage.js';
@@ -122,6 +123,9 @@ async function start(){
     camera.radius=fit();
   }
   resize();
+  const fox = base.find(mesh => mesh.name.startsWith('Fox ·'));
+  fox.computeWorldMatrix(true);
+  installDepthOfField(scene, camera, fox.getBoundingInfo().boundingBox.centerWorld.clone());
   window.addEventListener('resize',resize);
   engine.runRenderLoop(()=>{glass.update();scene.render();});
   await scene.whenReadyAsync();
