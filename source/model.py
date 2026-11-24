@@ -72,11 +72,15 @@ for j in range(28):
         a=tau*i/N;r=max(.0001,j/27)*rmax;x=r*cos(a);y=r*sin(a)
         vs.append((x,y,land(x,y)));uv.append((x*1.4,y*1.4))
 soil.add(vs,[tuple(reversed(f)) for f in grid(28,N+1)],uv)
-stone=[group('River gravel '+str(i),c) for i,c in enumerate(['e0ceb0','b6a68c','dcc4a0','bbaa8c','f0ddbb','b59c7e','d4cdb6'])]
+# Advance the original scatter's RNG stream to preserve the authored planting.
 for i in range(1800):
     y=R(-1.32,1.18);w=.175+.045*(-y);x=path(y)+R(-w,w)
     if x*x+y*y>1.301**2:continue
-    r=R(.016,.065);blob(rng.choice(stone),(x,y,land(x,y)+.018+R(0,.012)),(r,r*R(.6,1.05),r*.48),7,4,R(0,pi),.16)
+    rng.random()       # original radius
+    rng.randrange(7)   # original material choice
+    # Elevation, aspect, spin, then the 7 × 5 vertex offsets.
+    for _ in range(3 + 7*5):
+        rng.random()
 moss=[group('Cushion moss '+str(i),c) for i,c in enumerate(['617236','73823b','526632','819048','6b833d'])]
 shoot=[group('Moss tips '+str(i),c) for i,c in enumerate(['839848','9ca94f','758b3f','a5af5b','627c36'])]
 cushions=[]
@@ -176,6 +180,7 @@ for g in groups:
         g.finish()
 from runpy import run_path
 run_path(str(Path(__file__).with_name('terrarium-floor.py')))['install']()
+run_path(str(Path(__file__).with_name('path-gravel.py')))['install'](land)
 bpy.context.preferences.filepaths.save_version=0
 bpy.ops.wm.save_as_mainfile(filepath=str(out/'woodland.blend'))
 bpy.ops.export_scene.gltf(filepath=str(out/'woodland.glb'),export_format='GLB',export_yup=True,export_animations=False)

@@ -89,10 +89,12 @@ async function start(){
   const forceLightweight = query.get('glass') === 'lightweight' || matchMedia('(pointer: coarse)').matches;
   const layers = Object.fromEntries(['fog','drops','caustic'].map(name => [name,query.get(name) !== '0']));
   const earth=base.find(mesh=>mesh.name==='Earth · planted bank');
-  const drainage = installDrainage(scene,earth);
+  const pathStones=base.filter(mesh=>mesh.name.startsWith('River gravel '));
+  const drainage = installDrainage(scene,earth,pathStones[0]?.material);
+  if(drainage) shadows.addShadowCaster(drainage.gravel);
   const substrate = drainage && prepareSubstrate(scene,earth,drainage.gravel);
   const contacts=prepareGroundContacts(scene,base);
-  const pathSoil=preparePathSoil(scene,earth,base.filter(mesh=>mesh.name.startsWith('River gravel ')));
+  const pathSoil=preparePathSoil(scene,earth,pathStones);
   pathSoil?.setEnabled(true);
   pathSoil?.attach(earth?.material);
   const drainageToggle = document.getElementById('drainage');
@@ -113,7 +115,7 @@ async function start(){
   if(mossPad)mossPad.setEnabled(true);
   const mossBranchlets=!hasModelledMoss && !mossPad && installMossBranchlets(scene,
     base.filter(mesh=>mesh.name.startsWith('Cushion moss ')),
-    base.filter(mesh=>mesh.name.startsWith('River gravel ')),sun);
+    pathStones,sun);
   const glass = installGlass(scene, camera, hdr, [ground, shadowPlane, ...base, ...specimens, ...(drainage ? [drainage.gravel] : []), ...(mossBranchlets ? [mossBranchlets] : []), ...(mossPad?.meshes ?? [])], {
     forceLightweight, sunlight:sun, layers, animateDrops:!matchMedia('(prefers-reduced-motion: reduce)').matches,
   });
