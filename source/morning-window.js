@@ -3,7 +3,7 @@ import { Color3, Mesh, MeshBuilder, StandardMaterial, Texture, TransformNode, Ve
 import { createRainGlazing } from './rain-glazing.js';
 
 // One fixed casement behind the table. Keep the opening in local XY so a
-// weather material can use continuous pane UVs behind the sash bars.
+// weather material can use continuous pane UVs behind the frame.
 export async function createMorningWindow(scene, camera) {
   const root = new TransformNode('Morning casement', scene);
   root.position.set(-.78, 0, -3.45);
@@ -18,9 +18,7 @@ export async function createMorningWindow(scene, camera) {
     return material;
   }
   const plaster = paint('Warm window reveal', '#b7b3aa');
-  const timber = paint('Painted sash', '#c8c2b4');
-  const beading = paint('Glazing bead', '#e3ded1');
-  const recess = paint('Recessed sash seal', '#93958a');
+  const timber = paint('Painted sash', '#c1bdb2');
   const pieces = new Map();
   function rail(material, x, y, z, width, height, depth) {
     const mesh = MeshBuilder.CreateBox('Joinery', {width, height, depth}, scene);
@@ -29,25 +27,16 @@ export async function createMorningWindow(scene, camera) {
     pieces.get(material).push(mesh);
   }
   const width = 7.8, height = 3.65, bottom = .38, mid = bottom + height/2;
-  const stileX = -.22, crossY = 1.84;
-  // Plaster around the opening, with a stepped sill and square-cut reveals.
+  // A narrow side light leaves a single uninterrupted pane behind the plants.
   for (const side of [-1,1]) {
     rail(plaster, side*(width/2+3), mid, -.10, 6, 10, .33);
-    rail(timber, side*width/2, mid, .035, .16, height, .24);
+    rail(timber, side*width/2, mid, .035, .11, height, .16);
   }
   rail(plaster, 0, bottom-.40, -.10, width, .80, .33);
   rail(plaster, 0, bottom+height+1.5, -.10, width, 3, .33);
-  rail(timber, 0, bottom+.03, .06, width, .17, .25);
-  rail(timber, 0, bottom+height, .035, width, .16, .24);
-  rail(beading, 0, bottom-.07, .15, width+.29, .105, .53);
-  rail(timber, 0, bottom-.16, .09, width+.16, .08, .33);
-  // Raised faces with a darker rabbet. Offset their depths at the crossing.
-  rail(recess, stileX, mid, -.032, .145, height, .075);
-  rail(timber, stileX, mid, .05, .115, height, .13);
-  rail(beading, stileX, mid, .12, .065, height, .014);
-  rail(recess, 0, crossY, -.04, width, .102, .06);
-  rail(timber, 0, crossY, .014, width, .08, .085);
-  rail(beading, 0, crossY, .061, width, .047, .012);
+  rail(timber, 0, bottom+height, .035, width+.11, .11, .16);
+  rail(timber, 0, bottom, .075, width+.17, .085, .28);
+  rail(timber, -width*.22, mid, 0, .068, height, .105);
 
   const meshes = [];
   for (const [material, parts] of pieces) {
