@@ -15,7 +15,7 @@ npm ci
 npm run build
 ```
 
-在支持 WebGL 2 的桌面浏览器中打开生成的 `index.html` 即可离线观察。拖动旋转，滚轮或双指缩放。环绕按钮启动慢速旋转，右侧箭头恢复默认视角。
+在支持 WebGL 2 的桌面浏览器中打开生成的 `index.html` 即可离线观察。拖动旋转，滚轮或双指缩放。环绕按钮启动慢速旋转，右侧箭头恢复默认视角。卷口、厚底的同机位对照和水汽开关说明见[玻璃渲染笔记](docs/glass-optics.md)。
 
 woodland.blend 是内景的可编辑 Blender 工程，已经打包纹理。woodland.glb 是导出的内景。玻璃器皿、窗光、桌面和观察相机在 source/scene.js 中实时创建。
 

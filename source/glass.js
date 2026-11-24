@@ -1,5 +1,5 @@
 import {
-  Color3, Constants, Mesh, MeshBuilder, PBRMaterial, RawTexture, RenderTargetTexture,
+  Color3, Constants, MaterialPluginBase, Mesh, MeshBuilder, PBRMaterial, RawTexture, RenderTargetTexture,
   ShaderMaterial, Texture, Vector2, Vector3,
 } from '@babylonjs/core';
 
@@ -15,6 +15,21 @@ void main() {
   p = (world * vec4(position, 1.)).xyz;
   n = normalize(mat3(world) * normal);
   gl_Position = worldViewProjection * vec4(position, 1.);
+}`;
+
+// Studio windows and a dark flag give curved clear glass a reflection to carry
+// across both pale tabletop and dark foliage. Directions stay fixed in the room.
+const studioCards = `
+vec2 glassStudio(vec3 r) {
+  float a = atan(r.x,r.z);
+  float tall = smoothstep(-.62,-.40,r.y)*(1.-smoothstep(.54,.80,r.y));
+  float left = 1.-smoothstep(.10,.24,abs(a+.95));
+  float right = 1.-smoothstep(.035,.085,abs(a-1.33));
+  float ceiling = smoothstep(.38,.72,r.y)*(1.-smoothstep(.85,.99,r.y));
+  float white = max(tall*max(left,.75*right), .83*ceiling);
+  float flag = max(1.-smoothstep(-.65,-.25,r.y),
+                   .69*tall*(1.-smoothstep(.09,.25,abs(a+1.31))));
+  return vec2(white,flag);
 }`;
 
 const FS = `
@@ -40,7 +55,7 @@ uniform float dropTime;
 float hash(float n) { return fract(sin(n*127.1 + 7.2)*43758.5453); }
 float dropShape(float a, float y, out vec2 offset) {
   // Wrapped cylindrical cells: the pattern meets cleanly at the Lathe seam.
-  float ua = (a / 6.28318530718 + .5)*23.;
+  float ua = fract(a / 6.28318530718 + .5)*23.;
   float id = floor(ua);
   float h = hash(id);
   float drifts = step(.73,hash(id+19.));
@@ -52,21 +67,22 @@ float dropShape(float a, float y, out vec2 offset) {
   vec2 drop = field / vec2(.012+.012*h,.020+.032*h);
   float profile = 1. - smoothstep(.63, 1.1, length(drop));
   float trail = (1.-smoothstep(.014,.030,abs(field.x))) *
-    smoothstep(-.19,-.035,field.y) * (1.-smoothstep(-.035,.005,field.y));
+    smoothstep(.005,.032,field.y) * (1.-smoothstep(.032,.16,field.y));
   offset = clamp(drop, vec2(-1.), vec2(1.))*profile;
-  return isOn*max(profile,.24*trail);
+  return isOn*max(profile,.17*drifts*trail);
 }
 #endif
+${studioCards}
 void main() {
   vec3 N = normalize(n);
   vec3 V = normalize(eye - p);
   float f = pow(1. - abs(dot(N,V)), 3.);
   vec3 r = reflect(-V,N);
-  float a = atan(r.x,r.z);
-  float strip = exp(-pow((a+.95)/.15,2.)) + .72*exp(-pow((a-1.33)/.045,2.));
-  float h = smoothstep(.07,.19,p.y)*(1.-smoothstep(1.47,1.62,p.y));
-  float b = clamp(strip*h,0.,1.);
-  vec3 c = mix(vec3(.49,.57,.51),vec3(1.,.995,.96),max(b,clamp(r.y*1.2+.2,0.,1.)*edge));
+  vec2 cards = glassStudio(r);
+  float h = smoothstep(.07,.18,p.y);
+  float b = cards.x*h;
+  vec3 c = mix(vec3(.48,.55,.50),vec3(1.,.995,.96),max(b,clamp(r.y*1.2+.2,0.,1.)*edge));
+  c = mix(c,vec3(.19,.24,.22),cards.y*(.23+.43*f));
 #ifdef HDR_WALL
   // Use the same right-handed cube direction as the PBR reflection path.
   vec3 light = textureCube(reflection, vec3(r.xy, -r.z)).rgb;
@@ -74,7 +90,7 @@ void main() {
   float peak = clamp(max(max(highlight.r,highlight.g),highlight.b),0.,1.);
   c = mix(c, highlight, .32 + .22 * f);
   // A thin wall should hardly obscure the scene, except at the silhouette and softboxes.
-  float opacity = .005 + f * (.14 + .13 * peak) + b * .115;
+  float opacity = .005 + f * (.14 + .13 * peak) + b * (.075+.14*f) + cards.y*f*.06;
 #else
   float opacity = .014 + f*.29 + b*.20 + edge*(.19+.28*f);
 #endif
@@ -87,9 +103,13 @@ void main() {
   vec2 uv = gl_FragCoord.xy/screenSize;
   vec2 limit = 2./screenSize;
   vec3 direction = refract(-V,N,1./1.46);
-  vec3 straight = (view*vec4(-V,0.)).xyz;
-  vec3 bent = (view*vec4(direction,0.)).xyz;
-  vec2 bend = clamp((bent.xy - straight.xy)*(.14*path)*viewScale,vec2(-.011),vec2(.011));
+  // Reproject the exit point on the inner interface. The projected shift
+  // naturally grows at close range and accounts for an off-centre view ray.
+  vec3 start = (view*vec4(p,1.)).xyz;
+  vec3 exitPoint = start + (view*vec4(direction,0.)).xyz *
+    (mix(.018,.048,mapValue)*opticalScale / max(.2,-dot(direction,N)));
+  vec2 bend = .5*viewScale*(exitPoint.xy/max(.05,-exitPoint.z) - start.xy/max(.05,-start.z));
+  bend = clamp(bend,vec2(-.012),vec2(.012));
   float azimuth = atan(p.x,p.z);
   vec2 dropNormal = vec2(0.);
   float drop = 0.;
@@ -98,9 +118,12 @@ void main() {
   float mist = 0.;
   if (fogOn > .5) {
     float mottling = .48 + .30*sin(9.*azimuth+2.7*p.y) + .15*sin(15.*azimuth-9.*p.y);
-    mist = smoothstep(.81,.99,y)*(.31+.69*clamp(mottling,0.,1.));
+    mist = smoothstep(.76,.97,y)*(1.-smoothstep(.982,1.,y))*smoothstep(.25,.85,mottling);
   }
-  vec2 sampleUV = clamp(uv+bend+dropNormal*drop*.006,limit,1.-limit);
+  vec3 tangent = vec3(cos(azimuth),0.,-sin(azimuth));
+  vec3 lens = tangent*dropNormal.x+vec3(0.,dropNormal.y,0.);
+  vec2 dropBend = (view*vec4(lens,0.)).xy*viewScale*.004/max(.8,-start.z);
+  vec2 sampleUV = clamp(uv+bend+dropBend*drop,limit,1.-limit);
   vec3 transmitted = max(texture2D(contents,sampleUV).rgb,vec3(0.));
   if (mist > .01) {
     vec2 spread = vec2(.0032,.002) * mist;
@@ -116,7 +139,7 @@ void main() {
   vec3 glass = mix(transmitted,c,.03+.32*f5+.18*b);
   glass = mix(glass,vec3(.90,.94,.89),.27*mist+glint);
   float valid = smoothstep(.001,.024,min(min(uv.x,uv.y),min(1.-uv.x,1.-uv.y)));
-  float optical = (.14+.34*f5+.21*mist+.26*drop)*valid;
+  float optical = (.034+.50*f5+.18*mist+.26*drop)*valid;
   // Combine the original HDR silhouette + weak centered transmission without
   // drawing an additional wall. The center remains largely direct view.
   float combined = optical + opacity*(1.-optical);
@@ -138,10 +161,13 @@ export function glassInnerRadiusAt(y) {
   }
   return WALL[WALL.length-1][0]-INNER_WALL_INSET;
 }
-const FOOT = [[1.22,.030],[1.295,.021],[1.332,.041],[1.345,.066],[1.346,.095],[1.333,.115],[1.299,.123],[1.24,.105]];
+// Rounded heel with a short contact land and a curved shoulder next to the gravel.
+const FOOT = [[1.22,.030],[1.255,.015],[1.282,.010],[1.300,.010],[1.316,.016],
+  [1.330,.028],[1.340,.046],[1.345,.064],[1.345,.081],[1.341,.099],
+  [1.331,.112],[1.316,.120],[1.298,.123],[1.274,.119],[1.24,.105]];
 const LIP = Array.from({length:21}, (_, i) => {
   const a = i * Math.PI / 10;
-  return [1.365 + .017*Math.cos(a), 1.43 + .018*Math.sin(a)];
+  return [1.365 + .021*Math.cos(a), 1.43 + .019*Math.sin(a)];
 });
 
 function profile(scene, name, shape, alphaIndex) {
@@ -177,6 +203,26 @@ function overlay(scene, name, edge, hdr, optics) {
   return m;
 }
 
+class PolishedEdge extends MaterialPluginBase {
+  constructor(material) {
+    super(material,'Polished edge studio reflections',205);
+    this._enable(true);
+  }
+  getCustomCode(stage) {
+    if(stage!=='fragment') return null;
+    return {
+      CUSTOM_FRAGMENT_DEFINITIONS:studioCards,
+      CUSTOM_FRAGMENT_BEFORE_FOG:`
+        vec3 reflectedView=reflect(-viewDirectionW,normalW);
+        vec2 cards=glassStudio(reflectedView);
+        float grazing=pow(1.-clamp(abs(dot(normalW,viewDirectionW)),0.,1.),3.);
+        finalColor.rgb=mix(finalColor.rgb,vec3(.095,.14,.12),cards.y*(.24+.28*grazing));
+        finalColor.rgb=mix(finalColor.rgb,vec3(1.26,1.24,1.17),cards.x*(.49+.32*grazing));
+      `,
+    };
+  }
+}
+
 function transmission(scene, name, hdr, capture, thickness, roughness, mix) {
   const m = new PBRMaterial(name, scene);
   m.metallic = 0;
@@ -202,6 +248,7 @@ function transmission(scene, name, hdr, capture, thickness, roughness, mix) {
   m.useRadianceOverAlpha = false;
   m.useSpecularOverAlpha = false;
   m.alpha = mix;
+  new PolishedEdge(m);
   return m;
 }
 
@@ -235,8 +282,8 @@ void main() {
   vec2 q = vec2(uv.x*.74,uv.y);
   float r = length(q);
   float sector = smoothstep(-.13,.89,uv.x);
-  float line = exp(-pow((r-1.21)/.046,2.));
-  float halo = exp(-pow((r-1.24)/.124,2.));
+  float line = exp(-pow(abs(r-1.21)/.046,2.));
+  float halo = exp(-pow(abs(r-1.24)/.124,2.));
   float wave = .76+.24*cos(8.*atan(q.y,q.x));
   gl_FragColor = vec4(1.,.965,.84,(.125*line+.024*halo)*sector*wave);
 }`;
@@ -320,8 +367,8 @@ export function installGlass(scene, camera, hdr, contents, {forceLightweight = f
   const screenSize = new Vector2(), viewScale = new Vector2();
   let dropTime = 0;
   wall.material = front;
-  foot.material = transmission(scene, 'Thick optical foot', hdr, capture, .115, .030, .46);
-  rim.material = transmission(scene, 'Rolled optical rim', hdr, capture, .034, .021, .49);
+  foot.material = transmission(scene, 'Thick optical foot', hdr, capture, .115, .025, .43);
+  rim.material = transmission(scene, 'Rolled optical rim', hdr, capture, .034, .017, .66);
   return {
     highQuality:true, setLayer,
     update() {
