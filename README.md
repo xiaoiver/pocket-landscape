@@ -4,7 +4,7 @@
 
 ![素材版景观](docs/preview.png)
 
-小径的扁卵石顺着弯道嵌入土面，石缝间留有细砾。透过杯壁可以看到更粗的灰褐色排水石，点击「排水石层」可对照土层剖面。
+小径的扁卵石顺着弯道嵌入土面，石缝间留有细砾。透过杯壁可以看到更粗的灰褐色排水石。
 
 ![小径铺石和杯底排水层的近景](docs/pebble-detail.jpg)
 
@@ -15,7 +15,7 @@ npm ci
 npm run build
 ```
 
-在支持 WebGL 2 的桌面浏览器中打开生成的 `index.html` 即可离线观察。拖动旋转，滚轮或双指缩放。环绕按钮启动慢速旋转，右侧箭头恢复默认视角。卷口、厚底的同机位对照和水汽开关说明见[玻璃渲染笔记](docs/glass-optics.md)。
+在支持 WebGL 2 的桌面浏览器中打开生成的 `index.html` 即可离线观察。拖动旋转，滚轮或双指缩放。卷口、厚底的同机位对照和水汽参数说明见[玻璃渲染笔记](docs/glass-optics.md)。
 
 woodland.blend 是内景的可编辑 Blender 工程，已经打包纹理。woodland.glb 是导出的内景。玻璃器皿、窗光、桌面和观察相机在 source/scene.js 中实时创建。
 
@@ -49,7 +49,7 @@ npm run build
 
 ![粉脉网纹草近景，可见粉色叶脉与卷曲的叶缘](docs/leaf-detail.png)
 
-页面默认展示素材版。右上角可在两版植物之间切换，观察相机保持在当前位置。「近看叶片」将相机对准前景网纹草。woodland-specimens.blend 和 woodland-specimens.glb 包含完整的素材版内景。woodland.blend 和 woodland.glb 对应原版内景。网页将两版共有的几何体加载一次。
+页面展示素材版植物。woodland-specimens.blend 和 woodland-specimens.glb 包含完整的素材版内景。woodland.blend 和 woodland.glb 对应原版内景。
 
 前景使用 harenil 摄影扫描的 Pink Angel Fittonia，依据 CC BY 4.0 修改。修改包括缩放、旋转、定位、几何简化至 45,397 个三角形，以及将 8K 漫反射贴图缩为 2K。作者、来源与许可也标注在离线网页中。[原作品](https://sketchfab.com/3d-models/pink-angel-fittonia-130670511c9144b6ac8aeb7b9f00482c) · [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/)
 
