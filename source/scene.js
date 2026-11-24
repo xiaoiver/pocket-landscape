@@ -3,6 +3,7 @@ import '@babylonjs/loaders/glTF/2.0';
 import {installGlass} from './glass.js';
 import {installDrainage} from './drainage.js';
 import {prepareSubstrate} from './substrate.js';
+import {applyFittoniaLight} from './fittonia-light.js';
 const canvas=document.getElementById('garden');
 const status=document.getElementById('status');
 async function start(){
@@ -64,6 +65,7 @@ async function start(){
     material.backFaceCulling = false;
     material.twoSidedLighting = true;
   }
+  applyFittoniaLight(specimens,sun);
   const original = base.filter(mesh => /^(Original foreground|Original fern|Fern pinnae)/.test(mesh.name));
   const originalShadow = shadeMat.diffuseTexture;
   const specimenShadow = new Texture('data:image/png;base64,' + document.getElementById('specimen-shadow').textContent, scene, false, false);
