@@ -128,3 +128,4 @@ def install(terrain):
     links.new(image_node('normal',True).outputs['Color'],normal.inputs['Color'])
     links.new(normal.outputs['Normal'],shader.inputs['Normal'])
     mesh.materials.append(mat)
+    return obj

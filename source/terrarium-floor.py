@@ -130,6 +130,58 @@ def make_moss():
     shader.inputs['Roughness'].default_value=.88
     obj.data.materials.append(mat)
 
+
+def dress_path_edge(rosettes, gravel):
+    """Turn a few existing shoots toward the exposed lips of three foreground stones."""
+    mesh = rosettes.data
+    # make_moss emits a shared root followed by four vertices per folded leaf.
+    roots = [i for i in range(0, len(mesh.vertices), 1 + 6*4)
+             if -.99 < mesh.vertices[i].co.y < -.48 and -.08 < mesh.vertices[i].co.x < .31]
+    rng = random.Random(821)
+    down = Vector((0, 0, -1))
+    # Blender XY centres in the seeded gravel layout, on the figurine's side.
+    for cx, cy, bearings in [
+        (-.076, -.868, (-66, -41, -25, 8, 25)),
+        (-.046, -.759, (-62, -35, -13, 12)),
+        (.027, -.639, (-56, -26, 7)),
+    ]:
+        for bearing in bearings:
+            angle = math.radians(bearing)
+            dx, dy = math.cos(angle), math.sin(angle)
+            # Follow the actual stone outline down to its intersection with the bank.
+            for step in range(1, 35):
+                x, y = cx + .003*step*dx, cy + .003*step*dy
+                hit, surface, _, _ = gravel.ray_cast(Vector((x, y, 2)), down)
+                if not hit or surface.z < max(terrain(x,y), bed(x,y)[0]):
+                    break
+            else:
+                continue
+            gap = rng.uniform(.010, .017)
+            x, y = x + gap*dx, y + gap*dy
+            origin = Vector((x, y, max(terrain(x,y), bed(x,y)[0]) - .0005))
+            hit, surface, _, _ = gravel.ray_cast(Vector((x, y, 2)), down)
+            if hit and surface.z > origin.z + .001:
+                continue
+
+            root = min(roots, key=lambda i: (mesh.vertices[i].co - origin).length_squared)
+            roots.remove(root)
+            old = mesh.vertices[root].co.copy()
+            inward = Vector((-dx, -dy))
+            # Stretch only the leaflet already pointing at the stone.
+            leaves = range(root+1, root+25, 4)
+            leading = max(leaves, key=lambda i: (mesh.vertices[i+3].co-old).xy.normalized().dot(inward))
+            reach = rng.uniform(1.55, 1.90)
+            mesh.vertices[root].co = origin
+            for start in leaves:
+                for v in mesh.vertices[start:start+4]:
+                    offset = v.co - old
+                    if start == leading:
+                        offset.x *= reach
+                        offset.y *= reach
+                        offset.z *= 1.35
+                    v.co = origin + offset
+    mesh.update()
+
 def install():
     for ob in list(bpy.context.scene.objects):
         if ob.name.startswith(('Cushion moss','Living moss','Fox ·')):
