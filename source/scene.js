@@ -132,14 +132,14 @@ async function start(){
   function setRain(raining) {
     casement.setRain(raining);
     mist.setRain(raining);
-    sun.intensity = raining ? .18 : 1.55;
+    sun.intensity = raining ? .14 : 1.55;
     if (raining) sun.diffuse.set(.84,.91,1);
     else sun.diffuse.set(1,.94,.82);
-    sky.intensity = raining ? .32 : .78;
+    sky.intensity = raining ? .25 : .78;
     if (raining) sky.diffuse.set(.84,.92,.99);
     else sky.diffuse.set(1,1,1);
-    scene.environmentIntensity = raining ? .14 : .42;
-    if (raining) scene.clearColor.set(.28,.34,.39,1);
+    scene.environmentIntensity = raining ? .115 : .42;
+    if (raining) scene.clearColor.set(.235,.285,.33,1);
     else scene.clearColor.set(.94,.925,.88,1);
     document.body.classList.toggle('rainy', raining);
     shadows.setDarkness(raining ? .74 : .33);

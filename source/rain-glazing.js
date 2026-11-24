@@ -21,7 +21,7 @@ varying vec2 paneUV;
 
 vec3 overcast(vec3 color) {
   float grey = dot(color,vec3(.24,.65,.11));
-  return mix(vec3(grey), color, .30) * vec3(.49,.58,.65) + vec3(.012,.024,.030);
+  return mix(vec3(grey), color, .30) * vec3(.425,.50,.565) + vec3(.010,.019,.025);
 }
 
 void main() {

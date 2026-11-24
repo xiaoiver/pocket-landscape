@@ -16,6 +16,8 @@ export function createWindowWater(scene, atlas) {
   const bed = fine.getContext('2d');
   let drops = [], spawnBudget = 0, fineBudget = 0, fadeTime = 0, pending = 0;
 
+  let wind = .09, gustTarget = .09, gustTime = 0;
+
   function stamp(context, x, y, rx, ry, depth) {
     context.drawImage(atlas, depth*sprite, 0, sprite, sprite, x-rx, y-ry, 2*rx, 2*ry);
   }
@@ -24,11 +26,19 @@ export function createWindowWater(scene, atlas) {
     stamp(bed, Math.random()*width, Math.random()*height, r, r*1.22, 0);
   }
   function newDrop(x,y,r) {
-    return {x,y,r, speed:0, drift:0, stretch:0, grip:8+Math.random()*6,
+    return {x,y,r, speed:0, drift:0, stretch:0, pathPhase:Math.random()*2*Math.PI, grip:8+Math.random()*6,
       nextBead:6+Math.random()*13, life:10+Math.random()*28};
   }
   function step(dt) {
-    fineBudget += dt*72;
+    // Sheltered glass gets short oblique gusts separated by quieter spells.
+    gustTime -= dt;
+    if (gustTime <= 0) {
+      const gust = Math.random() < .56;
+      gustTarget = gust ? .20 + .20*Math.random() : -.09 + .12*Math.random();
+      gustTime = gust ? 1.1 + 1.6*Math.random() : 1.8 + 2.3*Math.random();
+    }
+    wind += (gustTarget-wind)*(1-Math.exp(-1.4*dt));
+    fineBudget += dt*(64 + 48*Math.abs(wind));
     while (fineBudget >= 1) { deposit(); fineBudget--; }
     fadeTime += dt;
     if (fadeTime >= 1) {
@@ -38,10 +48,23 @@ export function createWindowWater(scene, atlas) {
       bed.globalCompositeOperation = 'source-over';
       fadeTime = 0;
     }
-    spawnBudget += dt*6;
+    spawnBudget += dt*(5 + 8*Math.abs(wind));
     while (spawnBudget >= 1) {
       if (drops.length < maxDrops) {
-        const drop = newDrop(Math.random()*width, Math.random()*height, 4+13*Math.random()**2.7);
+        const squall = Math.random() < Math.max(0,wind)*.8;
+        const radius = squall ? 9+7*Math.random() : 4+13*Math.random()**2.7;
+        const drop = newDrop(Math.random()*width, Math.random()*height, radius);
+        if (squall) {
+          // A heavier impact arrives already sliding, with a few pinprick
+          // beads scattered downwind. The smaller beads stick where they land.
+          drop.speed = 18 + 35*Math.random();
+          drop.drift = drop.speed*wind;
+          for (let i=0; i<3; i++) {
+            const r = 1.3+2*Math.random();
+            stamp(bed, drop.x+radius*(.6+1.7*Math.random()),
+              drop.y+radius*(Math.random()-.5)*2.5, r, r*1.22, 0);
+          }
+        }
         drop.stretch = .38;
         drops.push(drop);
       }
@@ -59,8 +82,12 @@ export function createWindowWater(scene, atlas) {
       const acceleration = (d.r - .76*d.grip)*33 - d.speed*.85;
       d.speed = Math.max(0, Math.min(240, d.speed + acceleration*dt));
       const distance = d.speed*dt, oldX = d.x, oldY = d.y;
-      d.x += d.drift*dt;
-      d.drift *= Math.exp(-2*dt);
+      // Pinned beads resist the wind. Released beads follow it with inertia,
+      // taking slightly different routes over the wetted glass.
+      const slope = wind + .10*Math.sin(d.pathPhase + oldY*.043);
+      d.drift += (d.speed*slope-d.drift)*(1-Math.exp(-3*dt));
+      const side = d.drift*dt;
+      d.x += side;
       d.y += distance;
       // The advancing head sweeps the fine mist aside. Deposit satellite
       // beads behind the swept tip only after it has travelled far enough.
@@ -70,10 +97,13 @@ export function createWindowWater(scene, atlas) {
       bed.strokeStyle = '#000';
       bed.beginPath(); bed.moveTo(oldX,oldY); bed.lineTo(d.x,d.y); bed.stroke();
       bed.globalCompositeOperation = 'source-over';
-      d.nextBead -= distance;
+      const travel = Math.hypot(side,distance);
+      d.nextBead -= travel;
       if (d.nextBead <= 0) {
         const r = d.r*(.15+.20*Math.random());
-        stamp(bed, d.x+(Math.random()-.5)*d.r*.45, d.y-d.r*1.3, r,r*1.45,1);
+        const behind = d.r*1.3/travel;
+        stamp(bed, d.x-side*behind+(Math.random()-.5)*d.r*.45,
+          d.y-distance*behind, r,r*1.45,1);
         d.r = Math.sqrt(Math.max(0,d.r*d.r-r*r));
         d.nextBead = 5+Math.random()*d.r*1.8;
       }
@@ -99,7 +129,7 @@ export function createWindowWater(scene, atlas) {
         b.r=0;
       }
     }
-    drops = drops.filter(d => d.r>.5 && d.y<height+d.r*2);
+    drops = drops.filter(d => d.r>.5 && d.y<height+d.r*2 && d.x>-2*d.r && d.x<width+2*d.r);
   }
   function draw() {
     ctx.clearRect(0,0,width,height);
