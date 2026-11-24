@@ -30,49 +30,7 @@ function installSheets() {
   controls.hidden = false;
 }
 
-function installDaylight(sun, shadowPlane) {
-  const bearing = document.getElementById('bearing');
-  const altitude = document.getElementById('altitude');
-  const radians = Math.PI / 180;
-  const initialDirection = sun.direction.clone();
-  const initialPosition = sun.position.clone();
-  const source = initialDirection.negate().normalize();
-  const initialBearing = Math.round((Math.atan2(source.x, source.z) / radians + 360) % 360);
-  const initialAltitude = Math.round(Math.asin(source.y) / radians);
-  const pivot = initialPosition.add(initialDirection.normalizeToNew().scale(6));
-  function update() {
-    const az = bearing.valueAsNumber * radians, el = altitude.valueAsNumber * radians;
-    const home = bearing.valueAsNumber === initialBearing && altitude.valueAsNumber === initialAltitude;
-    const lightVector = new Vector3(Math.sin(az)*Math.cos(el), Math.sin(el), Math.cos(az)*Math.cos(el));
-    if (home) {
-      sun.direction.copyFrom(initialDirection);
-      sun.position.copyFrom(initialPosition);
-    } else {
-      sun.direction.copyFrom(lightVector).scaleInPlace(-initialDirection.length());
-      sun.position.copyFrom(pivot).addInPlace(lightVector.scale(6));
-    }
-    // The offline silhouette was baked for morning light. Hand it over to
-    // the real-time shadow map as the sun moves away from that direction.
-    const deviation = Math.acos(Math.min(1, Math.max(-1, Vector3.Dot(lightVector, source)))) / radians;
-    shadowPlane.material.alpha = home ? 1 : Math.max(0, 1-deviation/24);
-    for (const input of [bearing, altitude]) {
-      const value = input.value + '°';
-      document.querySelector('output[for="' + input.id + '"]').value = value;
-      input.setAttribute('aria-valuetext', input.value + ' 度');
-    }
-  }
-  function reset() {
-    bearing.value = initialBearing;
-    altitude.value = initialAltitude;
-    update();
-  }
-  bearing.addEventListener('input', update);
-  altitude.addEventListener('input', update);
-  document.getElementById('reset-sun').addEventListener('click', reset);
-  reset();
-}
-
-export function installGardenControls({base, loadPlantedModel, shadows, glass, contacts, sun, shadowPlane}) {
+export function installGardenControls({base, loadPlantedModel, shadows, glass, contacts}) {
   const fox = base.find(mesh => mesh.name.startsWith('Fox ·'));
   const cache = new Map([['fox', Promise.resolve([fox])]]);
   const notice = document.getElementById('animal-notice');
@@ -120,6 +78,5 @@ export function installGardenControls({base, loadPlantedModel, shadows, glass, c
       }
     });
   }
-  installDaylight(sun, shadowPlane);
   installSheets();
 }

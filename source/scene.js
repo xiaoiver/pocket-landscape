@@ -111,7 +111,7 @@ async function start(){
   window.addEventListener('resize',resize);
   engine.runRenderLoop(()=>{glass.update();scene.render();});
   await scene.whenReadyAsync();
-  installGardenControls({base, loadPlantedModel, shadows, glass, contacts, sun, shadowPlane});
+  installGardenControls({base, loadPlantedModel, shadows, glass, contacts});
   status.hidden=true;document.body.classList.add('ready');
 }
 start().catch(error=>{console.error(error);status.textContent='场景加载失败，请使用支持 WebGL 的浏览器重新打开。';});

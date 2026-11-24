@@ -17,7 +17,7 @@ npm run build
 
 Open the generated `index.html` in a WebGL 2 browser to explore offline. Drag to orbit, and use the scroll wheel or pinch to zoom.
 
-Open **小动物** (Animals) in the upper left to choose the fox, resting fawn or hedgehog. Open **日光** (Sunlight) to adjust the azimuth and elevation, or select **恢复晨光** to restore the original morning light.
+Open **小动物** (Animals) in the upper left to choose the fox, resting fawn or hedgehog.
 
 ![The fawn resting on the moss with all three figurines in the animal selector](docs/animal-controls.jpg)
 
