@@ -1,4 +1,4 @@
-import { Color3, Mesh, PBRMaterial, Vector3, VertexBuffer, VertexData } from '@babylonjs/core';
+import { Color3, Material, Mesh, PBRMaterial, Vector3, VertexBuffer, VertexData } from '@babylonjs/core';
 import {glassInnerRadiusAt} from './glass.js';
 
 const TAU = 2*Math.PI;
@@ -11,8 +11,8 @@ const FACES = [[0,11,5],[0,5,1],[0,1,7],[0,7,10],[0,10,11],
   [3,9,4],[3,4,2],[3,2,6],[3,6,8],[3,8,9],
   [4,9,5],[2,4,11],[6,2,10],[8,6,7],[9,8,1]];
 const ROCK_TONES = [
-  [.122,.103,.079],[.167,.147,.117],[.102,.093,.078],
-  [.205,.170,.124],[.091,.083,.069],[.143,.121,.087],
+  [.123,.115,.101],[.203,.178,.147],[.135,.144,.140],
+  [.242,.202,.160],[.075,.080,.077],[.161,.138,.110],
 ];
 const CLEARANCE = .009;
 const MIN_HEIGHT = .082;
@@ -43,7 +43,7 @@ function prepareSoil(earth) {
     const r=Math.hypot(p.x,p.z);
     if(p.y < .078 || p.y > .135 || r < 1.28) continue;
     const a=Math.atan2(p.z,p.x);
-    transformed.push({i,p,r,a,depth:.052+.050*wiggle(a)});
+    transformed.push({i,p,r,a,depth:.116+.041*wiggle(a)});
   }
   if(!transformed.length) return undefined;
   const compute=contacts=>{
@@ -76,108 +76,113 @@ function prepareSoil(earth) {
   }};
 }
 
-function stones(scene) {
+// One subdivision rounds the silhouette while the irregular base vertices retain shoulders.
+function roundedStone() {
+  const unit=p=>p.map(v=>v/Math.hypot(...p));
+  const points=ICO.map(unit), edges=new Map(), faces=[];
+  function midpoint(a,b) {
+    const key=Math.min(a,b)*12+Math.max(a,b);
+    if(!edges.has(key)) {
+      edges.set(key,points.length);
+      points.push(unit(points[a].map((v,i)=>v+points[b][i])));
+    }
+    return edges.get(key);
+  }
+  for(const [a,b,c] of FACES) {
+    const ab=midpoint(a,b),bc=midpoint(b,c),ca=midpoint(c,a);
+    faces.push([a,ab,ca],[ab,b,bc],[ca,bc,c],[ab,bc,ca]);
+  }
+  return {points,faces};
+}
+
+function stones(scene, pathMaterial) {
   const random=random01(0xa930573d);
-  const positions=[],colors=[],indices=[],crest=[];
+  const range=(a,b)=>a+(b-a)*random();
+  const positions=[],colors=[],indices=[],uvs=[],contacts=[];
+  const shape=roundedStone();
   let count=0,minGap=Infinity,maxHeight=0,minHeight=Infinity;
-  for(let band=0;band<3;band++) {
-    const cells=[122,112,96][band];
-    for(let i=0;i<cells;i++) {
-      const angle=TAU*(i+.72*random()+.27*band)/cells;
-      const shape=wiggle(angle);
-      // A broken, irregular crest: isolated embedded stones push into the soil above.
-      if(random() > [.95,.80,.23+.36*shape][band]) continue;
-      const a=angle+(.011*(random()-.5));
-      const y=[.109,.149,.188][band]+(random()-.5)*(.022+.006*band)+(.007+.022*band)*(shape-.36);
-      const rad=glassInnerRadiusAt(y)-(.034+.017*random());
-      const width=.030+.025*random(), height=.018+.014*random(), depth=.027+.025*random();
-      const yaw=(random()-.5)*1.5, c=Math.cos(yaw),s=Math.sin(yaw);
-      const tone=ROCK_TONES[Math.floor(random()*ROCK_TONES.length)];
-      const points=ICO.map(([x,v,z])=>{
-        const l=Math.hypot(x,v,z), j=.76+.47*random();
-        const localRad=j*depth*(x*c-z*s)/l;
-        const localTan=j*width*(x*s+z*c)/l;
-        const sy=Math.max(MIN_HEIGHT,y+j*height*v/l);
-        let px=(rad+localRad)*Math.cos(a)-localTan*Math.sin(a);
-        let pz=(rad+localRad)*Math.sin(a)+localTan*Math.cos(a);
-        const pr=Math.hypot(px,pz);
-        // The inner-wall radius is piecewise linear. A small extra gap covers face
-        // interiors across the rounded heel's profile break.
-        const bound=glassInnerRadiusAt(sy)-CLEARANCE-.003;
-        if(pr>bound){px*=bound/pr;pz*=bound/pr;}
-        minGap=Math.min(minGap,glassInnerRadiusAt(sy)-Math.hypot(px,pz));
-        minHeight=Math.min(minHeight,sy);
-        maxHeight=Math.max(maxHeight,sy);
-        return [px,sy,pz];
-      });
-      if(band===2)crest.push({a,y,width,depth,start:positions.length/3,stoneId:count});
-      for(const f of FACES) {
-        const [p,q,r]=f.map(v=>points[v]);
-        const base=positions.length/3;
-        // Flat facets and small facet color variation; mostly muddy adjacent hues.
-        const light=.89+.23*random();
-        for(const vertex of [p,r,q]) {
-          positions.push(...vertex);
-          colors.push(tone[0]*light,tone[1]*light,tone[2]*light,1);
-        }
-        indices.push(base,base+1,base+2);
+  // Drop mixed sizes into two depths. The visible rank sits against the glass;
+  // recessed stones appear through its openings. The soil backs both ranks.
+  for(const recessed of [true,false]) {
+    const bed=[];
+    for(let attempt=0;attempt<1700;attempt++) {
+      const angle=TAU*random();
+      const width=attempt<1200 ? range(.041,.091) : range(.027,.048);
+      const height=width*range(.46,.79);
+      const depth=width*range(.55,.86);
+      let y=MIN_HEIGHT+height;
+      for(const other of bed) {
+        const span=1.30*wrapDistance(other.a,angle)/(.95*(width+other.width));
+        if(span<1) y=Math.max(y,other.y+.93*(height+other.height)*Math.sqrt(1-span*span));
       }
+      const ceiling=.221+.079*wiggle(angle)+.016*Math.cos(3*angle);
+      if(y+height>ceiling)continue;
+      bed.push({a:angle,y,width,height});
+      if(!recessed && y+height>ceiling-.03)contacts.push({a:angle});
+      const ca=Math.cos(angle),sa=Math.sin(angle);
+      const tone=ROCK_TONES[Math.floor(random()*ROCK_TONES.length)];
+      const tilt=range(-.33,.33),spin=range(0,TAU),phase=range(0,TAU);
+      const grain=range(.79,1.16)*(recessed?.66:1);
+      const local=shape.points.map(([u,v,w])=>{
+        const x=u*Math.cos(spin)-w*Math.sin(spin),z=u*Math.sin(spin)+w*Math.cos(spin);
+        const shoulder=Math.pow(Math.max(Math.abs(x),Math.abs(v),Math.abs(z)),-.31);
+        const lump=shoulder*(1+.16*Math.sin(3*x+v+phase)*Math.cos(2*z-v)+.09*x*v);
+        const t=width*lump*x,up=height*lump*v;
+        return [t*Math.cos(tilt)-up*Math.sin(tilt),t*Math.sin(tilt)+up*Math.cos(tilt),depth*lump*z];
+      });
+      const low=Math.min(...local.map(p=>p[1]));
+      const centerY=Math.max(y,MIN_HEIGHT-low);
+      // Seat the whole rock inside the curved heel without flattening its outer face.
+      let radius=Infinity;
+      for(const [t,up,out] of local) {
+        const bound=glassInnerRadiusAt(centerY+up)-CLEARANCE-.003;
+        radius=Math.min(radius,Math.sqrt(bound*bound-t*t)-out);
+      }
+      radius-=recessed?range(.062,.082):range(0,.008);
+      const first=positions.length/3;
+      for(const [t,up,out] of local) {
+        const r=radius+out,sy=centerY+up;
+        positions.push(r*ca-t*sa,sy,r*sa+t*ca);
+        const light=grain*(.86+.14*up/height+.10*out/depth);
+        colors.push(...tone.map(c=>c*light),1);
+        uvs.push((angle*1.30+t)*2.2,(sy+.22*out)*2.2);
+        minGap=Math.min(minGap,glassInnerRadiusAt(sy)-Math.hypot(r,t));
+        minHeight=Math.min(minHeight,sy);maxHeight=Math.max(maxHeight,sy);
+      }
+      for(const [a,b,c] of shape.faces)indices.push(first+a,first+c,first+b);
       count++;
     }
   }
-  // One larger crest stone per sparse angular sector, no RNG calls and no new triangles.
-  const sectors=new Map();
-  for(const s of crest) {
-    const bin=Math.floor(((s.a+TAU+.079)%TAU)/(TAU/16));
-    const current=sectors.get(bin);
-    const score=stone=>stone.width+.4*stone.depth;
-    if(!current||score(s)>score(current))sectors.set(bin,s);
-  }
-  const contacts=[];
-  for(const s of [...sectors.values()].sort((a,b)=>b.width-a.width)){
-    if(contacts.every(x=>wrapDistance(s.a,x.a)>.115))contacts.push(s);
-  }
-  const seatedNormals=[];
-  let minimumSeatedGap=Infinity,aoVertices=0;
-  for(const s of contacts) {
-    const dx=Math.cos(s.a),dz=Math.sin(s.a);
-    for(let k=s.start;k<s.start+FACES.length*3;k++){
-      const i=k*3,j=k*4;
-      const nudge=.021+(s.stoneId%4)*.003;
-      // Keep the outward faces readable; tuck the stone into the collar and lower it slightly.
-      positions[i]-=nudge*dx;positions[i+2]-=nudge*dz;
-      positions[i+1]=Math.max(MIN_HEIGHT,positions[i+1]-(.010+(s.stoneId%3)*.002));
-      const r=Math.hypot(positions[i],positions[i+2]);
-      const signed=glassInnerRadiusAt(positions[i+1])-r;
-      minimumSeatedGap=Math.min(minimumSeatedGap,signed);
-      const outer=(positions[i]*dx+positions[i+2]*dz);
-      const contact=(1-smooth(s.y-.018,s.y+.010,positions[i+1]))*(1-smooth(1.24,1.30,outer));
-      if(contact>.01)aoVertices++;
-      // A small crevice-only AO proxy; no texture or change of stone hue.
-      const shade=1-.17*contact;
-      for(let c=0;c<3;c++)colors[j+c]*=shade;
-    }
-  }
-  VertexData.ComputeNormals(positions,indices,seatedNormals,{useRightHandedSystem:scene.useRightHandedSystem});
-  const vertexData=new VertexData();
-  vertexData.positions=positions;vertexData.indices=indices;vertexData.normals=seatedNormals;vertexData.colors=colors;
+  const normals=[];
+  VertexData.ComputeNormals(positions,indices,normals,{useRightHandedSystem:scene.useRightHandedSystem});
+  const data=new VertexData();
+  Object.assign(data,{positions,indices,normals,colors,uvs});
   const mesh=new Mesh('Drainage gravel · local geometry',scene);
-  vertexData.applyToMesh(mesh);
-  mesh.metadata={count,minGap,minHeight,maxHeight,triangles:indices.length/3,
-    contactStoneCount:contacts.length,minimumSeatedGap,aoVertices};
-  const material=new PBRMaterial('Muted wet gravel',scene);
-  material.metallic=0;material.roughness=.86;material.albedoColor=Color3.White();
-  // Test on both sides across the vessel; slope intersections do not expose transparent gaps.
-  material.backFaceCulling=false;material.twoSidedLighting=true;
+  // Geometry is authored counterclockwise, like the imported glTF pebbles.
+  mesh.sideOrientation=Material.CounterClockWiseSideOrientation;
+  data.applyToMesh(mesh);
+  mesh.metadata={count,minGap,minHeight,maxHeight,triangles:indices.length/3,contactStoneCount:contacts.length};
+  const material=new PBRMaterial('Water-worn drainage gravel',scene);
+  if(pathMaterial instanceof PBRMaterial) {
+    material.albedoTexture=pathMaterial.albedoTexture;
+    material.bumpTexture=pathMaterial.bumpTexture;
+    material.invertNormalMapX=pathMaterial.invertNormalMapX;
+    material.invertNormalMapY=pathMaterial.invertNormalMapY;
+    material.metallicTexture=pathMaterial.metallicTexture;
+    material.useRoughnessFromMetallicTextureAlpha=false;
+    material.useRoughnessFromMetallicTextureGreen=true;
+    material.useMetallnessFromMetallicTextureBlue=true;
+  }
+  material.metallic=0;material.roughness=.98;material.metallicF0Factor=.65;material.albedoColor=Color3.White();
   mesh.material=material;mesh.isPickable=false;mesh.receiveShadows=true;
   return {mesh,contacts};
 }
 
-export function installDrainage(scene, earth) {
+export function installDrainage(scene, earth, pathMaterial) {
   if(!earth) return undefined;
   const soil=prepareSoil(earth);
   if(!soil) return undefined;
-  const stonesState=stones(scene),gravel=stonesState.mesh;
+  const stonesState=stones(scene,pathMaterial),gravel=stonesState.mesh;
   const contact=soil.compute(stonesState.contacts);
   gravel.setEnabled(false);
   return {gravel,setEnabled(active) {

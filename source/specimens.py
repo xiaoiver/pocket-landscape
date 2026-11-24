@@ -3,6 +3,7 @@ Run inside Blender with -- <original Sketchfab source directory> <project direct
 """
 from pathlib import Path
 import math, sys
+from runpy import run_path
 import bpy
 from mathutils import Matrix,Vector
 
@@ -32,6 +33,7 @@ def land(x,y):
     from math import exp,sin,cos
     return .60+.14*(y+1)+.13*exp(-((x+.65)**2+(y-.07)**2)*4)+.075*sin(3*x+y)*cos(4*y)
 
+fit_fronds=run_path(str(Path(__file__).with_name('fern-fit.py')))['fit_fronds']
 new=[]
 for fern in import_meshes(assets/'fern.gltf'):
     choices={'fern_02_b':(-.54,.52,1.72,4.05,.07),'fern_02_c':(.50,.59,1.57,3.47,-.40)}
@@ -40,6 +42,7 @@ for fern in import_meshes(assets/'fern.gltf'):
         continue
     x,y,width,height,angle=choices[fern.name]
     prepared(fern,Matrix.Translation((x,y,land(x,y)-.02)) @ Matrix.Rotation(angle,4,'Z') @ Matrix.Diagonal((width,width,height,1)), 'Fern 02 · '+fern.name[-1].upper())
+    fit_fronds(fern.data,Vector((x,y,land(x,y)-.02)))
     new.append(fern)
 plant,=import_meshes(scan/'model.glb')
 # The scan includes a little soil at the roots; plant the bottom 4% in the bank.

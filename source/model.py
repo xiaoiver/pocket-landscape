@@ -48,7 +48,7 @@ def blob(g,center,sc,n=12,k=7,angle=0,jitter=0):
     for j in range(k):
         for i in range(n):
             q=j*n+i; p=j*n+(i+1)%n;f.append((q,p,p+n,q+n))
-    g.add(v,f,[(i%n/n,(i//n)/k) for i in range(len(v))] if g.name.startswith('Weathered') else None)
+    g.add(v,f)
 def rod(g,p,q,r,end=None):
     p,q=Vector(p),Vector(q); t=(q-p).normalized()
     u=t.cross(Vector((0,0,1)) if abs(t.z)<.95 else Vector((1,0,0))).normalized(); v=t.cross(u)
@@ -72,11 +72,15 @@ for j in range(28):
         a=tau*i/N;r=max(.0001,j/27)*rmax;x=r*cos(a);y=r*sin(a)
         vs.append((x,y,land(x,y)));uv.append((x*1.4,y*1.4))
 soil.add(vs,[tuple(reversed(f)) for f in grid(28,N+1)],uv)
-stone=[group('River gravel '+str(i),c) for i,c in enumerate(['e0ceb0','b6a68c','dcc4a0','bbaa8c','f0ddbb','b59c7e','d4cdb6'])]
+# Advance the original scatter's RNG stream to preserve the authored planting.
 for i in range(1800):
     y=R(-1.32,1.18);w=.175+.045*(-y);x=path(y)+R(-w,w)
     if x*x+y*y>1.301**2:continue
-    r=R(.016,.065);blob(rng.choice(stone),(x,y,land(x,y)+.018+R(0,.012)),(r,r*R(.6,1.05),r*.48),7,4,R(0,pi),.16)
+    rng.random()       # original radius
+    rng.randrange(7)   # original material choice
+    # Elevation, aspect, spin, then the 7 × 5 vertex offsets.
+    for _ in range(3 + 7*5):
+        rng.random()
 moss=[group('Cushion moss '+str(i),c) for i,c in enumerate(['617236','73823b','526632','819048','6b833d'])]
 shoot=[group('Moss tips '+str(i),c) for i,c in enumerate(['839848','9ca94f','758b3f','a5af5b','627c36'])]
 cushions=[]
@@ -119,9 +123,10 @@ for j in range(9000):
         if d<1:z=max(z,cz+h*(1-d)**.5)
     vs,uv,faces=rng.choice(sprigs);scale=R(1.25,2.45);spin=R(0,tau);c=cos(spin)*scale;sn=sin(spin)*scale
     sprout.add([(x+vx*c+vz*sn,y+vx*sn-vz*c,z+vy*scale-.012) for vx,vy,vz in vs],faces,uv)
-bark=[group('Weathered granite '+str(i),c,.89,'granite.jpg') for i,c in enumerate(['777666','929080','6c7063'])]
-for i,(x,y,s) in enumerate([(-.36,.18,.30),(-.61,.25,.14),(.61,-.12,.20),(.72,-.28,.095),(-.54,-.53,.105),(.32,.53,.18)]):
-    blob(bark[i%3],(x,y,land(x,y)+s*.29),(s,s*.72,s*1.1),9,5,R(0,pi),.23)
+# Preserve the planting sequence after replacing the six original rock blobs.
+# Each used one spin and 9 vertices on each of 6 latitude rings.
+for _ in range(6 * (1 + 9*6)):
+    rng.random()
 stems=group('Petioles','708147')
 rose=group('Fittonia · rose','ffffff',.65,'rose.jpg'); ivory=group('Fittonia · ivory','ffffff',.65,'ivory.jpg')
 def leaf(g,base,angle,length,width,rise,arch,roll):
@@ -170,26 +175,15 @@ for x,y,h,spread,num in [(-.48,.53,1.49,.71,10),(.42,.68,1.22,.55,9),(-.95,-.44,
 strap=[group('Canopy '+str(i),c,.48,'canopy.jpg') for i,c in enumerate(['608641','779b4f','527a3d','8da857'])]
 for j in range(12):
     a=j*2.4;l=R(.45,.95);leaf(rng.choice(strap),(-.05,.75,land(-.05,.75)),a,l,R(.065,.12),R(.81,1.48),.38,R(-.85,.85))
-# A small seated fox, sculpted as separate material groups for easy recolouring.
-fur=group('Fox · fired ochre','ca743c',.67); white=group('Fox · porcelain','f2ddba',.62);dark=group('Fox · umber','382c29',.38); inner=group('Fox · ears','975a49'); eye=group('Fox · glints','fff6df',.2)
-x,y=.36,-.62; z=land(x,y)+.023
-def fox(g,offset,scale,angle=0):
-    blob(g,(x+offset[0],y+offset[1],z+offset[2]),scale,26,14,angle)
-fox(fur,(0,.02,.17),(.158,.156,.19));fox(white,(0,-.083,.173),(.096,.071,.143))
-for s in [-1,1]:
-    fox(fur,(s*.079,-.072,.111),(.046,.054,.105));fox(dark,(s*.082,-.102,.045),(.047,.058,.035))
-fox(fur,(0,-.015,.37),(.185,.148,.155))
-for s in [-1,1]:
-    fox(white,(s*.073,-.125,.336),(.092,.041,.056),s*.24)
-    fox(dark,(s*.092,-.133,.392),(.016,.012,.019));fox(eye,(s*.092-.003,-.144,.397),(.004,.002,.004))
-    p=Vector((x+s*.104,y-.016,z+.464)); tip=Vector((x+s*.169,y+.004,z+.617))
-    vs=[p+Vector((-.071,-.06,0)),p+Vector((.071,-.06,0)),p+Vector((0,.065,0)),tip]
-    fur.add(vs,[(0,1,3),(1,2,3),(2,0,3),(2,1,0)])
-    inner.add([p+Vector((-.043,-.061,.009)),p+Vector((.043,-.061,.009)),tip+Vector((-s*.009,-.016,-.033))],[(0,1,2)])
-fox(white,(0,-.155,.336),(.057,.047,.040));fox(dark,(0,-.196,.348),(.028,.016,.019))
-fox(fur,(.148,-.032,.083),(.094,.201,.085),-.48)
-fox(white,(.107,-.183,.082),(.069,.078,.068),-.50)
-for g in groups:g.finish()
+for g in groups:
+    # The old scatter still seeds the subsequent hand-tuned planting layout.
+    if not g.name.startswith(('Cushion moss','Living moss')):
+        g.finish()
+from runpy import run_path
+floor=run_path(str(Path(__file__).with_name('terrarium-floor.py')))
+floor['install']()
+run_path(str(Path(__file__).with_name('scenery-rocks.py')))['install'](land,floor['bed'])
+run_path(str(Path(__file__).with_name('path-gravel.py')))['install'](land)
 bpy.context.preferences.filepaths.save_version=0
 bpy.ops.wm.save_as_mainfile(filepath=str(out/'woodland.blend'))
 bpy.ops.export_scene.gltf(filepath=str(out/'woodland.glb'),export_format='GLB',export_yup=True,export_animations=False)

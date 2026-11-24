@@ -3,7 +3,7 @@ import '@babylonjs/loaders/glTF/2.0';
 import {installGlass} from './glass.js';
 import {installDrainage} from './drainage.js';
 import {prepareSubstrate} from './substrate.js';
-import {applyFittoniaLight} from './fittonia-light.js';
+import {prepareFoliage} from './foliage.js';
 import {installMossBranchlets} from './moss-branchlets.js';
 import {prepareMossPad} from './moss-pad.js';
 import {prepareGroundContacts} from './ground-contacts.js';
@@ -66,81 +66,49 @@ async function start(){
       material.alphaCutOff = .42;
       material.albedoTexture.hasAlpha = true;
     }
-    material.backFaceCulling = false;
-    material.twoSidedLighting = true;
   }
-  applyFittoniaLight(specimens,sun);
-  const original = base.filter(mesh => /^(Original foreground|Original fern|Fern pinnae)/.test(mesh.name));
-  const originalShadow = shadeMat.diffuseTexture;
-  const specimenShadow = new Texture('data:image/png;base64,' + document.getElementById('specimen-shadow').textContent, scene, false, false);
-  specimenShadow.hasAlpha = true;
-  const versions = document.querySelectorAll('[data-planting]');
-  function selectPlanting(useSpecimens) {
-    original.forEach(mesh => mesh.setEnabled(!useSpecimens));
-    specimens.forEach(mesh => mesh.setEnabled(useSpecimens));
-    shadeMat.diffuseTexture = useSpecimens ? specimenShadow : originalShadow;
-    for (const button of versions) {
-      button.setAttribute('aria-pressed', String((button.dataset.planting === 'specimens') === useSpecimens));
-    }
+  for (const mesh of base) {
+    if (/^(Original foreground|Original fern|Fern pinnae)/.test(mesh.name)) mesh.setEnabled(false);
   }
-  versions.forEach(button => button.onclick = () => selectPlanting(button.dataset.planting === 'specimens'));
-  selectPlanting(true);
+  prepareFoliage(scene, [...base.filter(mesh=>mesh.isEnabled()), ...specimens]);
   const query = new URLSearchParams(location.search);
   const forceLightweight = query.get('glass') === 'lightweight' || matchMedia('(pointer: coarse)').matches;
   const layers = Object.fromEntries(['fog','drops','caustic'].map(name => [name,query.get(name) !== '0']));
   const earth=base.find(mesh=>mesh.name==='Earth · planted bank');
-  const drainage = installDrainage(scene,earth);
+  const pathStones=base.filter(mesh=>mesh.name.startsWith('River gravel '));
+  const drainage = installDrainage(scene,earth,pathStones[0]?.material);
+  if(drainage) shadows.addShadowCaster(drainage.gravel);
   const substrate = drainage && prepareSubstrate(scene,earth,drainage.gravel);
   const contacts=prepareGroundContacts(scene,base);
-  const pathSoil=preparePathSoil(scene,earth,base.filter(mesh=>mesh.name.startsWith('River gravel ')));
+  const pathSoil=preparePathSoil(scene,earth,pathStones);
   pathSoil?.setEnabled(true);
   pathSoil?.attach(earth?.material);
-  const drainageToggle = document.getElementById('drainage');
   if (drainage) {
-    const enableDrainage = active => {
-      drainage.setEnabled(active);
-      substrate?.setEnabled(active);
-      contacts.attach(earth.material);
-      pathSoil?.attach(earth.material);
-      drainageToggle.setAttribute('aria-pressed',String(active));
-    };
-    enableDrainage(query.get('drainage') !== '0');
-    drainageToggle.hidden = false;
-    drainageToggle.onclick = () => enableDrainage(!drainage.gravel.isEnabled());
+    const active = query.get('drainage') !== '0';
+    drainage.setEnabled(active);
+    substrate?.setEnabled(active);
+    contacts.attach(earth.material);
+    pathSoil?.attach(earth.material);
   }
-  const mossPad=prepareMossPad(scene,earth,base);
-  mossPad?.setEnabled(true);
-  const mossBranchlets=!mossPad && installMossBranchlets(scene,
+  const hasModelledMoss=base.some(mesh=>mesh.name==='Living moss · rosettes');
+  const mossPad=!hasModelledMoss && prepareMossPad(scene,earth,base);
+  if(mossPad)mossPad.setEnabled(true);
+  const mossBranchlets=!hasModelledMoss && !mossPad && installMossBranchlets(scene,
     base.filter(mesh=>mesh.name.startsWith('Cushion moss ')),
-    base.filter(mesh=>mesh.name.startsWith('River gravel ')),sun);
+    pathStones,sun);
   const glass = installGlass(scene, camera, hdr, [ground, shadowPlane, ...base, ...specimens, ...(drainage ? [drainage.gravel] : []), ...(mossBranchlets ? [mossBranchlets] : []), ...(mossPad?.meshes ?? [])], {
     forceLightweight, sunlight:sun, layers, animateDrops:!matchMedia('(prefers-reduced-motion: reduce)').matches,
   });
-  if (glass.highQuality) {
-    document.querySelector('.glass-options').hidden = false;
-    for (const input of document.querySelectorAll('[data-glass-layer]')) {
-      const layer = input.dataset.glassLayer;
-      input.checked = layers[layer];
-      input.addEventListener('change', () => glass.setLayer(layer,input.checked));
-    }
+  function resize() {
+    engine.setHardwareScalingLevel(1/Math.min(window.devicePixelRatio||1,2));
+    engine.resize();
+    glass.resize?.();
+    camera.upperRadiusLimit=Math.max(17,fit()*1.35);
+    camera.radius=fit();
   }
-  let rotate=false;const spin=document.getElementById('spin');
-  function spinning(on){rotate=on;spin.setAttribute('aria-pressed',String(on));spin.querySelector('span').textContent=on?'暂停环绕':'环绕观察';}
-  spin.onclick=()=>spinning(!rotate);
-  canvas.addEventListener('pointerdown',()=>spinning(false));
-  function frame(point,alpha,beta,radius) {
-    spinning(false);
-    camera.inertialAlphaOffset = camera.inertialBetaOffset = camera.inertialRadiusOffset = 0;
-    camera.setTarget(point);
-    camera.alpha=alpha;camera.beta=beta;camera.radius=radius;
-  }
-  function reset(){frame(target.clone(),homeAlpha,homeBeta,fit());}
-  function lookAtLeaf(){frame(new Vector3(-.62,1.15,.22),1.90,1.12,fit()*.43);}
-  document.getElementById('reset').onclick=reset;
-  document.getElementById('detail').onclick=lookAtLeaf;
-  function resize(){engine.setHardwareScalingLevel(1/Math.min(window.devicePixelRatio||1,2));engine.resize();glass.resize?.();camera.upperRadiusLimit=Math.max(17,fit()*1.35);}
-  resize();reset();window.addEventListener('resize',()=>{resize();camera.radius=fit();});
-  engine.runRenderLoop(()=>{if(rotate)camera.alpha+=Math.min(engine.getDeltaTime(),70)*.00013;glass.update();scene.render();});
+  resize();
+  window.addEventListener('resize',resize);
+  engine.runRenderLoop(()=>{glass.update();scene.render();});
   await scene.whenReadyAsync();status.hidden=true;document.body.classList.add('ready');
 }
 start().catch(error=>{console.error(error);status.textContent='场景加载失败，请使用支持 WebGL 的浏览器重新打开。';});

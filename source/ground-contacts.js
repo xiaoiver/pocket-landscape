@@ -3,15 +3,12 @@ import { MaterialPluginBase, PBRMaterial, RawTexture, Texture } from '@babylonjs
 // Local accents fitted to components of woodland.glb intersecting the earth surface.
 // Each entry is [world x, ground y, world z, x/z falloff radius, strength].
 const contacts = [
-  [.360,.631,.600,.144,.135,.29], // Fox body, near the ground
-  [.281,.633,.692,.065,.066,.25], // Front foot
-  [.439,.616,.692,.066,.067,.22], // Other foot; nearby moss rises to it
+  [.390,.631,.580,.168,.168,.29], // Fox body, near the ground
+  [.376,.584,.787,.068,.074,.25], // Front foot
+  [.546,.580,.711,.069,.072,.22], // Other foot; nearby moss rises to it
   [-.543,.728,.526,.134,.103,.26], // Left near granite
   [.610,.787,.101,.172,.214,.27], // Right large granite
   [.719,.733,.278,.091,.114,.22], // Right lower granite
-  [-.411,.696,.812,.063,.075,.18], // A few path stones at moss edge
-  [-.455,.682,.853,.059,.059,.18],
-  [-.426,.655,.950,.066,.064,.17],
 ];
 const side = 128, origin = [-.74,-.16], span = [1.66,1.34];
 
