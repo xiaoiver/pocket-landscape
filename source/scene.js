@@ -5,7 +5,9 @@ import {installDrainage} from './drainage.js';
 import {prepareSubstrate} from './substrate.js';
 import {applyFittoniaLight} from './fittonia-light.js';
 import {installMossBranchlets} from './moss-branchlets.js';
+import {prepareMossPad} from './moss-pad.js';
 import {prepareGroundContacts} from './ground-contacts.js';
+import {preparePathSoil} from './path-soil.js';
 const canvas=document.getElementById('garden');
 const status=document.getElementById('status');
 async function start(){
@@ -90,22 +92,28 @@ async function start(){
   const drainage = installDrainage(scene,earth);
   const substrate = drainage && prepareSubstrate(scene,earth,drainage.gravel);
   const contacts=prepareGroundContacts(scene,base);
+  const pathSoil=preparePathSoil(scene,earth,base.filter(mesh=>mesh.name.startsWith('River gravel ')));
+  pathSoil?.setEnabled(true);
+  pathSoil?.attach(earth?.material);
   const drainageToggle = document.getElementById('drainage');
   if (drainage) {
     const enableDrainage = active => {
       drainage.setEnabled(active);
       substrate?.setEnabled(active);
       contacts.attach(earth.material);
+      pathSoil?.attach(earth.material);
       drainageToggle.setAttribute('aria-pressed',String(active));
     };
     enableDrainage(query.get('drainage') !== '0');
     drainageToggle.hidden = false;
     drainageToggle.onclick = () => enableDrainage(!drainage.gravel.isEnabled());
   }
-  const mossBranchlets=installMossBranchlets(scene,
+  const mossPad=prepareMossPad(scene,earth,base);
+  mossPad?.setEnabled(true);
+  const mossBranchlets=!mossPad && installMossBranchlets(scene,
     base.filter(mesh=>mesh.name.startsWith('Cushion moss ')),
     base.filter(mesh=>mesh.name.startsWith('River gravel ')),sun);
-  const glass = installGlass(scene, camera, hdr, [ground, shadowPlane, ...base, ...specimens, ...(drainage ? [drainage.gravel] : []), ...(mossBranchlets ? [mossBranchlets] : [])], {
+  const glass = installGlass(scene, camera, hdr, [ground, shadowPlane, ...base, ...specimens, ...(drainage ? [drainage.gravel] : []), ...(mossBranchlets ? [mossBranchlets] : []), ...(mossPad?.meshes ?? [])], {
     forceLightweight, sunlight:sun, layers, animateDrops:!matchMedia('(prefers-reduced-motion: reduce)').matches,
   });
   if (glass.highQuality) {
