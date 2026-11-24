@@ -77,9 +77,20 @@ async function start(){
   }
   versions.forEach(button => button.onclick = () => selectPlanting(button.dataset.planting === 'specimens'));
   selectPlanting(true);
-  const lightweightGlass = new URLSearchParams(location.search).get('glass') === 'lightweight' ||
-    matchMedia('(pointer: coarse)').matches;
-  const glass = installGlass(scene, camera, hdr, [ground, shadowPlane, ...base, ...specimens], lightweightGlass);
+  const query = new URLSearchParams(location.search);
+  const forceLightweight = query.get('glass') === 'lightweight' || matchMedia('(pointer: coarse)').matches;
+  const layers = Object.fromEntries(['fog','drops','caustic'].map(name => [name,query.get(name) !== '0']));
+  const glass = installGlass(scene, camera, hdr, [ground, shadowPlane, ...base, ...specimens], {
+    forceLightweight, sunlight:sun, layers, animateDrops:!matchMedia('(prefers-reduced-motion: reduce)').matches,
+  });
+  if (glass.highQuality) {
+    document.querySelector('.glass-options').hidden = false;
+    for (const input of document.querySelectorAll('[data-glass-layer]')) {
+      const layer = input.dataset.glassLayer;
+      input.checked = layers[layer];
+      input.addEventListener('change', () => glass.setLayer(layer,input.checked));
+    }
+  }
   let rotate=false;const spin=document.getElementById('spin');
   function spinning(on){rotate=on;spin.setAttribute('aria-pressed',String(on));spin.querySelector('span').textContent=on?'暂停环绕':'环绕观察';}
   spin.onclick=()=>spinning(!rotate);

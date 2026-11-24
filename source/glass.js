@@ -1,6 +1,6 @@
 import {
-  Color3, Constants, Mesh, MeshBuilder, PBRMaterial, RenderTargetTexture,
-  ShaderMaterial, Texture, Vector3,
+  Color3, Constants, Mesh, MeshBuilder, PBRMaterial, RawTexture, RenderTargetTexture,
+  ShaderMaterial, Texture, Vector2, Vector3,
 } from '@babylonjs/core';
 
 const VS = `
@@ -26,6 +26,37 @@ uniform float edge;
 #ifdef HDR_WALL
 uniform samplerCube reflection;
 #endif
+#ifdef OPTICAL_WALL
+uniform sampler2D contents;
+uniform sampler2D thicknessMap;
+uniform mat4 view;
+uniform vec2 screenSize;
+uniform vec2 viewScale;
+uniform float opticalScale;
+uniform float absorptionScale;
+uniform float fogOn;
+uniform float dropsOn;
+uniform float dropTime;
+float hash(float n) { return fract(sin(n*127.1 + 7.2)*43758.5453); }
+float dropShape(float a, float y, out vec2 offset) {
+  // Wrapped cylindrical cells: the pattern meets cleanly at the Lathe seam.
+  float ua = (a / 6.28318530718 + .5)*23.;
+  float id = floor(ua);
+  float h = hash(id);
+  float drifts = step(.73,hash(id+19.));
+  float travel = fract(hash(id+9.) - dropTime*(.012+.014*h));
+  float height = mix(.53+.78*hash(id+9.), .52+.79*travel, drifts);
+  vec2 field = vec2((fract(ua) - (.22+.56*h))*.36, y-height);
+  float fade = mix(1.,smoothstep(0.,.09,travel)*(1.-smoothstep(.91,1.,travel)),drifts);
+  float isOn = step(.46, hash(id + 14.)) * smoothstep(.3,.52,y)*fade;
+  vec2 drop = field / vec2(.012+.012*h,.020+.032*h);
+  float profile = 1. - smoothstep(.63, 1.1, length(drop));
+  float trail = (1.-smoothstep(.014,.030,abs(field.x))) *
+    smoothstep(-.19,-.035,field.y) * (1.-smoothstep(-.035,.005,field.y));
+  offset = clamp(drop, vec2(-1.), vec2(1.))*profile;
+  return isOn*max(profile,.24*trail);
+}
+#endif
 void main() {
   vec3 N = normalize(n);
   vec3 V = normalize(eye - p);
@@ -47,7 +78,52 @@ void main() {
 #else
   float opacity = .014 + f*.29 + b*.20 + edge*(.19+.28*f);
 #endif
+#ifdef OPTICAL_WALL
+  // Project the bounded bend into the current viewport, not the smaller RTT.
+  float y = clamp((p.y-.08)/1.35,0.,1.);
+  float mapValue = texture2D(thicknessMap,vec2(y,.5)).r;
+  float incidence = max(dot(N,V),.12);
+  float path = mix(.018,.048,mapValue)/incidence*opticalScale;
+  vec2 uv = gl_FragCoord.xy/screenSize;
+  vec2 limit = 2./screenSize;
+  vec3 direction = refract(-V,N,1./1.46);
+  vec3 straight = (view*vec4(-V,0.)).xyz;
+  vec3 bent = (view*vec4(direction,0.)).xyz;
+  vec2 bend = clamp((bent.xy - straight.xy)*(.14*path)*viewScale,vec2(-.011),vec2(.011));
+  float azimuth = atan(p.x,p.z);
+  vec2 dropNormal = vec2(0.);
+  float drop = 0.;
+  if (dropsOn > .5) drop = dropShape(azimuth,p.y,dropNormal);
+  // Thin condensation concentrated at the top; smooth low-frequency world-space ripples.
+  float mist = 0.;
+  if (fogOn > .5) {
+    float mottling = .48 + .30*sin(9.*azimuth+2.7*p.y) + .15*sin(15.*azimuth-9.*p.y);
+    mist = smoothstep(.81,.99,y)*(.31+.69*clamp(mottling,0.,1.));
+  }
+  vec2 sampleUV = clamp(uv+bend+dropNormal*drop*.006,limit,1.-limit);
+  vec3 transmitted = max(texture2D(contents,sampleUV).rgb,vec3(0.));
+  if (mist > .01) {
+    vec2 spread = vec2(.0032,.002) * mist;
+    transmitted = .5*transmitted + .25*max(texture2D(contents,clamp(sampleUV+spread,limit,1.-limit)).rgb,vec3(0.)) +
+      .25*max(texture2D(contents,clamp(sampleUV-spread,limit,1.-limit)).rgb,vec3(0.));
+  }
+  // Beer–Lambert: transmission attenuates with optical path; red attenuates
+  // faster than green, especially near the curved silhouette and thicker base.
+  transmitted *= exp(-vec3(1.10,.21,.68)*path*absorptionScale);
+  transmitted = pow(transmitted,vec3(1./2.2));
+  float f5 = pow(1.-incidence,5.);
+  float glint = drop*max(0.,-dropNormal.y)*.22;
+  vec3 glass = mix(transmitted,c,.03+.32*f5+.18*b);
+  glass = mix(glass,vec3(.90,.94,.89),.27*mist+glint);
+  float valid = smoothstep(.001,.024,min(min(uv.x,uv.y),min(1.-uv.x,1.-uv.y)));
+  float optical = (.14+.34*f5+.21*mist+.26*drop)*valid;
+  // Combine the original HDR silhouette + weak centered transmission without
+  // drawing an additional wall. The center remains largely direct view.
+  float combined = optical + opacity*(1.-optical);
+  gl_FragColor = vec4((glass*optical+c*opacity*(1.-optical))/max(combined,.001),combined);
+#else
   gl_FragColor = vec4(c, opacity);
+#endif
 }`;
 
 const WALL = [[1.315,.08],[1.34,.12],[1.351,.24],[1.367,1.39],[1.366,1.43]];
@@ -68,17 +144,25 @@ function profile(scene, name, shape, alphaIndex) {
   return mesh;
 }
 
-function overlay(scene, name, edge, hdr) {
+function overlay(scene, name, edge, hdr, optics) {
   const m = new ShaderMaterial(name, scene, {vertexSource:VS, fragmentSource:FS}, {
     attributes:['position','normal'],
-    uniforms:['world','worldViewProjection','eye','edge'],
-    samplers: hdr ? ['reflection'] : [],
-    defines: hdr ? ['#define HDR_WALL'] : [],
+    uniforms:['world','worldViewProjection','eye','edge', ...(optics ? [
+      'view','screenSize','viewScale','opticalScale','absorptionScale','fogOn','dropsOn','dropTime',
+    ] : [])],
+    samplers: optics ? ['reflection','contents','thicknessMap'] : hdr ? ['reflection'] : [],
+    defines: optics ? ['#define HDR_WALL','#define OPTICAL_WALL'] : hdr ? ['#define HDR_WALL'] : [],
     needAlphaBlending:true,
   });
   m.backFaceCulling = !hdr ? false : true;
   m.setFloat('edge', edge);
   if (hdr) m.setTexture('reflection', hdr);
+  if (optics) {
+    m.setTexture('contents', optics.capture);
+    m.setTexture('thicknessMap', optics.thickness);
+    m.setFloat('opticalScale',1);
+    m.setFloat('absorptionScale',1);
+  }
   return m;
 }
 
@@ -110,7 +194,59 @@ function transmission(scene, name, hdr, capture, thickness, roughness, mix) {
   return m;
 }
 
-export function installGlass(scene, camera, hdr, contents, forceLightweight = false) {
+function wallThickness(scene) {
+  const calibrated = Uint8Array.from({length:64}, (_,i) => {
+    const y = i / 63;
+    // A thick heel, a thin middle, then gradually thicker glass into the rolled lip.
+    return Math.round(255 * Math.min(1, .17 + .81*Math.exp(-y*8) + .49*y**8));
+  });
+  const tex = RawTexture.CreateRTexture(
+    calibrated,64,1,scene,false,false,Texture.BILINEAR_SAMPLINGMODE,Constants.TEXTURETYPE_UNSIGNED_BYTE,
+  );
+  tex.name = 'Calibrated optical wall thickness';
+  tex.gammaSpace = false;
+  tex.wrapU = tex.wrapV = Texture.CLAMP_ADDRESSMODE;
+  return tex;
+}
+
+function caustic(scene, sunlight) {
+  const pocket = MeshBuilder.CreateGround('Approximate tabletop caustic',{width:4,height:4},scene);
+  pocket.position.y = .008;
+  pocket.isPickable = false;
+  pocket.alphaIndex = .5;
+  const fragment = `
+precision highp float;
+varying vec3 p;
+uniform vec2 lightDir;
+void main() {
+  vec2 shifted = p.xz - lightDir*.29;
+  vec2 uv = vec2(dot(shifted,lightDir),dot(shifted,vec2(-lightDir.y,lightDir.x)));
+  vec2 q = vec2(uv.x*.74,uv.y);
+  float r = length(q);
+  float sector = smoothstep(-.13,.89,uv.x);
+  float line = exp(-pow((r-1.21)/.046,2.));
+  float halo = exp(-pow((r-1.24)/.124,2.));
+  float wave = .76+.24*cos(8.*atan(q.y,q.x));
+  gl_FragColor = vec4(1.,.965,.84,(.125*line+.024*halo)*sector*wave);
+}`;
+  const mat = new ShaderMaterial('Analytic caustic luminance',scene,{vertexSource:VS,fragmentSource:fragment},{
+    attributes:['position','normal'],uniforms:['world','worldViewProjection','lightDir'],needAlphaBlending:true,
+  });
+  mat.disableDepthWrite = true;
+  mat.alphaMode = Constants.ALPHA_ADD;
+  pocket.material = mat;
+  const lightDir = new Vector2();
+  function update() {
+    lightDir.set(sunlight?.direction.x ?? .82,sunlight?.direction.z ?? -.70);
+    if (lightDir.lengthSquared() < .0001) lightDir.set(1,0);
+    lightDir.normalize();
+    mat.setVector2('lightDir',lightDir);
+  }
+  update();
+  return {pocket,update};
+}
+
+export function installGlass(scene, camera, hdr, contents, {forceLightweight = false, sunlight, layers = {}, animateDrops = true} = {}) {
   const engine = scene.getEngine();
   const caps = engine.getCaps();
   const wall = profile(scene, 'Clear handblown wall', WALL, 1);
@@ -122,7 +258,7 @@ export function installGlass(scene, camera, hdr, contents, forceLightweight = fa
   if (!useCapture) {
     const materials = [overlay(scene,'Lightweight wall',0), overlay(scene,'Lightweight foot',.88), overlay(scene,'Lightweight lip',.88)];
     [wall.material, foot.material, rim.material] = materials;
-    return { update: () => { for (const m of materials) m.setVector3('eye', camera.position); } };
+    return { highQuality:false, update: () => { for (const m of materials) m.setVector3('eye', camera.position); } };
   }
 
   // Capture only the table/shadow and both planting variants, never the refractive meshes.
@@ -157,14 +293,37 @@ export function installGlass(scene, camera, hdr, contents, forceLightweight = fa
   capture.onAfterRenderObservable.add(() => { inner.isVisible = false; });
   // PBR already registers this shared render target. Adding it to customRenderTargets
   // would capture twice per main frame (separate material and custom target passes).
-  const front = overlay(scene,'Front glass reflection',0,hdr);
+  const thickness = wallThickness(scene);
+  const effect = caustic(scene,sunlight);
+  capture.renderList.push(effect.pocket);
+  const front = overlay(scene,'Front glass optics',0,hdr,{capture,thickness});
+  const state = {fog:layers.fog ?? true,drops:layers.drops ?? true,caustic:layers.caustic ?? true};
+  function setLayer(layer, active) {
+    if (!Object.hasOwn(state,layer)) return;
+    state[layer] = active;
+    front.setFloat('fogOn',state.fog ? 1 : 0);
+    front.setFloat('dropsOn',state.drops ? 1 : 0);
+    effect.pocket.setEnabled(state.caustic);
+  }
+  for (const [layer,active] of Object.entries(state)) setLayer(layer,active);
+  const screenSize = new Vector2(), viewScale = new Vector2();
+  let dropTime = 0;
   wall.material = front;
   foot.material = transmission(scene, 'Thick optical foot', hdr, capture, .115, .030, .46);
   rim.material = transmission(scene, 'Rolled optical rim', hdr, capture, .034, .021, .49);
   return {
+    highQuality:true, setLayer,
     update() {
+      const projection = camera.getProjectionMatrix().m;
+      viewScale.set(projection[0],projection[5]);
+      screenSize.set(engine.getRenderWidth(true),engine.getRenderHeight(true));
+      front.setVector2('screenSize',screenSize);
+      front.setVector2('viewScale',viewScale);
       front.setVector3('eye', camera.position);
       rear.setVector3('eye', camera.position);
+      if (state.drops && animateDrops) dropTime += Math.min(engine.getDeltaTime(),70)/1000;
+      front.setFloat('dropTime',dropTime);
+      if (state.caustic) effect.update();
     },
     resize() {
       const next = size();
