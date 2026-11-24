@@ -23,7 +23,7 @@ npm run build
 | --- | --- |
 | 杯壁、卷口与厚底 | Babylon.js 分别旋转截面曲线生成三部分几何体。桌面高画质模式用一张半分辨率、线性半浮点渲染目标捕捉缸内景物。薄壁着色器按厚度和入射角计算折射偏移与吸收，卷口和底足的 PBR 材质共用这张纹理。转动视角时，HDR 环境反射和窗光高光沿圆角移动。[玻璃实现](source/glass.js) |
 | 窗光与投影 | 棚拍 HDR 提供环境光和反射，方向光模拟窗光。2048 × 2048 的 PCF 阴影贴图让植物和石头彼此投影，桌面的柔影则从模型轮廓离线烘焙。玻璃底部附近的亮弧由方向光驱动的着色器近似焦散。[场景灯光](source/scene.js) · [桌面投影](source/shadow.py) |
-| 网纹草与蕨叶 | 网纹草保留摄影扫描的卷曲叶缘和粉色叶脉。定制材质根据叶面朝向、窗光方向和阴影，给背光的薄叶补少量透光感。蕨类使用透明遮罩勾出细碎叶缘。[网纹草着色](source/fittonia-light.js) |
+| 网纹草、蕨叶与长叶 | 叶片的漫透射保留原有色素。网纹草表面的高光柔和，蕨叶带一层很轻的蜡质反光。程序化叶片的中脉比边缘透光少。两丛蕨的羽片法线向各自的冠形轻微靠拢，根部用顶点色压暗；远处细羽片的透明裁切随纹理缩小程度补偿。[植物着色](source/foliage.js) · [同机位对照](docs/foliage-detail.jpg) |
 | 苔床、石径与排水层 | 苔面沿地形起伏，表面散布细小叶簇。小径上的扁石部分埋入坡面，底部较粗的排水石沿内壁错叠。真实几何决定轮廓和孔隙，颜色、法线和粗糙度贴图负责近处的颗粒感。土石交界局部压暗并降低粗糙度，呈现湿润感。[苔床](source/terrarium-floor.py) · [小径](source/path-gravel.py) · [排水层](source/drainage.js) |
 
 高画质模式下，凝雾和水珠附着在杯壁上。系统启用「减少动态效果」时，水珠保持静止。触屏粗指针设备或缺少所需半浮点纹理支持的设备使用轻量 Fresnel 玻璃。可用 `?glass=lightweight` 对照两种效果。[玻璃近景与实现笔记](docs/glass-optics.md)
@@ -55,7 +55,7 @@ npm run build
 ## 素材与造景参考
 
 - **粉脉网纹草**来自 harenil 的 Pink Angel Fittonia 摄影扫描。模型经过缩放、旋转和定位，简化至 45,397 个三角形，漫反射贴图从 8K 缩为 2K。离线网页保留作者与许可链接。[原作品](https://sketchfab.com/3d-models/pink-angel-fittonia-130670511c9144b6ac8aeb7b9f00482c) · [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/)
-- **蕨类**采用 Rico Cilliers 和 Rob Tuytel 的 Fern 02 中 B、C 两丛，按杯体调整了尺寸和朝向。[Fern 02](https://polyhaven.com/a/fern_02) · [CC0](https://polyhaven.com/license)
+- **蕨类**采用 Rico Cilliers 和 Rob Tuytel 的 Fern 02 中 B、C 两丛，按杯体调整了尺寸和朝向。靠壁羽片绕各自叶柄向内转，在杯口内侧留出间隙，保留下垂的轮廓。[Fern 02](https://polyhaven.com/a/fern_02) · [CC0](https://polyhaven.com/license)
 - **六块景石**来自 Kless Gyzen 的 Rock Moss Set 01。六种石形分别简化、旋转并埋入苔床。颜色贴图降低了棕色饱和度，保留苔斑、法线和粗糙度细节。[Rock Moss Set 01](https://polyhaven.com/a/rock_moss_set_01) · [CC0](https://polyhaven.com/license) · [景石近景](docs/outcrop-detail.jpg)
 - **苔面与泥土**分别使用 ambientCG 的 Moss 003 和 Poly Haven 的 Brown Mud Rocks 01。前者提供颜色、法线和高度细节，后者提供土壤法线和粗糙度。[Moss 003](https://ambientcg.com/a/Moss003) · [ambientCG CC0](https://docs.ambientcg.com/license/) · [Brown Mud Rocks 01](https://polyhaven.com/a/brown_mud_rocks_01) · [Poly Haven CC0](https://polyhaven.com/license) · [小径与排水层近景](docs/pebble-detail.jpg)
 - **环境光**采用 Sergej Majboroda 的 Studio Small 09。[Studio Small 09](https://polyhaven.com/a/studio_small_09) · [CC0](https://polyhaven.com/license)

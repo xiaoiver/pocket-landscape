@@ -3,7 +3,7 @@ import '@babylonjs/loaders/glTF/2.0';
 import {installGlass} from './glass.js';
 import {installDrainage} from './drainage.js';
 import {prepareSubstrate} from './substrate.js';
-import {applyFittoniaLight} from './fittonia-light.js';
+import {prepareFoliage} from './foliage.js';
 import {installMossBranchlets} from './moss-branchlets.js';
 import {prepareMossPad} from './moss-pad.js';
 import {prepareGroundContacts} from './ground-contacts.js';
@@ -66,13 +66,11 @@ async function start(){
       material.alphaCutOff = .42;
       material.albedoTexture.hasAlpha = true;
     }
-    material.backFaceCulling = false;
-    material.twoSidedLighting = true;
   }
-  applyFittoniaLight(specimens,sun);
   for (const mesh of base) {
     if (/^(Original foreground|Original fern|Fern pinnae)/.test(mesh.name)) mesh.setEnabled(false);
   }
+  prepareFoliage(scene, [...base.filter(mesh=>mesh.isEnabled()), ...specimens]);
   const query = new URLSearchParams(location.search);
   const forceLightweight = query.get('glass') === 'lightweight' || matchMedia('(pointer: coarse)').matches;
   const layers = Object.fromEntries(['fog','drops','caustic'].map(name => [name,query.get(name) !== '0']));
