@@ -28,49 +28,57 @@ function wiggle(angle) {
   return .50+.24*Math.sin(5*angle+.45)+.17*Math.sin(11*angle+.7)+.09*Math.cos(17*angle);
 }
 
+const wrapDistance=(a,b)=>Math.abs(Math.atan2(Math.sin(a-b),Math.cos(a-b)));
+const smooth=(a,b,x)=>{const u=Math.min(1,Math.max(0,(x-a)/(b-a)));return u*u*(3-2*u);};
 function prepareSoil(earth) {
   const source=earth.getVerticesData(VertexBuffer.PositionKind);
   const sourceNormals=earth.getVerticesData(VertexBuffer.NormalKind);
   const indices=earth.getIndices();
   if (!source||!sourceNormals||!indices) return undefined;
   const original=Float32Array.from(source), originalNormals=Float32Array.from(sourceNormals);
-  const inset=Float32Array.from(source), insetNormals=Float32Array.from(sourceNormals);
-  const moved=[];
   const world=earth.computeWorldMatrix(true), inverse=world.clone().invert();
+  const transformed=[];
   for(let i=0;i<source.length;i+=3) {
     const p=Vector3.TransformCoordinates(Vector3.FromArray(source,i),world);
     const r=Math.hypot(p.x,p.z);
-    // Only the first two profile rows of this GLB, never the top or its upper side.
     if(p.y < .078 || p.y > .135 || r < 1.28) continue;
     const a=Math.atan2(p.z,p.x);
-    const depth=.052+.050*wiggle(a);
-    const scale=(r-depth)/r;
-    p.x*=scale; p.z*=scale;
-    Vector3.TransformCoordinates(p,inverse).toArray(inset,i);
-    moved.push(i);
+    transformed.push({i,p,r,a,depth:.052+.050*wiggle(a)});
   }
-  if (!moved.length) return undefined;
-  const generatedNormals=[];
-  VertexData.ComputeNormals(inset,indices,generatedNormals,{useRightHandedSystem:earth.getScene().useRightHandedSystem});
-  for(const i of moved) {
-    // Only update normals for recessed vertices; retain the original tangent plane above.
-    let nx=generatedNormals[i],ny=generatedNormals[i+1],nz=generatedNormals[i+2];
-    if(nx*originalNormals[i]+ny*originalNormals[i+1]+nz*originalNormals[i+2]<0){nx=-nx;ny=-ny;nz=-nz;}
-    insetNormals[i]=nx;insetNormals[i+1]=ny;insetNormals[i+2]=nz;
-  }
-  // Keep the imported GPU color/UV attributes, indices, mesh identity and existing shadow membership.
+  if(!transformed.length) return undefined;
+  const compute=contacts=>{
+    const positions=Float32Array.from(source),normals=Float32Array.from(sourceNormals);
+    const generated=[]; let contactVertices=0,minGap=Infinity;
+    for(const {i,p,r,a,depth} of transformed) {
+      let collar=0;
+      for(const stone of contacts) {
+        const d=wrapDistance(a,stone.a);
+        collar=Math.max(collar,(1-smooth(.009,.064,d))*(p.y>.105?.038:.013));
+      }
+      if(collar>0)contactVertices++;
+      const radius=Math.min(r-depth+collar,glassInnerRadiusAt(p.y)-.015);
+      minGap=Math.min(minGap,glassInnerRadiusAt(p.y)-radius);
+      Vector3.TransformCoordinates(new Vector3(p.x*radius/r,p.y,p.z*radius/r),inverse).toArray(positions,i);
+    }
+    VertexData.ComputeNormals(positions,indices,generated,{useRightHandedSystem:earth.getScene().useRightHandedSystem});
+    for(const {i} of transformed) {
+      let nx=generated[i],ny=generated[i+1],nz=generated[i+2];
+      if(nx*originalNormals[i]+ny*originalNormals[i+1]+nz*originalNormals[i+2]<0){nx=-nx;ny=-ny;nz=-nz;}
+      normals[i]=nx;normals[i+1]=ny;normals[i+2]=nz;
+    }
+    return {positions,normals,contactVertices,minGap};
+  };
   earth.setVerticesData(VertexBuffer.PositionKind,original,true);
   earth.setVerticesData(VertexBuffer.NormalKind,originalNormals,true);
-  return {moved:moved.length, totalVertices:source.length/3, apply(active) {
-    // The original conservative bounding box still contains the recessed geometry.
-    earth.updateVerticesData(VertexBuffer.PositionKind,active ? inset : original,false);
-    earth.updateVerticesData(VertexBuffer.NormalKind,active ? insetNormals : originalNormals,false);
+  return {moved:transformed.length,totalVertices:source.length/3,compute,apply(state) {
+    earth.updateVerticesData(VertexBuffer.PositionKind,state?.positions??original,false);
+    earth.updateVerticesData(VertexBuffer.NormalKind,state?.normals??originalNormals,false);
   }};
 }
 
 function stones(scene) {
   const random=random01(0xa930573d);
-  const positions=[],colors=[],indices=[],normals=[];
+  const positions=[],colors=[],indices=[],crest=[];
   let count=0,minGap=Infinity,maxHeight=0,minHeight=Infinity;
   for(let band=0;band<3;band++) {
     const cells=[122,112,96][band];
@@ -102,6 +110,7 @@ function stones(scene) {
         maxHeight=Math.max(maxHeight,sy);
         return [px,sy,pz];
       });
+      if(band===2)crest.push({a,y,width,depth,start:positions.length/3,stoneId:count});
       for(const f of FACES) {
         const [p,q,r]=f.map(v=>points[v]);
         const base=positions.length/3;
@@ -116,28 +125,63 @@ function stones(scene) {
       count++;
     }
   }
+  // One larger crest stone per sparse angular sector, no RNG calls and no new triangles.
+  const sectors=new Map();
+  for(const s of crest) {
+    const bin=Math.floor(((s.a+TAU+.079)%TAU)/(TAU/16));
+    const current=sectors.get(bin);
+    const score=stone=>stone.width+.4*stone.depth;
+    if(!current||score(s)>score(current))sectors.set(bin,s);
+  }
+  const contacts=[];
+  for(const s of [...sectors.values()].sort((a,b)=>b.width-a.width)){
+    if(contacts.every(x=>wrapDistance(s.a,x.a)>.115))contacts.push(s);
+  }
+  const seatedNormals=[];
+  let minimumSeatedGap=Infinity,aoVertices=0;
+  for(const s of contacts) {
+    const dx=Math.cos(s.a),dz=Math.sin(s.a);
+    for(let k=s.start;k<s.start+FACES.length*3;k++){
+      const i=k*3,j=k*4;
+      const nudge=.021+(s.stoneId%4)*.003;
+      // Keep the outward faces readable; tuck the stone into the collar and lower it slightly.
+      positions[i]-=nudge*dx;positions[i+2]-=nudge*dz;
+      positions[i+1]=Math.max(MIN_HEIGHT,positions[i+1]-(.010+(s.stoneId%3)*.002));
+      const r=Math.hypot(positions[i],positions[i+2]);
+      const signed=glassInnerRadiusAt(positions[i+1])-r;
+      minimumSeatedGap=Math.min(minimumSeatedGap,signed);
+      const outer=(positions[i]*dx+positions[i+2]*dz);
+      const contact=(1-smooth(s.y-.018,s.y+.010,positions[i+1]))*(1-smooth(1.24,1.30,outer));
+      if(contact>.01)aoVertices++;
+      // A small crevice-only AO proxy; no texture or change of stone hue.
+      const shade=1-.17*contact;
+      for(let c=0;c<3;c++)colors[j+c]*=shade;
+    }
+  }
+  VertexData.ComputeNormals(positions,indices,seatedNormals,{useRightHandedSystem:scene.useRightHandedSystem});
   const vertexData=new VertexData();
-  VertexData.ComputeNormals(positions,indices,normals,{useRightHandedSystem:scene.useRightHandedSystem});
-  vertexData.positions=positions;vertexData.indices=indices;vertexData.normals=normals;vertexData.colors=colors;
+  vertexData.positions=positions;vertexData.indices=indices;vertexData.normals=seatedNormals;vertexData.colors=colors;
   const mesh=new Mesh('Drainage gravel · local geometry',scene);
   vertexData.applyToMesh(mesh);
+  mesh.metadata={count,minGap,minHeight,maxHeight,triangles:indices.length/3,
+    contactStoneCount:contacts.length,minimumSeatedGap,aoVertices};
   const material=new PBRMaterial('Muted wet gravel',scene);
   material.metallic=0;material.roughness=.86;material.albedoColor=Color3.White();
   // Test on both sides across the vessel; slope intersections do not expose transparent gaps.
   material.backFaceCulling=false;material.twoSidedLighting=true;
   mesh.material=material;mesh.isPickable=false;mesh.receiveShadows=true;
-  mesh.metadata={count,minGap,minHeight,maxHeight,triangles:indices.length/3};
-  return mesh;
+  return {mesh,contacts};
 }
 
 export function installDrainage(scene, earth) {
   if(!earth) return undefined;
   const soil=prepareSoil(earth);
   if(!soil) return undefined;
-  const gravel=stones(scene);
+  const stonesState=stones(scene),gravel=stonesState.mesh;
+  const contact=soil.compute(stonesState.contacts);
   gravel.setEnabled(false);
-  return {gravel,soilMeta:{changedLowVertices:soil.moved,totalVertices:soil.totalVertices},setEnabled(active) {
-    soil.apply(active);
+  return {gravel,setEnabled(active) {
+    soil.apply(active ? contact : undefined);
     gravel.setEnabled(active);
   }};
 }
