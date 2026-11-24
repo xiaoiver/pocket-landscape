@@ -53,10 +53,17 @@ def install(terrain):
         outline = [uniform(.89,1.08) for _ in range(sides)]
         base = len(positions)
 
+        # Open the path just before the figurine. Keep the centre stones in
+        # place and ease the outer stones into the raised moss at the turn.
+        centre = .08+.40*math.sin((y+.45)*2.8)
+        apron = math.exp(-((y+.94)/.17)**2)
+        shift = .16*(x-centre)*apron
+        seat = .012*apron*min(1.,abs(x-centre)/.19)**2
+
         def vertex(u,v,w):
             dx,dy = c*u-s*v,s*u+c*v
-            px,py = x+dx,y+dy
-            pz = z + slope_x*dx + slope_y*dy + height*w
+            px,py = x+shift+dx,y+dy
+            pz = z + slope_x*(shift+dx) + slope_y*dy + height*w - seat
             positions.append((px,py,pz))
             cloud = noise.noise(Vector((px*36,py*36,pz*40)))
             light = tint*(.89+.13*w+.17*cloud)

@@ -7,7 +7,7 @@ import {createMossMist} from './moss-mist.js';
 import {installGlass} from './glass.js';
 import {installDrainage} from './drainage.js';
 import {prepareSubstrate} from './substrate.js';
-import {prepareFoliage} from './foliage.js';
+import {prepareClay,prepareFoliage} from './foliage.js';
 import {installMossBranchlets} from './moss-branchlets.js';
 import {prepareMossPad} from './moss-pad.js';
 import {prepareGroundContacts} from './ground-contacts.js';
@@ -65,7 +65,11 @@ async function start(){
     const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'));
     const glb = new Uint8Array(await new Response(stream).arrayBuffer());
     const result = await ImportMeshAsync(glb, scene, {pluginExtension: '.glb'});
-    return result.meshes.filter(mesh => mesh.getTotalVertices() > 0);
+    const meshes = result.meshes.filter(mesh => mesh.getTotalVertices() > 0);
+    for (const mesh of meshes) {
+      if (id.startsWith('animal-') || mesh.name.startsWith('Fox ·')) prepareClay(mesh.material);
+    }
+    return meshes;
   }
   const [base, specimens] = await Promise.all([loadPlantedModel('model-data'), loadPlantedModel('specimen-data')]);
   for (const mesh of [...base, ...specimens]) {

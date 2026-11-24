@@ -56,9 +56,15 @@ function prepareSoil(earth) {
         collar=Math.max(collar,(1-smooth(.009,.064,d))*(p.y>.105?.038:.013));
       }
       if(collar>0)contactVertices++;
-      const radius=Math.min(r-depth+collar,glassInnerRadiusAt(p.y)-.015);
-      minGap=Math.min(minGap,glassInnerRadiusAt(p.y)-radius);
-      Vector3.TransformCoordinates(new Vector3(p.x*radius/r,p.y,p.z*radius/r),inverse).toArray(positions,i);
+      // Two front-facing seams: soil presses out between stones at one,
+      // and retreats behind a few exposed mineral faces at the other.
+      const spill=1-smooth(.03,.23,wrapDistance(a,1.78));
+      const hollow=1-smooth(.04,.26,wrapDistance(a,1.24));
+      const crest=smooth(.082,.13,p.y);
+      const y=p.y+crest*(.012*hollow-.022*spill);
+      const radius=Math.min(r-depth+collar+(.023+.061*crest)*spill-.04*hollow,glassInnerRadiusAt(y)-.015);
+      minGap=Math.min(minGap,glassInnerRadiusAt(y)-radius);
+      Vector3.TransformCoordinates(new Vector3(p.x*radius/r,y,p.z*radius/r),inverse).toArray(positions,i);
     }
     VertexData.ComputeNormals(positions,indices,generated,{useRightHandedSystem:earth.getScene().useRightHandedSystem});
     for(const {i} of transformed) {
@@ -121,6 +127,8 @@ function stones(scene, pathMaterial) {
       if(!recessed && y+height>ceiling-.03)contacts.push({a:angle});
       const ca=Math.cos(angle),sa=Math.sin(angle);
       const tone=ROCK_TONES[Math.floor(random()*ROCK_TONES.length)];
+      const exposed=smooth(.16,.24,y+height)*(1-smooth(.06,.24,wrapDistance(angle,1.24)));
+      const mineral=tone.map((c,i)=>c+exposed*[.23,.19,.14][i]);
       const tilt=range(-.33,.33),spin=range(0,TAU),phase=range(0,TAU);
       const grain=range(.79,1.16)*(recessed?.66:1);
       const local=shape.points.map(([u,v,w])=>{
@@ -144,7 +152,7 @@ function stones(scene, pathMaterial) {
         const r=radius+out,sy=centerY+up;
         positions.push(r*ca-t*sa,sy,r*sa+t*ca);
         const light=grain*(.86+.14*up/height+.10*out/depth);
-        colors.push(...tone.map(c=>c*light),1);
+        colors.push(...mineral.map(c=>c*light),1);
         uvs.push((angle*1.30+t)*2.2,(sy+.22*out)*2.2);
         minGap=Math.min(minGap,glassInnerRadiusAt(sy)-Math.hypot(r,t));
         minHeight=Math.min(minHeight,sy);maxHeight=Math.max(maxHeight,sy);

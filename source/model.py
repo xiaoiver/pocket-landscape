@@ -182,6 +182,7 @@ for g in groups:
 from runpy import run_path
 floor=run_path(str(Path(__file__).with_name('terrarium-floor.py')))
 floor['install']()
+floor['lower_path_leaves'](bpy.data.objects['Fittonia · ivory'])
 run_path(str(Path(__file__).with_name('scenery-rocks.py')))['install'](land,floor['bed'])
 gravel = run_path(str(Path(__file__).with_name('path-gravel.py')))['install'](land)
 floor['dress_path_edge'](bpy.data.objects['Living moss · rosettes'], gravel)
