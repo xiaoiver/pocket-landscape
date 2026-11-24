@@ -1,6 +1,8 @@
 import {Engine,Scene,ArcRotateCamera,Vector3,Color3,Color4,DirectionalLight,HemisphericLight,ShadowGenerator,MeshBuilder,Mesh,StandardMaterial,DynamicTexture,Texture,HDRCubeTexture,VertexData,ImportMeshAsync} from '@babylonjs/core';
 import '@babylonjs/loaders/glTF/2.0';
 import {installGlass} from './glass.js';
+import {installDrainage} from './drainage.js';
+import {prepareSubstrate} from './substrate.js';
 const canvas=document.getElementById('garden');
 const status=document.getElementById('status');
 async function start(){
@@ -80,7 +82,21 @@ async function start(){
   const query = new URLSearchParams(location.search);
   const forceLightweight = query.get('glass') === 'lightweight' || matchMedia('(pointer: coarse)').matches;
   const layers = Object.fromEntries(['fog','drops','caustic'].map(name => [name,query.get(name) !== '0']));
-  const glass = installGlass(scene, camera, hdr, [ground, shadowPlane, ...base, ...specimens], {
+  const earth=base.find(mesh=>mesh.name==='Earth · planted bank');
+  const drainage = installDrainage(scene,earth);
+  const substrate = drainage && prepareSubstrate(scene,earth,drainage.gravel);
+  const drainageToggle = document.getElementById('drainage');
+  if (drainage) {
+    const enableDrainage = active => {
+      drainage.setEnabled(active);
+      substrate?.setEnabled(active);
+      drainageToggle.setAttribute('aria-pressed',String(active));
+    };
+    enableDrainage(query.get('drainage') !== '0');
+    drainageToggle.hidden = false;
+    drainageToggle.onclick = () => enableDrainage(!drainage.gravel.isEnabled());
+  }
+  const glass = installGlass(scene, camera, hdr, [ground, shadowPlane, ...base, ...specimens, ...(drainage ? [drainage.gravel] : [])], {
     forceLightweight, sunlight:sun, layers, animateDrops:!matchMedia('(prefers-reduced-motion: reduce)').matches,
   });
   if (glass.highQuality) {

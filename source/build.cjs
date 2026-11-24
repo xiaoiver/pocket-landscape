@@ -18,9 +18,11 @@ async function buildViewer() {
   const shadow = fs.readFileSync(path.join(__dirname, 'assets/shadow.png'));
   const specimens = zlib.gzipSync(fs.readFileSync(path.join(__dirname, 'assets/specimens/plants.glb')));
   const specimenShadow = fs.readFileSync(path.join(__dirname, 'assets/specimens/shadow.png'));
+  const substrate = ['normal','roughness'].map(key =>
+    embeddedData('substrate-'+key, fs.readFileSync(path.join(__dirname, 'assets/substrate', key+'.jpg'))));
   const script = bundle.outputFiles[0].text.replace(/<\/script/gi, '<\\/script');
   const content = [embeddedData('studio-data', studio), embeddedData('shadow-data', shadow),
-    embeddedData('specimen-data', specimens), embeddedData('specimen-shadow', specimenShadow), embeddedData('model-data', model), '<script>' + script + '</script>'].join('\n');
+    embeddedData('specimen-data', specimens), embeddedData('specimen-shadow', specimenShadow), embeddedData('model-data', model), ...substrate, '<script>' + script + '</script>'].join('\n');
   const template = fs.readFileSync(path.join(__dirname, 'page.html'), 'utf8');
   fs.writeFileSync(path.join(project, 'index.html'), template.replace('<!--APP-->', () => content));
 }
