@@ -127,6 +127,17 @@ void main() {
 }`;
 
 const WALL = [[1.315,.08],[1.34,.12],[1.351,.24],[1.367,1.39],[1.366,1.43]];
+const INNER_WALL_INSET = .008;
+
+// Same geometric profile used by the optical rear wall; does not read optical thickness.
+export function glassInnerRadiusAt(y) {
+  if (y <= WALL[0][1]) return WALL[0][0]-INNER_WALL_INSET;
+  for (let i=1;i<WALL.length;i++) {
+    const [left,low]=WALL[i-1], [right,high]=WALL[i];
+    if (y <= high) return left+(right-left)*(y-low)/(high-low)-INNER_WALL_INSET;
+  }
+  return WALL[WALL.length-1][0]-INNER_WALL_INSET;
+}
 const FOOT = [[1.22,.030],[1.295,.021],[1.332,.041],[1.345,.066],[1.346,.095],[1.333,.115],[1.299,.123],[1.24,.105]];
 const LIP = Array.from({length:21}, (_, i) => {
   const a = i * Math.PI / 10;
@@ -284,7 +295,7 @@ export function installGlass(scene, camera, hdr, contents, {forceLightweight = f
 
   // Single front wall overlay, with an oppositely wound, reflection-only rear surface.
   // The rear surface has no capture sampler, so there is no feedback cycle.
-  const inner = profile(scene, 'Reflection-only inner wall', WALL.map(([r,y]) => [r-.008,y]).reverse(), 1);
+  const inner = profile(scene, 'Reflection-only inner wall', WALL.map(([r,y]) => [r-INNER_WALL_INSET,y]).reverse(), 1);
   const rear = overlay(scene, 'Rear glass reflection', 0, hdr);
   inner.material = rear;
   inner.isVisible = false;
