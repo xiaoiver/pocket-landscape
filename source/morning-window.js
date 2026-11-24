@@ -100,6 +100,10 @@ export function createMorningWindow(scene, camera) {
     meshes,
     setRain(raining) {
       pane.material = raining ? rainGlass : glass;
+      // The painted reveal receives only a weak bounce from the overcast window.
+      for (const material of pieces.keys()) {
+        material.diffuseColor.scaleToRef((raining ? .22 : .56) / .34, material.emissiveColor);
+      }
     },
   };
 }

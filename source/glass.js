@@ -37,6 +37,7 @@ varying vec3 n;
 varying vec3 p;
 uniform vec3 eye;
 uniform float edge;
+uniform float reflectedLight;
 #ifdef HDR_WALL
 uniform samplerCube reflection;
 #endif
@@ -93,6 +94,7 @@ void main() {
 #else
   float opacity = .014 + f*.29 + b*.20 + edge*(.19+.28*f);
 #endif
+  c *= reflectedLight;
 #ifdef OPTICAL_WALL
   // Project the bounded bend into the current viewport, not the smaller RTT.
   float y = clamp((p.y-.08)/1.35,0.,1.);
@@ -136,7 +138,7 @@ void main() {
   float f5 = pow(1.-incidence,5.);
   float glint = drop*max(0.,-dropNormal.y)*.22;
   vec3 glass = mix(transmitted,c,.03+.32*f5+.18*b);
-  glass = mix(glass,vec3(.90,.94,.89),.27*mist+glint);
+  glass = mix(glass,reflectedLight*vec3(.90,.94,.89),.27*mist+glint);
   float valid = smoothstep(.001,.024,min(min(uv.x,uv.y),min(1.-uv.x,1.-uv.y)));
   float optical = (.034+.50*f5+.18*mist+.26*drop)*valid;
   // Combine the original HDR silhouette + weak centered transmission without
@@ -183,7 +185,7 @@ function profile(scene, name, shape, alphaIndex) {
 function overlay(scene, name, edge, hdr, optics) {
   const m = new ShaderMaterial(name, scene, {vertexSource:VS, fragmentSource:FS}, {
     attributes:['position','normal'],
-    uniforms:['world','worldViewProjection','eye','edge', ...(optics ? [
+    uniforms:['world','worldViewProjection','eye','edge','reflectedLight', ...(optics ? [
       'view','screenSize','viewScale','opticalScale','absorptionScale','fogOn','dropsOn','dropTime',
     ] : [])],
     samplers: optics ? ['reflection','contents','thicknessMap'] : hdr ? ['reflection'] : [],
@@ -192,6 +194,7 @@ function overlay(scene, name, edge, hdr, optics) {
   });
   m.backFaceCulling = !hdr ? false : true;
   m.setFloat('edge', edge);
+  m.setFloat('reflectedLight', 1);
   if (hdr) m.setTexture('reflection', hdr);
   if (optics) {
     m.setTexture('contents', optics.capture);
@@ -216,7 +219,7 @@ class PolishedEdge extends MaterialPluginBase {
         vec2 cards=glassStudio(reflectedView);
         float grazing=pow(1.-clamp(abs(dot(normalW,viewDirectionW)),0.,1.),3.);
         finalColor.rgb=mix(finalColor.rgb,vec3(.095,.14,.12),cards.y*(.24+.28*grazing));
-        finalColor.rgb=mix(finalColor.rgb,vec3(1.26,1.24,1.17),cards.x*(.49+.32*grazing));
+        finalColor.rgb=mix(finalColor.rgb,vec3(1.26,1.24,1.17)*sqrt(vLightingIntensity.z),cards.x*(.49+.32*grazing));
       `,
     };
   }
@@ -306,6 +309,11 @@ void main() {
 export function installGlass(scene, camera, hdr, contents, {forceLightweight = false, sunlight, layers = {}, animateDrops = true} = {}) {
   const engine = scene.getEngine();
   const caps = engine.getCaps();
+  const initialEnvironment = scene.environmentIntensity;
+  function updateOverlay(material) {
+    material.setVector3('eye', camera.position);
+    material.setFloat('reflectedLight', Math.sqrt(scene.environmentIntensity / Math.max(initialEnvironment, .001)));
+  }
   const wall = profile(scene, 'Clear handblown wall', WALL, 1);
   const foot = profile(scene, 'Polished foot', FOOT, 2);
   const rim = profile(scene, 'Rounded glass lip', LIP, 3);
@@ -315,7 +323,7 @@ export function installGlass(scene, camera, hdr, contents, {forceLightweight = f
   if (!useCapture) {
     const materials = [overlay(scene,'Lightweight wall',0), overlay(scene,'Lightweight foot',.88), overlay(scene,'Lightweight lip',.88)];
     [wall.material, foot.material, rim.material] = materials;
-    return { highQuality:false, update: () => { for (const m of materials) m.setVector3('eye', camera.position); } };
+    return { highQuality:false, update: () => { for (const m of materials) updateOverlay(m); } };
   }
 
   // Capture only the table/shadow and both planting variants, never the refractive meshes.
@@ -377,8 +385,8 @@ export function installGlass(scene, camera, hdr, contents, {forceLightweight = f
       screenSize.set(engine.getRenderWidth(true),engine.getRenderHeight(true));
       front.setVector2('screenSize',screenSize);
       front.setVector2('viewScale',viewScale);
-      front.setVector3('eye', camera.position);
-      rear.setVector3('eye', camera.position);
+      updateOverlay(front);
+      updateOverlay(rear);
       if (state.drops && animateDrops) dropTime += Math.min(engine.getDeltaTime(),70)/1000;
       front.setFloat('dropTime',dropTime);
       if (state.caustic) effect.update();

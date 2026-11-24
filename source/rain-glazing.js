@@ -45,7 +45,7 @@ vec4 droplets(vec2 uv, vec2 cells, float moving) {
 
 vec3 overcast(vec3 color) {
   float grey = dot(color,vec3(.24,.65,.11));
-  return mix(vec3(grey), color, .30) * vec3(.75,.85,.91) + vec3(.018,.035,.047);
+  return mix(vec3(grey), color, .30) * vec3(.49,.58,.65) + vec3(.012,.024,.030);
 }
 
 void main() {
@@ -58,7 +58,7 @@ void main() {
   vec3 refracted = overcast(texture2D(garden,refractedUV).rgb);
   float glint = exp(-13.*dot(slope-vec2(-.27,.51),slope-vec2(-.27,.51)));
   float lowerEdge = smoothstep(.08,.68,-slope.y);
-  vec3 wet = refracted * (1.-.24*lowerEdge) + vec3(.22,.25,.26)*glint;
+  vec3 wet = refracted * (1.-.24*lowerEdge) + vec3(.14,.17,.19)*glint;
   gl_FragColor = vec4(mix(outside, wet, drop.z) + .028*sliding.w, 1.);
 }`;
 

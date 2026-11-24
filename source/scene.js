@@ -44,7 +44,8 @@ async function start(){
     const frameShadow=Math.exp(-.5*(across/.16)**2-.5*(along/3.4)**2);
     const shade=1-.078*frameShadow-.285*radial;
     img.data.set([222*shade,216*shade,201*shade,255],i*4);
-    const contact=1-.21*radial;
+    // Broad window bounce fades toward the near edge of the desk.
+    const contact=(1-.21*radial)*(.80+.20*Math.exp(-((x+.7)**2/20+(y-2.6)**2/13)));
     overcastDesk.data.set([211*contact,216*contact,215*contact,255],i*4);
   }
   ctx.putImageData(img,0,0);texture.update();texture.wrapU=texture.wrapV=Texture.CLAMP_ADDRESSMODE;texture.uScale=texture.vScale=350/60;texture.uOffset=texture.vOffset=(1-350/60)/2;floorMat.diffuseTexture=texture;ground.material=floorMat;
@@ -122,14 +123,18 @@ async function start(){
   await scene.whenReadyAsync();
   function setRain(raining) {
     casement.setRain(raining);
-    sun.intensity = raining ? .38 : 1.55;
+    sun.intensity = raining ? .18 : 1.55;
     if (raining) sun.diffuse.set(.84,.91,1);
     else sun.diffuse.set(1,.94,.82);
-    sky.intensity = raining ? 1.02 : .78;
+    sky.intensity = raining ? .32 : .78;
     if (raining) sky.diffuse.set(.84,.92,.99);
     else sky.diffuse.set(1,1,1);
+    scene.environmentIntensity = raining ? .14 : .42;
+    if (raining) scene.clearColor.set(.28,.34,.39,1);
+    else scene.clearColor.set(.94,.925,.88,1);
+    document.body.classList.toggle('rainy', raining);
     shadows.setDarkness(raining ? .74 : .33);
-    shadeMat.alpha = raining ? .22 : 1;
+    shadeMat.alpha = raining ? .16 : 1;
     glass.setLayer?.('caustic', !raining && layers.caustic);
     ctx.putImageData(raining ? overcastDesk : img,0,0);
     texture.update();
