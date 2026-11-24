@@ -170,26 +170,12 @@ for x,y,h,spread,num in [(-.48,.53,1.49,.71,10),(.42,.68,1.22,.55,9),(-.95,-.44,
 strap=[group('Canopy '+str(i),c,.48,'canopy.jpg') for i,c in enumerate(['608641','779b4f','527a3d','8da857'])]
 for j in range(12):
     a=j*2.4;l=R(.45,.95);leaf(rng.choice(strap),(-.05,.75,land(-.05,.75)),a,l,R(.065,.12),R(.81,1.48),.38,R(-.85,.85))
-# A small seated fox, sculpted as separate material groups for easy recolouring.
-fur=group('Fox · fired ochre','ca743c',.67); white=group('Fox · porcelain','f2ddba',.62);dark=group('Fox · umber','382c29',.38); inner=group('Fox · ears','975a49'); eye=group('Fox · glints','fff6df',.2)
-x,y=.36,-.62; z=land(x,y)+.023
-def fox(g,offset,scale,angle=0):
-    blob(g,(x+offset[0],y+offset[1],z+offset[2]),scale,26,14,angle)
-fox(fur,(0,.02,.17),(.158,.156,.19));fox(white,(0,-.083,.173),(.096,.071,.143))
-for s in [-1,1]:
-    fox(fur,(s*.079,-.072,.111),(.046,.054,.105));fox(dark,(s*.082,-.102,.045),(.047,.058,.035))
-fox(fur,(0,-.015,.37),(.185,.148,.155))
-for s in [-1,1]:
-    fox(white,(s*.073,-.125,.336),(.092,.041,.056),s*.24)
-    fox(dark,(s*.092,-.133,.392),(.016,.012,.019));fox(eye,(s*.092-.003,-.144,.397),(.004,.002,.004))
-    p=Vector((x+s*.104,y-.016,z+.464)); tip=Vector((x+s*.169,y+.004,z+.617))
-    vs=[p+Vector((-.071,-.06,0)),p+Vector((.071,-.06,0)),p+Vector((0,.065,0)),tip]
-    fur.add(vs,[(0,1,3),(1,2,3),(2,0,3),(2,1,0)])
-    inner.add([p+Vector((-.043,-.061,.009)),p+Vector((.043,-.061,.009)),tip+Vector((-s*.009,-.016,-.033))],[(0,1,2)])
-fox(white,(0,-.155,.336),(.057,.047,.040));fox(dark,(0,-.196,.348),(.028,.016,.019))
-fox(fur,(.148,-.032,.083),(.094,.201,.085),-.48)
-fox(white,(.107,-.183,.082),(.069,.078,.068),-.50)
-for g in groups:g.finish()
+for g in groups:
+    # The old scatter still seeds the subsequent hand-tuned planting layout.
+    if not g.name.startswith(('Cushion moss','Living moss')):
+        g.finish()
+from runpy import run_path
+run_path(str(Path(__file__).with_name('terrarium-floor.py')))['install']()
 bpy.context.preferences.filepaths.save_version=0
 bpy.ops.wm.save_as_mainfile(filepath=str(out/'woodland.blend'))
 bpy.ops.export_scene.gltf(filepath=str(out/'woodland.glb'),export_format='GLB',export_yup=True,export_animations=False)

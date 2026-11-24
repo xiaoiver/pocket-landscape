@@ -108,9 +108,10 @@ async function start(){
     drainageToggle.hidden = false;
     drainageToggle.onclick = () => enableDrainage(!drainage.gravel.isEnabled());
   }
-  const mossPad=prepareMossPad(scene,earth,base);
-  mossPad?.setEnabled(true);
-  const mossBranchlets=!mossPad && installMossBranchlets(scene,
+  const hasModelledMoss=base.some(mesh=>mesh.name==='Living moss · rosettes');
+  const mossPad=!hasModelledMoss && prepareMossPad(scene,earth,base);
+  if(mossPad)mossPad.setEnabled(true);
+  const mossBranchlets=!hasModelledMoss && !mossPad && installMossBranchlets(scene,
     base.filter(mesh=>mesh.name.startsWith('Cushion moss ')),
     base.filter(mesh=>mesh.name.startsWith('River gravel ')),sun);
   const glass = installGlass(scene, camera, hdr, [ground, shadowPlane, ...base, ...specimens, ...(drainage ? [drainage.gravel] : []), ...(mossBranchlets ? [mossBranchlets] : []), ...(mossPad?.meshes ?? [])], {

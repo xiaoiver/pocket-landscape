@@ -31,9 +31,11 @@ npm run build
 
 ## 素材来源
 
-苔藓枝叶采用 Rob Tuytel 的 Moss 01，环境光采用 Sergej Majboroda 的 Studio Small 09。两者为 Poly Haven 的 CC0 资源，取自原 PR 已收录的副本。[Moss 01](https://polyhaven.com/a/moss_01) · [Studio Small 09](https://polyhaven.com/a/studio_small_09) · [许可](https://polyhaven.com/license)
+苔面使用 ambientCG 的 Moss 003 颜色、法线和高度纹理。地形和表面的细叶簇在 Blender 中生成，小径边缘与狐狸脚下留出裸土。[Moss 003](https://ambientcg.com/a/Moss003) · [CC0](https://docs.ambientcg.com/license/)
 
-造景参考了苔むすび的微缩山道和カキクケ苔的白砂小径。这里的陶土狐狸、植物布局、叶脉纹理和缸体另行制作。[階段の風景](https://kokemusubi-shop.com/products/kaidanll_selectfigure) · [流木の隠れ家と森の番人](https://minne.com/items/46157867)
+环境光采用 Sergej Majboroda 的 Studio Small 09。[Studio Small 09](https://polyhaven.com/a/studio_small_09) · [CC0](https://polyhaven.com/license)
+
+造景参考了苔むすび的微缩山道和カキクケ苔的白砂小径。小径旁的摆件使用项目作者提供的 Tripo 模型《圆润陶土狐狸摆件》，网页版保留原模型的颜色、法线和粗糙度贴图。[階段の風景](https://kokemusubi-shop.com/products/kaidanll_selectfigure) · [流木の隠れ家と森の番人](https://minne.com/items/46157867)
 
 ## 植物对照版
 
