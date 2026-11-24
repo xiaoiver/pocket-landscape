@@ -37,7 +37,7 @@ npm run build
 
 ## 植物对照版
 
-[查看叶片近景](docs/leaf-detail.png)
+![粉脉网纹草近景，可见粉色叶脉与卷曲的叶缘](docs/leaf-detail.png)
 
 页面默认展示素材版。右上角可在两版植物之间切换，观察相机保持在当前位置。「近看叶片」将相机对准前景网纹草。woodland-specimens.blend 和 woodland-specimens.glb 包含完整的素材版内景。woodland.blend 和 woodland.glb 对应原版内景。网页将两版共有的几何体加载一次。
 
