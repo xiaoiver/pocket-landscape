@@ -4,6 +4,7 @@ import {installGlass} from './glass.js';
 import {installDrainage} from './drainage.js';
 import {prepareSubstrate} from './substrate.js';
 import {applyFittoniaLight} from './fittonia-light.js';
+import {prepareGroundContacts} from './ground-contacts.js';
 const canvas=document.getElementById('garden');
 const status=document.getElementById('status');
 async function start(){
@@ -87,11 +88,13 @@ async function start(){
   const earth=base.find(mesh=>mesh.name==='Earth · planted bank');
   const drainage = installDrainage(scene,earth);
   const substrate = drainage && prepareSubstrate(scene,earth,drainage.gravel);
+  const contacts=prepareGroundContacts(scene,base);
   const drainageToggle = document.getElementById('drainage');
   if (drainage) {
     const enableDrainage = active => {
       drainage.setEnabled(active);
       substrate?.setEnabled(active);
+      contacts.attach(earth.material);
       drainageToggle.setAttribute('aria-pressed',String(active));
     };
     enableDrainage(query.get('drainage') !== '0');
