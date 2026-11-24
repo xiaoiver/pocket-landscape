@@ -17,7 +17,7 @@ npm run build
 
 用支持 WebGL 2 的浏览器打开生成的 `index.html` 即可离线观察。拖动旋转视角，滚轮或双指缩放。
 
-点左上角的爪印，再点动物缩略图，即可切换狐狸、卧姿小鹿或刺猬。
+点左上角的爪印，再点动物缩略图，即可切换狐狸、卧姿小鹿或刺猬。点选缸里的摆件，拖动箭头可沿单轴移动，拖动方块可沿地面自由摆放。点空白处或按 Esc 收起手柄。
 
 点击旁边的太阳或雨云图标切换天气。阴雨天里，微弱的灰蓝色窗光勾出杯沿和叶片轮廓，桌面朝室内渐暗。小水珠附在窗上，相遇后会合并；较重的水滴沿玻璃滑落，遇到阵风会略微偏斜，扫开细珠，拖出短暂相连的湿痕；水膜渐淡后，弯曲的路径上留下细珠。启用系统的「减少动态效果」时，雨滴保持静止。
 
@@ -30,7 +30,7 @@ npm run build
 | 看哪里 | 如何渲染 |
 | --- | --- |
 | 杯壁、卷口与厚底 | Babylon.js 分别旋转截面曲线生成三部分几何体。桌面高画质模式用一张半分辨率、线性半浮点渲染目标捕捉缸内景物。薄壁着色器按厚度和入射角计算折射偏移与吸收，卷口和底足的 PBR 材质共用这张纹理。转动视角时，HDR 环境反射和窗光高光沿圆角移动。[玻璃实现](source/glass.js) |
-| 窗光与投影 | 棚拍 HDR 提供环境光和反射，方向光模拟窗光。缸后有带薄窗台和单根偏侧竖梃的立体窗框，独立的窗玻璃位于柔焦远景前方。2048 × 2048 的 PCF 阴影贴图让植物和石头彼此投影，桌面的柔影则从模型轮廓离线烘焙。玻璃底部附近的亮弧由方向光驱动的着色器近似焦散。[场景灯光](source/scene.js) · [桌面投影](source/shadow.py) |
+| 窗光与投影 | 棚拍 HDR 提供环境光和反射，方向光模拟窗光。缸后有带薄窗台和单根偏侧竖梃的立体窗框，独立的窗玻璃位于柔焦远景前方。穿过实际窗面的晨光驱动 2048 × 2048 的 PCSS 软阴影贴图，缸内物体和桌面共用实时投影。窗梃的柔影沿同一方向投到桌面。玻璃底部附近的亮弧由方向光驱动的着色器近似焦散。[场景灯光](source/scene.js) |
 | 网纹草、蕨叶与长叶 | 叶片的漫透射保留原有色素。网纹草表面的高光柔和，蕨叶带一层很轻的蜡质反光。程序化叶片的中脉比边缘透光少。两丛蕨的羽片法线向各自的冠形轻微靠拢，根部用顶点色压暗；远处细羽片的透明裁切随纹理缩小程度补偿。[植物着色](source/foliage.js) · [同机位对照](docs/foliage-detail.jpg) |
 | 苔床、石径与排水层 | 陶土摆件前方有几团高矮错落的苔丘，低垂的网纹草遮住石径后方的一段弯道。杯壁附近局部可见垂苔，以及嵌入排水石缝的细土。小径上的扁石部分埋入坡面，底部较粗的排水石沿内壁错叠。真实几何决定轮廓和孔隙，颜色、法线和粗糙度贴图负责近处的颗粒感。土石交界局部压暗并降低粗糙度，呈现湿润感。[苔床](source/terrarium-floor.py) · [小径](source/path-gravel.py) · [排水层](source/drainage.js) |
 
@@ -46,21 +46,19 @@ npm run build
 
 `woodland.blend` 和 `woodland.glb` 是基础内景，`woodland-specimens.blend` 和 `woodland-specimens.glb` 包含完整的扫描植物版。网页从基础 GLB 加载共用的地形、景石和摆件，再从 `source/assets/specimens/plants.glb` 加载前景网纹草和两丛蕨类。可直接使用仓库内的资产构建网页。
 
-要从头生成基础内景，在仓库根目录运行以下命令。纹理与投影脚本需要 Python 和 Pillow，`blender` 可替换为本机可执行文件的路径。
+要从头生成基础内景，在仓库根目录运行以下命令。纹理脚本需要 Python 和 Pillow，`blender` 可替换为本机可执行文件的路径。
 
 ```sh
 cd source
 python3 textures.py ./textures
 blender -b -P model.py -- "$PWD/textures" "$PWD/.."
-python3 shadow.py ../woodland.glb assets/shadow.png
 cd ..
 ```
 
-要重新生成扫描植物版，将 Sketchfab 原始 ZIP 内的 source 压缩包解开，把下方的路径替换为包含 `model.glb` 和贴图的目录。在仓库根目录执行，第二条命令会更新网页使用的桌面投影。
+要重新生成扫描植物版，将 Sketchfab 原始 ZIP 内的 source 压缩包解开，把下方的路径替换为包含 `model.glb` 和贴图的目录。在仓库根目录执行。
 
 ```sh
 blender -b -P source/specimens.py -- "/path/to/extracted/scan" "$PWD"
-python3 source/shadow.py woodland-specimens.glb source/assets/specimens/shadow.png
 npm run build
 ```
 

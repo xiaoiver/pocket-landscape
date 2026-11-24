@@ -31,7 +31,7 @@ function installSheets() {
   controls.hidden = false;
 }
 
-export function installGardenControls({base, loadPlantedModel, shadows, glass, contacts, setRain}) {
+export function installGardenControls({base, loadPlantedModel, shadows, glass, contacts, placement, setRain}) {
   const fox = base.find(mesh => mesh.name.startsWith('Fox ·'));
   const cache = new Map([['fox', Promise.resolve([fox])]]);
   const notice = document.getElementById('animal-notice');
@@ -71,8 +71,9 @@ export function installGardenControls({base, loadPlantedModel, shadows, glass, c
         for (const mesh of next) mesh.setEnabled(true);
         active = next;
         contacts.setAnimal(id);
+        placement.activate(next);
         for (const choice of buttons) choice.setAttribute('aria-pressed', String(choice === button));
-        document.getElementById('garden').setAttribute('aria-label', '可旋转的玻璃微景观，陶土' + name + '在蕨间小径旁');
+        document.getElementById('garden').setAttribute('aria-label', '可旋转的玻璃微景观，陶土' + name + '，点选后可拖动手柄移动');
         delete button.dataset.status;
         notice.textContent = '';
       } catch (error) {

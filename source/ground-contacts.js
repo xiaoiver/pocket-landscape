@@ -1,4 +1,4 @@
-import { MaterialPluginBase, PBRMaterial, RawTexture, Texture } from '@babylonjs/core';
+import { MaterialPluginBase, PBRMaterial, RawTexture, Texture, Vector3 } from '@babylonjs/core';
 
 // Local accents fitted to components of woodland.glb intersecting the earth surface.
 // Each entry is [world x, ground y, world z, x/z falloff radius, strength].
@@ -42,15 +42,21 @@ function makeMap(scene, rgba) {
 }
 
 class GroundContact extends MaterialPluginBase {
-  constructor(material, map) {
+  constructor(material, map, offset) {
     super(material,'Ground contact accents',222,{GROUND_CONTACTS:false});
     this.map=map;
+    this.offset=offset;
     this._enable(true);
   }
   prepareDefines(defines) { defines.GROUND_CONTACTS=true; }
+  getUniforms() {
+    return {ubo:[{name:'animalContactOffset',size:3,type:'vec3'}],
+      fragment:'#ifdef GROUND_CONTACTS\nuniform vec3 animalContactOffset;\n#endif'};
+  }
   getSamplers(samplers) { samplers.push('groundContactsMap'); }
   bindForSubMesh(buffer) {
     buffer.setTexture('groundContactsMap',this.map);
+    buffer.updateVector3('animalContactOffset',this.offset);
   }
   getCustomCode(stage) {
     if(stage!=='fragment')return null;
@@ -62,6 +68,9 @@ class GroundContact extends MaterialPluginBase {
           vec2 contactUv=(vPositionW.xz-vec2(${origin[0]},${origin[1]}))/vec2(${span[0]},${span[1]});
           vec2 groundContact=texture2D(groundContactsMap,contactUv).rg;
           float contactMask=groundContact.r*(1.-smoothstep(.037,.142,abs(vPositionW.y-groundContact.g)));
+          vec2 animalUv=contactUv-animalContactOffset.xz/vec2(${span[0]},${span[1]});
+          vec2 paw=texture2D(groundContactsMap,animalUv).ba;
+          contactMask=max(contactMask,paw.x*(1.-smoothstep(.037,.142,abs(vPositionW.y-animalContactOffset.y-paw.y))));
           // Keep existing highlights and direct shadows; favor ambient/indirect occlusion.
           finalAmbient *= 1.-contactMask;
           finalDiffuse *= 1.-.58*contactMask;
@@ -81,21 +90,30 @@ export function prepareGroundContacts(scene, base) {
     deer: [[.39,.631,.58,.21,.19,.29]],
     hedgehog: [[.39,.631,.58,.17,.19,.26]],
   };
+  const offset=Vector3.Zero();
+  const rocks=mapPixels(rockContacts);
   const pixels = new Map();
   function forAnimal(id) {
-    if (!pixels.has(id)) pixels.set(id, mapPixels([...footprints[id], ...rockContacts]));
+    if (!pixels.has(id)) {
+      const packed=rocks.slice(), animal=mapPixels(footprints[id]);
+      for(let i=0;i<packed.length;i+=4){
+        packed[i+2]=animal[i];
+        packed[i+3]=animal[i+1];
+      }
+      pixels.set(id,packed);
+    }
     return pixels.get(id);
   }
   const map=makeMap(scene, forAnimal('fox'));
   const attached=new Set();
   function attach(material){
     if(!(material instanceof PBRMaterial)||attached.has(material))return;
-    new GroundContact(material,map);
+    new GroundContact(material,map,offset);
     material.markAsDirty(PBRMaterial.AllDirtyFlag);
     attached.add(material);
   }
   for(const mesh of base){
     if(/^(Earth · planted bank|River gravel |Cushion moss )/.test(mesh.name))attach(mesh.material);
   }
-  return {attach, setAnimal(id) { map.update(forAnimal(id)); }};
+  return {attach, setOffset(value) { offset.copyFrom(value); }, setAnimal(id) { map.update(forAnimal(id)); }};
 }
