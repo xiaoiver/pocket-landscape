@@ -40,10 +40,11 @@ function makeMap(scene) {
 
 class GroundContact extends MaterialPluginBase {
   constructor(material, map) {
-    super(material,'Ground contact accents',222);
+    super(material,'Ground contact accents',222,{GROUND_CONTACTS:false});
     this.map=map;
     this._enable(true);
   }
+  prepareDefines(defines) { defines.GROUND_CONTACTS=true; }
   getSamplers(samplers) { samplers.push('groundContactsMap'); }
   bindForSubMesh(buffer) {
     buffer.setTexture('groundContactsMap',this.map);
@@ -51,8 +52,9 @@ class GroundContact extends MaterialPluginBase {
   getCustomCode(stage) {
     if(stage!=='fragment')return null;
     return {
-      CUSTOM_FRAGMENT_DEFINITIONS:'uniform sampler2D groundContactsMap;',
+      CUSTOM_FRAGMENT_DEFINITIONS:'#ifdef GROUND_CONTACTS\nuniform sampler2D groundContactsMap;\n#endif',
       CUSTOM_FRAGMENT_BEFORE_FINALCOLORCOMPOSITION:`
+        #ifdef GROUND_CONTACTS
         {
           vec2 contactUv=(vPositionW.xz-vec2(${origin[0]},${origin[1]}))/vec2(${span[0]},${span[1]});
           vec2 groundContact=texture2D(groundContactsMap,contactUv).rg;
@@ -64,6 +66,7 @@ class GroundContact extends MaterialPluginBase {
           finalIrradiance *= 1.-contactMask;
           #endif
         }
+        #endif
       `,
     };
   }
@@ -75,6 +78,7 @@ export function prepareGroundContacts(scene, base) {
   function attach(material){
     if(!(material instanceof PBRMaterial)||attached.has(material))return;
     new GroundContact(material,map);
+    material.markAsDirty(PBRMaterial.AllDirtyFlag);
     attached.add(material);
   }
   for(const mesh of base){
