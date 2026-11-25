@@ -30,4 +30,11 @@ export function installDepthOfField(scene, camera, subject) {
   engine.onResizeObservable.add(() => {
     depth.resize({width: engine.getRenderWidth(), height: engine.getRenderHeight()});
   });
+  let attached = true;
+  return enabled => {
+    if (enabled === attached) return;
+    attached = enabled;
+    if (enabled) manager.attachCamerasToRenderPipeline(pipeline.name,camera);
+    else manager.detachCamerasFromRenderPipeline(pipeline.name,camera);
+  };
 }

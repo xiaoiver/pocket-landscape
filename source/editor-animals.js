@@ -1,5 +1,5 @@
 import {glassInnerRadiusAt,vesselWalls} from './glass.js';
-import {Matrix, PhysicsAggregate, PhysicsShapeType} from '@babylonjs/core';
+import {Matrix, Quaternion, PhysicsAggregate, PhysicsShapeType} from '@babylonjs/core';
 
 export const maxAnimals = 12;
 const kinds = ['fox','deer','hedgehog'];
@@ -42,14 +42,14 @@ export async function createEditorAnimals({scene,glass,shadows,loadPlantedModel,
     }
     const y=heightAt(x,z)+(pose.lift || 0);
     mesh.position.set(x,y,z);
-    mesh.rotation.y = pose.yaw;
+    Quaternion.RotationYawPitchRollToRef(pose.yaw,0,0,mesh.rotationQuaternion);
     mesh.scaling.setAll(vessel.type==='bottle' ? Math.min(1,(1.96-y)/height) : 1);
     mesh.computeWorldMatrix(true);
     bodies.set(mesh,new PhysicsAggregate(mesh,PhysicsShapeType.CONVEX_HULL,{mass:0,friction:.62},scene));
   }
   function add(pose) {
     const mesh = templates.get(pose.kind).mesh.clone('Figurine · '+pose.kind,null,true);
-    mesh.rotationQuaternion = null;
+    mesh.rotationQuaternion = Quaternion.Identity();
     mesh.isPickable = mesh.receiveShadows = true;
     mesh.setEnabled(true);
     placed.set(mesh,pose);

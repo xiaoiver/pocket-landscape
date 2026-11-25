@@ -25,7 +25,7 @@ export function createEditHistory(snapshot, restore, reflect, limit=40) {
   };
 }
 
-export function installEditHistory(snapshot,restore) {
+export function installEditHistory(snapshot,restore,isActive=() => true) {
   const undo = document.getElementById('undo-edit'), redo = document.getElementById('redo-edit');
   const history = createEditHistory(snapshot,restore,(canUndo,canRedo) => {
     undo.disabled = !canUndo;
@@ -35,7 +35,7 @@ export function installEditHistory(snapshot,restore) {
   undo.addEventListener('click',history.undo);
   redo.addEventListener('click',history.redo);
   document.addEventListener('keydown',event => {
-    if ((!event.ctrlKey && !event.metaKey) || event.altKey || event.defaultPrevented ||
+    if (!isActive() || (!event.ctrlKey && !event.metaKey) || event.altKey || event.defaultPrevented ||
         event.target.isContentEditable || event.target.closest?.('input,textarea,select')) return;
     const key = event.key.toLowerCase();
     if (key !== 'z' && !(key === 'y' && event.ctrlKey)) return;

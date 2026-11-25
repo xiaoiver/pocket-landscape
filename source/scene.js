@@ -1,16 +1,19 @@
-import {newPresetId, presetKey} from './preset-library.js';
+import {installPresetEditorMode} from './preset-editor-mode.js';
 import {openPebbleEditor} from './pebble-editor.js';
 import {labelButton, localizeInterface, wording} from './interface-language.js';
-import {Engine,Scene,ArcRotateCamera,Vector3,Color3,Color4,DirectionalLight,HemisphericLight,ShadowGenerator,MeshBuilder,StandardMaterial,DynamicTexture,Texture,HDRCubeTexture,ImportMeshAsync,SceneLoader} from '@babylonjs/core';
+import {Engine,Scene,ArcRotateCamera,Vector3,Color3,Color4,DirectionalLight,HemisphericLight,ShadowGenerator,MeshBuilder,PBRMaterial,StandardMaterial,DynamicTexture,Texture,HDRCubeTexture,ImportMeshAsync,SceneLoader} from '@babylonjs/core';
 import '@babylonjs/loaders/glTF/2.0';
+import {createDeskBooks} from './desk-books.js';
+import {createDeskLamp} from './desk-lamp.js';
 import {createMorningWindow} from './morning-window.js';
 import {installWeather} from './garden-controls.js';
 import {installDepthOfField} from './depth-of-field.js';
 import {createMossMist} from './moss-mist.js';
 import {installGlass} from './glass.js';
 import {installTerrariumLife} from './terrarium-life.js';
+import {softenPebbleGloss} from './pebble-material.js';
 import {installDrainage} from './drainage.js';
-import {soilInclusions} from './soil-inclusions.js';
+import {createSoilInclusions} from './soil-inclusions.js';
 import {prepareSubstrate} from './substrate.js';
 import {prepareClay,prepareFoliage} from './foliage.js';
 import {installMossBranchlets} from './moss-branchlets.js';
@@ -28,7 +31,10 @@ async function start(){
   const homeAlpha=Math.PI/2+.09,homeBeta=1.30;
   const target=new Vector3(0,1.20,0);
   const camera=new ArcRotateCamera('Desk view',homeAlpha,homeBeta,8,target,scene);
-  function fit(){return window.innerWidth/window.innerHeight<.85?3.38/(2*Math.tan(.17)*engine.getAspectRatio(camera)):10.45;}
+  function fit() {
+    // Leave space beside the jar for the reading lamp on portrait screens.
+    return Math.max(10.45,4.55/(2*Math.tan(camera.fov/2)*engine.getAspectRatio(camera)));
+  }
   camera.fov=.34;camera.minZ=.05;camera.maxZ=400;camera.lowerBetaLimit=.35;camera.upperBetaLimit=1.48;
   camera.lowerRadiusLimit=2.1;camera.upperRadiusLimit=Math.max(17,fit()*1.3);camera.wheelDeltaPercentage=.014;camera.pinchDeltaPercentage=.009;
   camera.attachControl(canvas,true);camera.panningSensibility=0;canvas.oncontextmenu=e=>e.preventDefault();
@@ -39,10 +45,25 @@ async function start(){
   const sun=new DirectionalLight('Morning window',ray,scene);
   sun.position=aim.subtract(ray.scale(8));sun.intensity=1.55;
   sun.diffuse=new Color3(1,.94,.82);sun.shadowMinZ=.1;sun.shadowMaxZ=15;
-  const shadows=new ShadowGenerator(2048,sun);
-  shadows.useContactHardeningShadow=true;shadows.contactHardeningLightSizeUVRatio=.075;shadows.filteringQuality=ShadowGenerator.QUALITY_MEDIUM;shadows.bias=.0005;shadows.normalBias=.003;
-  shadows.setDarkness(.33);sun.shadowFrustumSize=5.3;
+  const sunShadows=new ShadowGenerator(2048,sun);
+  sunShadows.useContactHardeningShadow=true;sunShadows.contactHardeningLightSizeUVRatio=.075;sunShadows.filteringQuality=ShadowGenerator.QUALITY_MEDIUM;sunShadows.bias=.0005;sunShadows.normalBias=.003;
+  sunShadows.setDarkness(.33);sun.shadowFrustumSize=5.3;
+  const books=createDeskBooks(scene);
+  const lamp=createDeskLamp(scene,casement,books);
+  for (const mesh of lamp.meshes) sunShadows.addShadowCaster(mesh,false);
+  const shadows = {
+    addShadowCaster(mesh,descendants=true) {
+      sunShadows.addShadowCaster(mesh,descendants);
+      lamp.shadows.addShadowCaster(mesh,descendants);
+    },
+    removeShadowCaster(mesh,descendants=true) {
+      sunShadows.removeShadowCaster(mesh,descendants);
+      lamp.shadows.removeShadowCaster(mesh,descendants);
+    },
+  };
+  for (const book of books) shadows.addShadowCaster(book,false);
   const ground=MeshBuilder.CreateGround('Paper tabletop',{width:350,height:350},scene);ground.receiveShadows=true;
+  const desk = {lamp,table:ground};
   const floorMat=new StandardMaterial('Warm stone',scene);floorMat.specularColor=Color3.Black();floorMat.disableLighting=false;
   // Leave headroom for the sunlit surface and its PCF shadows.
   floorMat.diffuseColor.setAll(.66);
@@ -61,6 +82,11 @@ async function start(){
     overcastDesk.data.set([211*contact,216*contact,215*contact,255],i*4);
   }
   ctx.putImageData(img,0,0);texture.update();texture.wrapU=texture.wrapV=Texture.CLAMP_ADDRESSMODE;texture.uScale=texture.vScale=350/60;texture.uOffset=texture.vOffset=(1-350/60)/2;floorMat.diffuseTexture=texture;ground.material=floorMat;
+  // Match the lamp's distance falloff on the desk and on the PBR planting.
+  const nightDesk=new PBRMaterial('Lamplit tabletop',scene);
+  nightDesk.albedoTexture=texture;
+  nightDesk.albedoColor=new Color3(.36,.34,.31);
+  nightDesk.roughness=.94;nightDesk.metallic=0;
   const hdr=new HDRCubeTexture('data:application/octet-stream;base64,'+document.getElementById('studio-data').textContent,scene,64,false,true,false,false);
   scene.environmentTexture=hdr;scene.environmentIntensity=.42;
   const query = new URLSearchParams(location.search);
@@ -80,42 +106,36 @@ async function start(){
   window.addEventListener('resize',resize);
   const editorMode = query.get('mode') === 'build';
   const editingPreset = editorMode && query.get('preset') === 'fern-path';
-  const modeButton = document.getElementById('editor-trigger');
-  modeButton.addEventListener('click', () => {
-    const url = new URL(location.href);
-    if (editorMode) {for (const key of ['mode','preset','copy']) url.searchParams.delete(key);}
-    else {
-      url.searchParams.set('mode','build');
-      url.searchParams.set('preset','fern-path');
-      url.searchParams.set('copy','draft');
-    }
-    location.assign(url.href);
-  });
-  if (editorMode) {
-    labelButton(modeButton,wording('返回成品景观','Return to the planted terrarium'));
-    modeButton.dataset.editing = '';
-  }
   let mist;
-  installWeather(setRain);
+  installWeather(setLighting);
   if (editorMode && !editingPreset) {
+    const modeButton = document.getElementById('editor-trigger');
+    modeButton.dataset.editing = '';
+    document.body.classList.add('editing');
+    labelButton(modeButton,wording('返回成品景观','Return to the planted terrarium'));
+    modeButton.addEventListener('click',() => {
+      const url = new URL(location.href);
+      for (const key of ['mode','preset','copy']) url.searchParams.delete(key);
+      location.assign(url.href);
+    });
     camera.setTarget(new Vector3(0,.98,0));
     camera.alpha = homeAlpha;
     camera.beta = 1.02;
     camera.radius = fit();
-    glass = installGlass(scene,camera,hdr,[ground,...casement.meshes],{forceLightweight,sunlight:sun,layers});
-    await openPebbleEditor(scene,glass,shadows,loadPlantedModel);
+    glass = installGlass(scene,camera,hdr,[ground,...casement.meshes,...books,...lamp.meshes],{forceLightweight,sunlight:sun,layers});
+    await openPebbleEditor(scene,glass,shadows,loadPlantedModel,desk);
     engine.runRenderLoop(() => {glass.update();scene.render();});
     await scene.whenReadyAsync();
     document.getElementById('controls').hidden = false;
     document.body.classList.add('ready');
     return;
   }
-  async function loadPlantedModel(id) {
+  async function loadPlantedModel(id,meshNames) {
     const encoded = document.getElementById(id).textContent.trim();
     const bytes = Uint8Array.from(atob(encoded), ch => ch.charCodeAt(0));
     const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'));
     const glb = new Uint8Array(await new Response(stream).arrayBuffer());
-    const result = await ImportMeshAsync(glb, scene, {pluginExtension: '.glb'});
+    const result = await ImportMeshAsync(glb, scene, {pluginExtension: '.glb',meshNames});
     const meshes = result.meshes.filter(mesh => mesh.getTotalVertices() > 0);
     for (const mesh of meshes) {
       if (id.startsWith('animal-') || mesh.name.startsWith('Fox ·')) prepareClay(mesh.material);
@@ -142,19 +162,27 @@ async function start(){
   const earth=base.find(mesh=>mesh.name==='Earth · planted bank');
   const pathStones=base.filter(mesh=>mesh.name.startsWith('River gravel '));
   const drainage = installDrainage(scene,earth,pathStones[0]?.material);
-  if(drainage) shadows.addShadowCaster(drainage.gravel);
+  for (const material of new Set(pathStones.map(mesh=>mesh.material))) softenPebbleGloss(material);
+  if (drainage) {
+    softenPebbleGloss(drainage.gravel.material);
+    shadows.addShadowCaster(drainage.gravel);
+  }
   const substrate = drainage && prepareSubstrate(scene,earth,drainage.gravel);
-  const contacts=editingPreset ? null : prepareGroundContacts(scene,base);
+  const contacts=prepareGroundContacts(scene,base);
   const pathSoil=preparePathSoil(scene,earth,pathStones);
   pathSoil?.setEnabled(true);
   pathSoil?.attach(earth?.material);
+  let fragmentMaterial;
   if (drainage) {
     const active = query.get('drainage') !== '0';
     drainage.setEnabled(active);
     substrate?.setEnabled(active);
     if (active && substrate) {
-      const fragments = soilInclusions(scene,earth);
-      if (fragments) { base.push(fragments); shadows.addShadowCaster(fragments); }
+      const fragments = createSoilInclusions(scene);
+      fragments.refresh(earth);
+      fragmentMaterial = fragments.mesh.material;
+      base.push(fragments.mesh);
+      shadows.addShadowCaster(fragments.mesh);
     }
     contacts?.attach(earth.material);
     pathSoil?.attach(earth.material);
@@ -164,62 +192,61 @@ async function start(){
   const shoots = prepareMossCushions(scene, bank, rosettes, {
     lightweight: forceLightweight, settled: drainage?.gravel.isEnabled(),
   });
-  if (shoots) { base.push(shoots); shadows.addShadowCaster(shoots); }
+  if (shoots) { base.push(shoots.mesh); shadows.addShadowCaster(shoots.mesh); }
   const hasModelledMoss = Boolean(rosettes);
   const mossPad=!hasModelledMoss && prepareMossPad(scene,earth,base);
   if(mossPad)mossPad.setEnabled(true);
   const mossBranchlets=!hasModelledMoss && !mossPad && installMossBranchlets(scene,
     base.filter(mesh=>mesh.name.startsWith('Cushion moss ')),
     pathStones,sun);
-  glass = installGlass(scene, camera, hdr, [ground, ...casement.meshes, ...base, ...specimens, ...(drainage ? [drainage.gravel] : []), ...(mossBranchlets ? [mossBranchlets] : []), ...(mossPad?.meshes ?? [])], {
+  glass = installGlass(scene, camera, hdr, [ground, ...casement.meshes, ...books, ...lamp.meshes, ...base, ...specimens, ...(drainage ? [drainage.gravel] : []), ...(mossBranchlets ? [mossBranchlets] : []), ...(mossPad?.meshes ?? [])], {
     forceLightweight, sunlight:sun, layers, animateDrops:!matchMedia('(prefers-reduced-motion: reduce)').matches,
   });
   mist = createMossMist(scene, !glass.highQuality);
   mist.mesh.setEnabled(query.get('mist') !== '0');
   glass.addContents?.([mist.mesh]);
-  if (editingPreset) {
-    const preset = {base,specimens,pathMesh:pathStones[0],grounds:[earth,bank].filter(Boolean)};
-    let key = presetKey(query.get('copy'));
-    if (!key) {
-      const url = new URL(location.href), id = newPresetId();
-      url.searchParams.set('copy',id);
-      history.replaceState(null,'',url.href);
-      key = presetKey(id);
-    }
-    await openPebbleEditor(scene,glass,shadows,loadPlantedModel,preset,key);
-    engine.runRenderLoop(() => {glass.update();scene.render();});
-    await scene.whenReadyAsync();
-    document.getElementById('controls').hidden = false;
-    document.body.classList.add('ready');
-    return;
-  }
   const life = installTerrariumLife(scene, camera, [...base, ...specimens, ...(mossPad?.meshes ?? [])], glass, {
     enabled: query.get('life') !== '0',
   });
   const fox = base.find(mesh => mesh.name.startsWith('Fox ·'));
   fox.computeWorldMatrix(true);
-  installDepthOfField(scene,camera,fox.getBoundingInfo().boundingBox.centerWorld);
+  const setLensEnabled = installDepthOfField(scene,camera,fox.getBoundingInfo().boundingBox.centerWorld);
   engine.runRenderLoop(()=>{life.update();glass.update();scene.render();});
   await scene.whenReadyAsync();
-  function setRain(raining) {
-    casement.setRain(raining);
+  function setLighting(mode) {
+    const raining=mode==='rain', night=mode==='night';
+    casement.setLighting(mode);
+    lamp.setLit(night);
+    sun.setEnabled(!night);
     mist?.setRain(raining);
     sun.intensity = raining ? .14 : 1.55;
     if (raining) sun.diffuse.set(.84,.91,1);
     else sun.diffuse.set(1,.94,.82);
-    sky.intensity = raining ? .25 : .78;
-    if (raining) sky.diffuse.set(.84,.92,.99);
+    sky.intensity = night ? .19 : raining ? .25 : .78;
+    if (night) sky.diffuse.set(.52,.65,1);
+    else if (raining) sky.diffuse.set(.84,.92,.99);
     else sky.diffuse.set(1,1,1);
-    scene.environmentIntensity = raining ? .115 : .42;
-    if (raining) scene.clearColor.set(.235,.285,.33,1);
+    scene.environmentIntensity = night ? .11 : raining ? .115 : .42;
+    if (night) scene.clearColor.set(.055,.075,.115,1);
+    else if (raining) scene.clearColor.set(.235,.285,.33,1);
     else scene.clearColor.set(.94,.925,.88,1);
     document.body.classList.toggle('rainy', raining);
-    shadows.setDarkness(raining ? .74 : .33);
+    sunShadows.setDarkness(raining ? .74 : .33);
+    ground.material=night ? nightDesk : floorMat;
     floorMat.diffuseColor.setAll(raining ? 1 : .66);
-    glass.setLayer?.('caustic', !raining && layers.caustic);
-    ctx.putImageData(raining ? overcastDesk : img,0,0);
+    glass.setLayer?.('caustic', mode==='sun' && layers.caustic);
+    ctx.putImageData(mode==='sun' ? img : overcastDesk,0,0);
     texture.update();
   }
+  await installPresetEditorMode({scene,glass,shadows,loadPlantedModel,desk,
+    preset:{base,specimens,fragmentMaterial,moss:bank && {bank,rosettes,shoots},pathMesh:pathStones[0],grounds:[earth,bank].filter(Boolean)},
+    onModeChange(editing) {
+      life.setPlants?.(!editing);
+      life.setMotes?.(!editing);
+      contacts.setEnabled(!editing);
+      setLensEnabled?.(!editing);
+    },
+  });
   document.getElementById('controls').hidden = false;
   document.body.classList.add('ready');
 }

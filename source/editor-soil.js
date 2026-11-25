@@ -1,6 +1,9 @@
-import {Color3, Mesh, PBRMaterial, PhysicsAggregate, PhysicsShapeType, Texture, VertexData} from '@babylonjs/core';
+import {Color3, Mesh, PBRMaterial, PhysicsAggregate, PhysicsShapeType, Texture, Vector3, VertexBuffer, VertexData} from '@babylonjs/core';
 
-// Both picking and physics use this same tessellated surface.
+export function createSoilCollider(mesh) {
+  return new PhysicsAggregate(mesh,PhysicsShapeType.MESH,{mass:0,friction:.85,restitution:0},mesh.getScene());
+}
+
 const radius = 1.32;
 export function soilLevel(mounds, x, z) {
   let height = .13;
@@ -11,18 +14,54 @@ export function soilLevel(mounds, x, z) {
   return Math.min(.98, height);
 }
 
-export function createEditorSoil(scene, mounds, restHeight) {
+// The bank has separate UV islands for the top and side. Each U column
+// of the cylindrical island ends at the actual (settled) shoulder of the jar.
+function bankRim(earth) {
+  const coordinates = earth.getVerticesData(VertexBuffer.PositionKind);
+  const normals = earth.getVerticesData(VertexBuffer.NormalKind);
+  const uv = earth.getVerticesData(VertexBuffer.UVKind);
+  const world = earth.computeWorldMatrix(true);
+  const indices = earth.getIndices();
+  const columns = new Map();
+  const low = new Vector3(), high = new Vector3();
+  for (let i=0; i<indices.length; i+=3) {
+    for (let corner=0; corner<3; corner++) {
+      let a=indices[i+corner], b=indices[i+(corner+1)%3];
+      if (coordinates[3*a+1] > coordinates[3*b+1]) [a,b]=[b,a];
+      const u=uv[2*a];
+      if (u !== uv[2*b]) continue;
+      Vector3.TransformCoordinatesToRef(Vector3.FromArray(coordinates,3*a),world,low);
+      Vector3.TransformCoordinatesToRef(Vector3.FromArray(coordinates,3*b),world,high);
+      const rise=high.y-low.y;
+      if (rise<=.04 || Math.hypot(high.x-low.x,high.z-low.z)>.4*rise ||
+          Math.hypot(high.x,high.z)<1.20 || high.y <= (columns.get(u)?.y ?? -Infinity)) continue;
+      const normal = Vector3.TransformNormal(Vector3.FromArray(normals,3*b),world).normalize();
+      const v = uv[2*b+1];
+      columns.set(u,{x:high.x,y:high.y,z:high.z,u,v,vPerUnit:(v-uv[2*a+1])/rise,normal});
+    }
+  }
+  // The authored UV seam is at +X and its U increases clockwise.
+  return columns.size > 2 ? [...columns.values()].sort((a,b)=>b.u-a.u) : null;
+}
+
+export function createEditorSoil(scene, mounds, restHeight, earth, inclusions) {
   const mesh = new Mesh('Editor soil', scene);
-  const soil = new PBRMaterial('Loose humus', scene);
-  const texture = id => new Texture('data:image/jpeg;base64,' + document.getElementById(id).textContent, scene, false, false);
-  soil.albedoTexture = texture('substrate-humus');
-  soil.bumpTexture = texture('substrate-humus-normal');
-  soil.bumpTexture.level = .55;
-  soil.albedoColor = new Color3(.62,.52,.42);
-  soil.roughness = .95;
-  soil.metallic = 0;
-  soil.backFaceCulling = false;
-  mesh.material = soil;
+  const rimColumns = earth && bankRim(earth);
+  if (earth) {
+    mesh.material = earth.material;
+    mesh.sideOrientation = earth.sideOrientation;
+  } else {
+    const soil = new PBRMaterial('Loose humus', scene);
+    const texture = id => new Texture('data:image/jpeg;base64,' + document.getElementById(id).textContent, scene, false, false);
+    soil.albedoTexture = texture('substrate-humus');
+    soil.bumpTexture = texture('substrate-humus-normal');
+    soil.bumpTexture.level = .55;
+    soil.albedoColor = new Color3(.62,.52,.42);
+    soil.roughness = .95;
+    soil.metallic = 0;
+    soil.backFaceCulling = false;
+    mesh.material = soil;
+  }
   mesh.receiveShadows = true;
   let collider;
   function surface(x,z,brushes=mounds) {
@@ -36,28 +75,83 @@ export function createEditorSoil(scene, mounds, restHeight) {
     collider?.dispose();
     collider = null;
     mesh.setEnabled(!restHeight || mounds.length>0);
-    if (!mesh.isEnabled()) return;
-    const segments = 64, rings = 22;
-    const positions = [0, surface(0,0), 0], indices = [], uvs = [.5,.5], normals = [];
-    for (let ring = 1; ring <= rings+1; ring++) {
-      const r = radius * Math.min(ring, rings) / rings;
-      for (let i = 0; i < segments; i++) {
+    if (!mesh.isEnabled()) { inclusions?.mesh.setEnabled(false); return; }
+    const segments = rimColumns ? rimColumns.length-1 : 128, rings = 36, tilesPerUnit = 1.4;
+    const positions = [], indices = [], uvs = [], normals = [];
+    const inBrush = [];
+    function topVertex(x,z) {
+      const y = surface(x,z);
+      positions.push(x,y,z);
+      if (earth) uvs.push(x*tilesPerUnit,1+z*tilesPerUnit);
+      else uvs.push(.5+x*tilesPerUnit,.5+z*tilesPerUnit);
+      // The authored bank already fills the jar. End the overlay just beneath
+      // that surface outside each brush stroke, including at the glass.
+      inBrush.push(!restHeight || y > restHeight(x,z)-.065);
+    }
+    function topTriangle(a,b,c) {
+      if (inBrush[a] || inBrush[b] || inBrush[c]) indices.push(a,b,c);
+    }
+    topVertex(0,0);
+    for (let ring = 1; ring <= rings; ring++) {
+      const r = radius*ring/rings;
+      for (let i=0; i<segments; i++) {
         const angle = 2*Math.PI*i/segments;
-        const x = r*Math.cos(angle), z = r*Math.sin(angle);
-        const y = ring > rings ? .066 : surface(x,z);
-        positions.push(x,y,z);
-        uvs.push(x*1.4+.5,z*1.4+.5+y*.3);
-        const a = 1+(ring-1)*segments+i, b = 1+(ring-1)*segments+(i+1)%segments;
-        if (ring === 1) indices.push(0,b,a);
-        else indices.push(a-segments,b,a, a-segments,b-segments,b);
+        if (rimColumns) topVertex(rimColumns[i].x*ring/rings,rimColumns[i].z*ring/rings);
+        else topVertex(r*Math.cos(angle),r*Math.sin(angle));
+      }
+      const start = 1+(ring-1)*segments;
+      for (let i=0; i<segments; i++) {
+        const a = start+i, b = start+(i+1)%segments;
+        if (ring === 1) topTriangle(0,b,a);
+        else {
+          topTriangle(a-segments,b,a);
+          topTriangle(a-segments,b-segments,b);
+        }
+      }
+    }
+
+    // Unwrap the exposed section by arc length and height. Separate rim
+    // vertices keep the top normal from rounding the whole vertical face.
+    const rim = 1+(rings-1)*segments;
+    const wall = positions.length/3;
+    const repeats = Math.round(2*Math.PI*radius*tilesPerUnit);
+    for (let i=0; i<=segments; i++) {
+      const source = 3*(rim+i%segments);
+      const x = positions[source], top = positions[source+1], z = positions[source+2];
+      const edge = rimColumns?.[i];
+      const bottom = edge ? Math.min(top,edge.y) : .066;
+      positions.push(x,top,z,x,bottom,z);
+      if (edge) {
+        // Continue the bank's humus grain from its last texel up the new face.
+        const vAt = y => edge.v+(y-edge.y)*edge.vPerUnit;
+        uvs.push(edge.u,vAt(top),edge.u,vAt(bottom));
+      } else {
+        const u = repeats*i/segments;
+        uvs.push(u,top*tilesPerUnit,u,bottom*tilesPerUnit);
+      }
+      if (i<segments && (inBrush[rim+i] || inBrush[rim+(i+1)%segments])) {
+        const a = wall+2*i;
+        indices.push(a,a+3,a+1,a,a+2,a+3);
       }
     }
     VertexData.ComputeNormals(positions,indices,normals,{useRightHandedSystem:true});
+    // The duplicated texture seam shares the same radial normal on both sides.
+    for (let i=0; i<=segments; i++) {
+      const angle = 2*Math.PI*i/segments;
+      for (let j=0;j<2;j++) {
+        const k = 3*(wall+2*i+j);
+        const normal = rimColumns?.[i].normal;
+        normals[k]=normal?.x ?? Math.cos(angle);
+        normals[k+1]=normal?.y ?? 0;
+        normals[k+2]=normal?.z ?? Math.sin(angle);
+      }
+    }
     const data = new VertexData();
     Object.assign(data,{positions,indices,uvs,normals});
     data.applyToMesh(mesh);
     mesh.refreshBoundingInfo();
-    collider = new PhysicsAggregate(mesh, PhysicsShapeType.MESH, {mass:0, friction:.65, restitution:.09},scene);
+    inclusions?.refresh(mesh);
+    collider = createSoilCollider(mesh);
   }
   rebuild();
   return {mesh,rebuild,heightAt};

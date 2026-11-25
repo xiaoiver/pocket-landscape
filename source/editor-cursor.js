@@ -2,7 +2,7 @@ import {Scene} from '@babylonjs/core';
 
 // Hotspots are in the toolbar icons' 24 × 24 viewBox.
 const hotspots = {
-  soil:[4,21], pebbles:[8,19], moss:[4,20], fern:[4,21],
+  soil:[4,21], pebbles:[8,19], rock:[10,19], moss:[4,20], fern:[4,21],
   fittonia:[12,21], animal:[12,19], erase:[9,21],
 };
 
@@ -51,7 +51,7 @@ export function installEditorCursor(scene,canvas,buttons,paw) {
     canvas.style.removeProperty('--tool-cursor');
   });
   return (tool,hasSelection) => {
-    const cursor = tool==='move' ? (hasSelection ? 'crosshair' : 'move') : cursors.get(tool);
+    const cursor = tool==='move' ? (hasSelection ? 'crosshair' : 'grab') : cursors.get(tool);
     canvas.style.setProperty('--tool-cursor',cursor || 'crosshair');
   };
 }
