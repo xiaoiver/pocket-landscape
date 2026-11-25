@@ -6,6 +6,7 @@ import {installGardenControls} from './garden-controls.js';
 import {installDepthOfField} from './depth-of-field.js';
 import {createMossMist} from './moss-mist.js';
 import {installGlass} from './glass.js';
+import {installTerrariumLife} from './terrarium-life.js';
 import {installDrainage} from './drainage.js';
 import {prepareSubstrate} from './substrate.js';
 import {prepareClay,prepareFoliage} from './foliage.js';
@@ -117,6 +118,9 @@ async function start(){
   const mist = createMossMist(scene, !glass.highQuality);
   mist.mesh.setEnabled(query.get('mist') !== '0');
   glass.addContents?.([mist.mesh]);
+  const life = installTerrariumLife(scene, camera, [...base, ...specimens, ...(mossPad?.meshes ?? [])], glass, {
+    enabled: query.get('life') !== '0',
+  });
   function resize() {
     engine.setHardwareScalingLevel(1/Math.min(window.devicePixelRatio||1,2));
     engine.resize();
@@ -131,7 +135,7 @@ async function start(){
   placement.activate([fox]);
   installDepthOfField(scene,camera,placement.focus);
   window.addEventListener('resize',resize);
-  engine.runRenderLoop(()=>{glass.update();scene.render();});
+  engine.runRenderLoop(()=>{life.update();glass.update();scene.render();});
   await scene.whenReadyAsync();
   function setRain(raining) {
     casement.setRain(raining);
