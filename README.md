@@ -19,6 +19,8 @@ npm run build
 
 点左上角的爪印，再点动物缩略图，即可切换狐狸、卧姿小鹿或刺猬。点选缸里的摆件，拖动箭头可沿单轴移动，拖动方块可沿地面自由摆放。点空白处或按 Esc 收起手柄。
 
+「观察」可以回到全景、近看蕨丛，或对准当前的小动物。「环境」可以单独开关苔面薄雾、植物动态和漂浮微粒。
+
 点击旁边的太阳或雨云图标切换天气。阴雨天里，微弱的灰蓝色窗光勾出杯沿和叶片轮廓，桌面朝室内渐暗。小水珠附在窗上，相遇后会合并；较重的水滴沿玻璃滑落，遇到阵风会略微偏斜，扫开细珠，拖出短暂相连的湿痕；水膜渐淡后，弯曲的路径上留下细珠。启用系统的「减少动态效果」时，雨滴保持静止。
 
 ![小鹿卧在苔坡上，左上角的动物选择面板展示三款陶土摆件](docs/animal-controls.jpg)
@@ -35,6 +37,8 @@ npm run build
 | 苔床、石径与排水层 | 陶土摆件前方有几团高矮错落的苔丘，低垂的网纹草遮住石径后方的一段弯道。杯壁附近局部可见垂苔，以及嵌入排水石缝的细土。小径上的扁石部分埋入坡面，底部较粗的排水石沿内壁错叠。真实几何决定轮廓和孔隙，颜色、法线和粗糙度贴图负责近处的颗粒感。土石交界局部压暗并降低粗糙度，呈现湿润感。[苔床](source/terrarium-floor.py) · [小径](source/path-gravel.py) · [排水层](source/drainage.js) |
 
 相机默认启用轻微景深，焦平面跟随小径旁的陶土摆件。旋转或拉近镜头时，摆件周围的苔藓保留纹理，远处窗框和雨滴逐渐柔化。
+
+[苔簇和沿杯土层，同机位前后对比](docs/moss-soil-comparison.jpg)
 
 苔坡上方有一层贴地薄雾。雾层依地形高度起伏，向杯壁渐隐，晨光下很淡，雨天更明显。渲染时共用缸内物体的深度遮挡，也参与杯壁折射。可用 `?mist=0` 关闭这层雾做同机位对照。[雨天对照，左无雾、右有雾](docs/moss-mist.jpg)
 
@@ -67,7 +71,7 @@ npm run build
 - **粉脉网纹草**来自 harenil 的 Pink Angel Fittonia 摄影扫描。模型经过缩放、旋转和定位，简化后清除了叶片间的扫描补面，保留 44,910 个三角形，漫反射贴图从 8K 缩为 2K。离线网页的素材元数据也包含作者与许可链接。[原作品](https://sketchfab.com/3d-models/pink-angel-fittonia-130670511c9144b6ac8aeb7b9f00482c) · [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/)
 - **蕨类**采用 Rico Cilliers 和 Rob Tuytel 的 Fern 02 中 B、C 两丛，按杯体调整了尺寸和朝向。靠壁羽片绕各自叶柄向内转，在杯口内侧留出间隙，保留下垂的轮廓。[Fern 02](https://polyhaven.com/a/fern_02) · [CC0](https://polyhaven.com/license)
 - **六块景石**来自 Kless Gyzen 的 Rock Moss Set 01。六种石形分别简化、旋转并埋入苔床。颜色贴图降低了棕色饱和度，保留苔斑、法线和粗糙度细节。[Rock Moss Set 01](https://polyhaven.com/a/rock_moss_set_01) · [CC0](https://polyhaven.com/license) · [景石近景](docs/outcrop-detail.jpg)
-- **苔面与泥土**分别使用 ambientCG 的 Moss 003 和 Poly Haven 的 Brown Mud Rocks 01。前者提供颜色、法线和高度细节，后者提供土壤法线和粗糙度。[Moss 003](https://ambientcg.com/a/Moss003) · [ambientCG CC0](https://docs.ambientcg.com/license/) · [Brown Mud Rocks 01](https://polyhaven.com/a/brown_mud_rocks_01) · [Poly Haven CC0](https://polyhaven.com/license) · [小径与排水层近景](docs/pebble-detail.jpg)
+- **苔面与泥土**分别使用 ambientCG 的 Moss 003 和 Poly Haven 的 Brown Mud Rocks 01。前者提供颜色、法线和高度细节，后者提供土壤粗糙度。土粒的颜色与法线来自同一份程序生成的高度图。[Moss 003](https://ambientcg.com/a/Moss003) · [ambientCG CC0](https://docs.ambientcg.com/license/) · [Brown Mud Rocks 01](https://polyhaven.com/a/brown_mud_rocks_01) · [Poly Haven CC0](https://polyhaven.com/license) · [小径与排水层近景](docs/pebble-detail.jpg)
 - **窗上雨滴**采用 Lucas Bebber 为 Codrops 绘制的水滴形状与折射方向贴图。水量图记录水滴的厚度和覆盖范围，着色器在滴内采样另一张更清晰的窗外照片。[Rain & Water Effect Experiments](https://github.com/codrops/RainEffect)
 - **窗外晨景**截取自 Greg Zaal 的 Spruit Sunrise 全景照片，经过柔焦和降饱和处理。[Spruit Sunrise](https://polyhaven.com/a/spruit_sunrise) · [CC0](https://polyhaven.com/license)
 - **环境光**采用 Sergej Majboroda 的 Studio Small 09。[Studio Small 09](https://polyhaven.com/a/studio_small_09) · [CC0](https://polyhaven.com/license)

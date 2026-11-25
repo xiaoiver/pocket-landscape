@@ -25,7 +25,7 @@ header{top:max(4.6vh,env(safe-area-inset-top));left:4.2vw;z-index:2}
 button{font:inherit;color:inherit;cursor:pointer}
 button:focus-visible{outline:2px solid var(--fern);outline-offset:3px}
 .controls{pointer-events:auto;margin-top:17px;width:max-content;max-width:calc(100vw - 32px)}
-.tools{display:flex;gap:8px;align-items:center}
+.tools{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
 .weather{display:flex;align-items:stretch;padding:3px;border:1px solid var(--line);background:var(--paper);border-radius:24px}
 .weather button{display:flex;align-items:center;justify-content:center;min-width:44px;min-height:44px;background:transparent;border:0;border-radius:22px;padding:0}
 .weather button[aria-pressed=true]{background:var(--fern);color:var(--paper)}
@@ -33,7 +33,18 @@ button:focus-visible{outline:2px solid var(--fern);outline-offset:3px}
 .trigger{border:1px solid var(--line);background:var(--paper);border-radius:50%;width:52px;height:52px;flex:none;display:grid;place-items:center;padding:0}
 .trigger[aria-expanded=true]{background:var(--fern);color:var(--paper);border-color:var(--fern)}
 .icon{width:17px;height:17px;fill:none;stroke:currentColor;stroke-linecap:round;stroke-linejoin:round;stroke-width:1.6}
-.sheet{position:absolute;margin-top:8px;max-height:calc(100dvh - 145px);overflow:auto;width:min(294px,calc(100vw - 32px));padding:15px;background:var(--paper);border:1px solid var(--line);border-radius:16px;box-shadow:0 8px 24px #35382b17}
+.sheet{position:absolute;left:0;margin-top:8px;max-height:calc(100dvh - 145px);overflow:auto;width:min(294px,calc(100vw - 32px));padding:15px;background:var(--paper);border:1px solid var(--line);border-radius:16px;box-shadow:0 8px 24px #35382b17}
+.tools .labeled{width:auto;min-height:46px;height:auto;border-radius:24px;display:flex;gap:6px;padding:0 13px;font-size:14px;font-weight:600}
+.sheet h2{font-size:15px;margin:0 0 10px}
+.view-choices{display:grid;gap:4px}
+.view-choices button,.setting{min-height:44px;display:flex;align-items:center;gap:10px;padding:8px 10px;border:0;border-radius:9px;background:transparent;font-size:14px;text-align:left}
+.view-choices button:hover,.setting:hover{background:#e6ebdc}
+.view-choices button::after{content:"›";margin-left:auto;color:var(--muted)}
+.setting{justify-content:space-between;cursor:pointer}
+.setting input{width:18px;height:18px;accent-color:var(--fern)}
+.setting:has(input:disabled){color:var(--muted);cursor:default}
+.setting-note{font-size:12px;color:var(--muted);margin:4px 10px}
+@media(max-width:360px){.tools .labeled{padding:0 10px}.tools .labeled .icon{display:none}}
 .animals{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
 .animal{position:relative;display:grid;justify-items:center;border:1px solid transparent;background:transparent;border-radius:11px;padding:6px 2px}
 .animal:hover{background:#eeeee3}
@@ -61,10 +72,31 @@ button:focus-visible{outline:2px solid var(--fern);outline-offset:3px}
         <button data-weather="sun" aria-label="晨光" aria-pressed="true"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M5 5l2 2m10 10 2 2M5 19l2-2M17 7l2-2"/></svg></button>
         <button data-weather="rain" aria-label="雨天" aria-pressed="false"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 14a4 4 0 0 1 0-8 6 6 0 0 1 11.7.8A3.6 3.6 0 0 1 18.2 14H5ZM8 17l-1 2m6-2-1 3m6-3-1 2"/></svg></button>
       </div>
+      <button class="trigger labeled" id="view-trigger" aria-controls="view-sheet" aria-expanded="false">
+        <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.6-6.5 10-6.5S22 12 22 12s-3.6 6.5-10 6.5S2 12 2 12Z"/><circle cx="12" cy="12" r="2.6"/></svg>观察
+      </button>
+      <button class="trigger labeled" id="environment-trigger" aria-controls="environment-sheet" aria-expanded="false">
+        <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h7m5 0h4M4 17h3m5 0h8"/><circle cx="13.5" cy="7" r="2.5"/><circle cx="9.5" cy="17" r="2.5"/></svg>环境
+      </button>
     </div>
     <section class="sheet" id="animal-sheet" aria-labelledby="animal-trigger" hidden>
       <div class="animals" role="group" aria-label="选择小动物"><!--ANIMALS--></div>
       <p class="notice" id="animal-notice" role="status"></p>
+    </section>
+    <section class="sheet" id="view-sheet" aria-labelledby="view-title" hidden>
+      <h2 id="view-title">观察视角</h2>
+      <div class="view-choices">
+        <button data-view="home">回到全景</button>
+        <button data-view="fern">近看蕨丛</button>
+        <button data-view="animal">近看小动物</button>
+      </div>
+    </section>
+    <section class="sheet" id="environment-sheet" aria-labelledby="environment-title" hidden>
+      <h2 id="environment-title">环境细节</h2>
+      <label class="setting">苔面薄雾<input id="mist-setting" type="checkbox"></label>
+      <label class="setting">植物动态<input id="plants-setting" type="checkbox"></label>
+      <label class="setting">漂浮微粒<input id="motes-setting" type="checkbox"></label>
+      <p class="setting-note" id="motion-note" hidden></p>
     </section>
   </div>
 </header>
