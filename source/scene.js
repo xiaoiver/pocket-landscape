@@ -96,7 +96,7 @@ async function start(){
     camera.beta = 1.02;
     camera.radius = fit();
     glass = installGlass(scene,camera,hdr,[ground,...casement.meshes],{forceLightweight,sunlight:sun,layers});
-    await openPebbleEditor(scene,glass,shadows);
+    await openPebbleEditor(scene,glass,shadows,loadPlantedModel);
     engine.runRenderLoop(() => {glass.update();scene.render();});
     await scene.whenReadyAsync();
     document.getElementById('controls').hidden = false;

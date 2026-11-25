@@ -1,6 +1,7 @@
 import HavokPhysics from '@babylonjs/havok';
 import {Color3, HavokPlugin, MeshBuilder, PBRMaterial, PhysicsAggregate, PhysicsShapeType, PointerEventTypes, Quaternion, Vector3} from '@babylonjs/core';
 import '@babylonjs/core/Physics/v2/physicsEngineComponent.js';
+import {createEditorPlants, maxPlants, readPlants} from './editor-plants.js';
 import {createEditorMoss} from './editor-moss.js';
 import {createEditorSoil, soilLevel} from './editor-soil.js';
 import {createEditorVessel} from './editor-vessel.js';
@@ -28,17 +29,17 @@ function readLayout() {
     if (Array.isArray(saved?.mounds) && Array.isArray(saved.stones)) {
       return {
         vessel:saved.vessel === 'bottle' ? 'bottle' : 'open', sealed:saved.sealed === true,
-        mounds:readPoints(saved.mounds,maxMounds), patches:readPoints(saved.patches,maxPatches),
+        plants:readPlants(saved.plants), mounds:readPoints(saved.mounds,maxMounds), patches:readPoints(saved.patches,maxPatches),
         stones:saved.stones.slice(0,maxStones).filter(s => tuple(s?.p,3) && Math.hypot(s.p[0],s.p[2])<1.38 &&
           s.p[1]>0 && s.p[1]<2 && tuple(s.q,4) && tuple(s.r,3) && s.r.every(n=>n>=.032 && n<=.1) &&
           Number.isInteger(s.t) && s.t>=0 && s.t<tones.length),
       };
     }
   } catch { /* Storage may be unavailable when browsing a local file. */ }
-  return {vessel:'open',sealed:false,mounds:[],patches:[],stones:[]};
+  return {vessel:'open',sealed:false,mounds:[],patches:[],plants:[],stones:[]};
 }
 
-export async function openPebbleEditor(scene, glass, shadows) {
+export async function openPebbleEditor(scene, glass, shadows, loadPlantedModel) {
   const wasm = Uint8Array.from(atob(document.getElementById('havok-wasm').textContent), c => c.charCodeAt(0));
   const havok = await HavokPhysics({wasmBinary:wasm, locateFile:name => new URL(name,document.baseURI).href});
   scene.enablePhysics(new Vector3(0,-8,0),new HavokPlugin(true,havok));
@@ -51,6 +52,8 @@ export async function openPebbleEditor(scene, glass, shadows) {
   shadows.addShadowCaster(moss.mesh);
   shadows.addShadowCaster(soil.mesh);
   const vessel = createEditorVessel(scene,glass,shadows,layout.vessel,layout.sealed);
+  const specimens = await loadPlantedModel('specimen-data');
+  const plants = createEditorPlants(scene,specimens,glass,shadows,mounds,vessel,layout.plants);
   const palette = tones.map(hex => {
     const material = new PBRMaterial('River pebble '+hex,scene);
     material.albedoColor = Color3.FromHexString(hex).toLinearSpace();
@@ -83,7 +86,7 @@ export async function openPebbleEditor(scene, glass, shadows) {
     const pieces = Array.from(stones, ([mesh,s]) => ({
       p:mesh.position.asArray(),q:mesh.rotationQuaternion.asArray(),r:s.r,t:s.t,
     }));
-    const snapshot = JSON.stringify({vessel:vessel.type,sealed:vessel.sealed,mounds,patches,stones:pieces});
+    const snapshot = JSON.stringify({vessel:vessel.type,sealed:vessel.sealed,mounds,patches,plants:[...plants.planted.values()],stones:pieces});
     if (snapshot === lastSaved) return;
     try {
       localStorage.setItem(storageKey,snapshot);
@@ -109,6 +112,7 @@ export async function openPebbleEditor(scene, glass, shadows) {
   for (const button of vesselButtons) button.addEventListener('click',() => {
     if (button.dataset.vessel === vessel.type) return;
     vessel.setType(button.dataset.vessel);
+    plants.settleAll();
     // Stones already falling above the shoulder must fit the newly selected profile.
     for (const [mesh,s] of stones) {
       const p = mesh.position;
@@ -133,6 +137,7 @@ export async function openPebbleEditor(scene, glass, shadows) {
     edit();
     soil.rebuild();
     moss.rebuild();
+    plants.settleAll();
     for (const [mesh,s] of stones) {
       const {x,z} = mesh.position;
       const lift = soilLevel(mounds,x,z)-soilLevel(previous,x,z);
@@ -178,6 +183,12 @@ export async function openPebbleEditor(scene, glass, shadows) {
     } else if (tool === 'soil') {
       if (mounds.length >= maxMounds) {feedback.textContent = wording('土丘已满，可用橡皮擦移除。','Soil limit reached. Use the eraser to remove a mound.');return;}
       shapeSoil(() => mounds.push([point.x,point.z]));
+    } else if (tool === 'fern' || tool === 'fittonia') {
+      if (plants.planted.size >= maxPlants) {
+        feedback.textContent = wording('植物已满，可用橡皮擦移除。','Plant limit reached. Use the eraser to remove a plant.');
+        return;
+      }
+      plants.add({kind:tool,x:point.x,z:point.z,yaw:Math.random()*2*Math.PI});
     } else if (tool === 'moss') {
       if (patches.length >= maxPatches) {
         feedback.textContent = wording('苔团已满，可用橡皮擦移除。','Moss limit reached. Use the eraser to remove a patch.');
@@ -185,6 +196,8 @@ export async function openPebbleEditor(scene, glass, shadows) {
       }
       patches.push([point.x,point.z]);
       moss.rebuild();
+    } else if (plants.planted.has(mesh)) {
+      plants.remove(mesh);
     } else if (stones.has(mesh)) {
       stones.delete(mesh);
       glass.removeContents?.([mesh]);
@@ -203,13 +216,16 @@ export async function openPebbleEditor(scene, glass, shadows) {
     save();
   }
   scene.onPointerObservable.add(() => {
-    const hit = scene.pick(scene.pointerX,scene.pointerY,m => m === soil.mesh || stones.has(m));
+    const planting = tool === 'fern' || tool === 'fittonia';
+    const hit = scene.pick(scene.pointerX,scene.pointerY,m => m === soil.mesh ||
+      (!planting && stones.has(m)) || (tool === 'erase' && m.isPickable && plants.planted.has(m)));
     if (hit?.pickedPoint) apply(hit.pickedPoint,hit.pickedMesh);
   }, PointerEventTypes.POINTERTAP | PointerEventTypes.POINTERDOUBLETAP);
   canvas.addEventListener('keydown',event => {
     if (event.key !== 'Enter' || event.repeat) return;
     event.preventDefault();
-    apply(new Vector3(0,soilLevel(mounds,0,0),0),soil.mesh);
+    const centerPlant = tool === 'erase' && [...plants.planted.keys()].reverse().find(mesh => Math.hypot(mesh.position.x,mesh.position.z)<.12);
+    apply(new Vector3(0,soilLevel(mounds,0,0),0),centerPlant || soil.mesh);
   });
   document.getElementById('editor-tools').hidden = false;
 }
