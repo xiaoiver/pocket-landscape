@@ -23,10 +23,13 @@ async function buildViewer() {
   const animals = Object.entries(animalNames).map(([id, [label, english]]) =>
     '<button class="animal" data-animal="'+id+'" aria-label="'+label+'" data-en="'+english+'" aria-pressed="'+(id==='fox')+'"><img alt="" src="data:image/png;base64,'+
     figurine(id,'png').toString('base64')+'"></button>').join('');
-  const companions = Object.keys(animalNames).filter(id => id !== 'fox').map(id =>
+  const companions = Object.keys(animalNames).map(id =>
     embeddedData('animal-'+id, zlib.gzipSync(figurine(id,'glb'))));
   const script = bundle.outputFiles[0].text.replace(/<\/script/gi, '<\\/script');
-  const content = [embeddedData('studio-data', studio),
+  const havokWasm = require.resolve('@babylonjs/havok/lib/esm/HavokPhysics.wasm');
+  const havokLicense = fs.readFileSync(path.resolve(path.dirname(havokWasm),'../../LICENSE'),'utf8');
+  const content = ['<!-- @babylonjs/havok\n' + havokLicense + '-->', embeddedData('studio-data', studio),
+    embeddedData('havok-wasm',fs.readFileSync(havokWasm)),
     embeddedData('window-view', fs.readFileSync(path.join(__dirname, 'assets/window-morning.jpg'))),
     embeddedData('window-detail', fs.readFileSync(path.join(__dirname, 'assets/window-refraction.jpg'))),
     embeddedData('drop-atlas', fs.readFileSync(path.join(__dirname, 'assets/window-drop-atlas.png'))),

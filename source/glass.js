@@ -1,6 +1,6 @@
 import {
   Color3, Constants, MaterialPluginBase, Mesh, MeshBuilder, PBRMaterial, RawTexture, RenderTargetTexture,
-  ShaderMaterial, Texture, Vector2, Vector3,
+  ShaderMaterial, Texture, Vector2, Vector3, VertexData,
 } from '@babylonjs/core';
 
 const VS = `
@@ -151,16 +151,20 @@ void main() {
 }`;
 
 const WALL = [[1.315,.08],[1.34,.12],[1.351,.24],[1.367,1.39],[1.366,1.43]];
+export const vesselWalls = {
+  open: WALL,
+  bottle: [...WALL.slice(0,3),[1.368,1.23],[1.36,1.38],[1.31,1.49],[1.16,1.61],[.93,1.72],[.75,1.81],[.70,1.87],[.70,2.08]],
+};
 const INNER_WALL_INSET = .008;
 
 // Same geometric profile used by the optical rear wall; does not read optical thickness.
-export function glassInnerRadiusAt(y) {
-  if (y <= WALL[0][1]) return WALL[0][0]-INNER_WALL_INSET;
-  for (let i=1;i<WALL.length;i++) {
-    const [left,low]=WALL[i-1], [right,high]=WALL[i];
+export function glassInnerRadiusAt(y, wall = WALL) {
+  if (y <= wall[0][1]) return wall[0][0]-INNER_WALL_INSET;
+  for (let i=1;i<wall.length;i++) {
+    const [left,low]=wall[i-1], [right,high]=wall[i];
     if (y <= high) return left+(right-left)*(y-low)/(high-low)-INNER_WALL_INSET;
   }
-  return WALL[WALL.length-1][0]-INNER_WALL_INSET;
+  return wall[wall.length-1][0]-INNER_WALL_INSET;
 }
 // Rounded heel with a short contact land and a curved shoulder next to the gravel.
 const FOOT = [[1.22,.030],[1.255,.015],[1.282,.010],[1.300,.010],[1.316,.016],
@@ -317,13 +321,30 @@ export function installGlass(scene, camera, hdr, contents, {forceLightweight = f
   const wall = profile(scene, 'Clear handblown wall', WALL, 1);
   const foot = profile(scene, 'Polished foot', FOOT, 2);
   const rim = profile(scene, 'Rounded glass lip', LIP, 3);
+  let inner, vessel = 'open';
+  function setVessel(next) {
+    if (next === vessel) return;
+    const shape = vesselWalls[next];
+    const [radius,height] = shape[shape.length-1];
+    const lip = LIP.map(([r,y]) => [radius + (r-1.366), height + (y-1.43)]);
+    function reshape(mesh, points) {
+      const template = profile(scene,'Glass profile template',points,0);
+      VertexData.ExtractFromMesh(template).applyToMesh(mesh);
+      mesh.refreshBoundingInfo();
+      template.dispose();
+    }
+    reshape(wall,shape);
+    reshape(rim,lip);
+    if (inner) reshape(inner,shape.map(([r,y]) => [r-INNER_WALL_INSET,y]).reverse());
+    vessel = next;
+  }
   // Explicitly prefer the original single-pass glass on cramped / coarse-pointer devices.
   const useCapture = !forceLightweight && engine.webGLVersion > 1 &&
     caps.textureHalfFloatRender && caps.textureHalfFloatLinearFiltering;
   if (!useCapture) {
     const materials = [overlay(scene,'Lightweight wall',0), overlay(scene,'Lightweight foot',.88), overlay(scene,'Lightweight lip',.88)];
     [wall.material, foot.material, rim.material] = materials;
-    return { highQuality:false, update: () => { for (const m of materials) updateOverlay(m); } };
+    return { highQuality:false, setVessel, update: () => { for (const m of materials) updateOverlay(m); } };
   }
 
   // Capture only the table/shadow and both planting variants, never the refractive meshes.
@@ -349,7 +370,7 @@ export function installGlass(scene, camera, hdr, contents, {forceLightweight = f
 
   // Single front wall overlay, with an oppositely wound, reflection-only rear surface.
   // The rear surface has no capture sampler, so there is no feedback cycle.
-  const inner = profile(scene, 'Reflection-only inner wall', WALL.map(([r,y]) => [r-INNER_WALL_INSET,y]).reverse(), 1);
+  inner = profile(scene, 'Reflection-only inner wall', WALL.map(([r,y]) => [r-INNER_WALL_INSET,y]).reverse(), 1);
   const rear = overlay(scene, 'Rear glass reflection', 0, hdr);
   inner.material = rear;
   inner.isVisible = false;
@@ -377,8 +398,9 @@ export function installGlass(scene, camera, hdr, contents, {forceLightweight = f
   foot.material = transmission(scene, 'Thick optical foot', hdr, capture, .115, .025, .43);
   rim.material = transmission(scene, 'Rolled optical rim', hdr, capture, .034, .017, .66);
   return {
-    highQuality:true, setLayer,
+    highQuality:true, setLayer, setVessel,
     addContents(meshes) { capture.renderList.push(...meshes); },
+    removeContents(meshes) { capture.renderList = capture.renderList.filter(mesh => !meshes.includes(mesh)); },
     update() {
       const projection = camera.getProjectionMatrix().m;
       viewScale.set(projection[0],projection[5]);

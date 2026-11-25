@@ -17,9 +17,13 @@ npm run build
 
 Open the generated `index.html` in a WebGL 2 browser to explore offline. Drag to orbit, and use the scroll wheel or pinch to zoom. Tap the figurine and then its destination, or drag it directly across the ground. While selected, use the circular arrows to turn by 15°, then the check mark to confirm or the cross to cancel. With the canvas focused, press Enter to select, use the arrow keys to move and Q / E to rotate, then press Enter to place or Escape to cancel.
 
-Select the paw icon in the upper left, then the thumbnail of the fox, resting fawn or hedgehog.
+Select the pencil at the bottom, enter a name and press the plus button to create an editable copy of Fern Path. With the four-arrow tool, tap a rock, path pebble, plant or fox, then tap the ground to move it. Erase a plant and use a planting tool to replace it. Open the pencil menu again to save a separate version or reopen a previous one. Each copy is stored independently in this browser.
 
-Select the sun or rain cloud beside the paw to change the weather. On rainy days, dim blue-grey light catches the rim and leaves, fading across the desk into the room. Beads cling to the pane and merge on contact. Heavier drops slide down the glass and veer slightly in gusts, clearing fine beads and drawing short ribbons of water that fade back to a trail of beads. With reduced motion enabled, the drops stay still.
+Select the jar with a plus sign at the bottom to build a landscape in an open jar or a corked shoulder bottle. Pick a tool and tap inside to build a slope, or scatter pebbles. Open the leaf icon to choose moss, a fern or pink fittonia, then tap the ground to plant it. Tap the leaves with the eraser to remove a whole plant, or erase a stone, moss patch or mound. Editing lifts the cork onto the table. Use the stopper icon to seal the bottle again. The vessel and layout are saved in this browser.
+
+In the editor, select the paw, choose a fox, resting fawn or hedgehog, and tap the ground to add it. You can place several figurines together. Select one with the move tool to reposition it, choose another thumbnail to replace it, or use the curved arrows or Q / E to rotate it by 15°. Use the eraser to remove it. The undo and redo buttons step through your edits, with each handful of pebbles counting as one step. Use Cmd / Ctrl + Z to undo and add Shift to redo. Layouts save automatically. Undo history lasts for the current session.
+
+Select the sun or rain cloud at the top to change the weather. On rainy days, dim blue-grey light catches the rim and leaves, fading across the desk into the room. Beads cling to the pane and merge on contact. Heavier drops slide down the glass and veer slightly in gusts, clearing fine beads and drawing short ribbons of water that fade back to a trail of beads. With reduced motion enabled, the drops stay still.
 
 ![The fawn resting on the moss with all three figurines in the animal selector](docs/animal-controls.jpg)
 
