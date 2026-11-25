@@ -1,8 +1,7 @@
 import {Matrix, Quaternion, Vector3} from '@babylonjs/core';
 import {createMossTuft} from './moss-cushions.js';
-import {soilLevel} from './editor-soil.js';
 
-export function createEditorMoss(scene, patches, mounds) {
+export function createEditorMoss(scene, patches, heightAt) {
   const mesh = createMossTuft(scene);
   const origin = new Vector3(), scale = new Vector3(), spin = new Quaternion(), transform = new Matrix();
   function rebuild() {
@@ -17,7 +16,7 @@ export function createEditorMoss(scene, patches, mounds) {
         const x = cx+r*Math.cos(a), z = cz+r*Math.sin(a);
         if (Math.hypot(x,z)>1.306) continue;
         const thickness = 1.05 + .36*Math.sin(i*19+phase) + .46*(1-r/.21);
-        origin.set(x,soilLevel(mounds,x,z)-.005,z);
+        origin.set(x,heightAt(x,z)-.005,z);
         scale.set(thickness,thickness,thickness);
         Quaternion.RotationYawPitchRollToRef(a,.12*Math.cos(a),.12*Math.sin(a),spin);
         Matrix.ComposeToRef(scale,spin,origin,transform);

@@ -1,3 +1,4 @@
+import {installPresetLibrary, newPresetId, presetKey} from './preset-library.js';
 import {openPebbleEditor} from './pebble-editor.js';
 import {labelButton, localizeInterface, wording} from './interface-language.js';
 import {Engine,Scene,ArcRotateCamera,Vector3,Color3,Color4,DirectionalLight,HemisphericLight,ShadowGenerator,MeshBuilder,StandardMaterial,DynamicTexture,Texture,HDRCubeTexture,ImportMeshAsync,SceneLoader} from '@babylonjs/core';
@@ -79,10 +80,11 @@ async function start(){
   resize();
   window.addEventListener('resize',resize);
   const editorMode = query.get('mode') === 'build';
+  const editingPreset = editorMode && query.get('preset') === 'fern-path';
   const modeButton = document.getElementById('editor-trigger');
   modeButton.addEventListener('click', () => {
     const url = new URL(location.href);
-    if (editorMode) url.searchParams.delete('mode');
+    if (editorMode) {for (const key of ['mode','preset','copy']) url.searchParams.delete(key);}
     else url.searchParams.set('mode','build');
     location.assign(url.href);
   });
@@ -91,6 +93,10 @@ async function start(){
     modeButton.setAttribute('aria-pressed','true');
     document.getElementById('animal-trigger').hidden = true;
     document.querySelector('.weather').hidden = true;
+  } else {
+    installPresetLibrary();
+  }
+  if (editorMode && !editingPreset) {
     camera.setTarget(new Vector3(0,.98,0));
     camera.alpha = homeAlpha;
     camera.beta = 1.02;
@@ -137,7 +143,7 @@ async function start(){
   const drainage = installDrainage(scene,earth,pathStones[0]?.material);
   if(drainage) shadows.addShadowCaster(drainage.gravel);
   const substrate = drainage && prepareSubstrate(scene,earth,drainage.gravel);
-  const contacts=prepareGroundContacts(scene,base);
+  const contacts=editingPreset ? null : prepareGroundContacts(scene,base);
   const pathSoil=preparePathSoil(scene,earth,pathStones);
   pathSoil?.setEnabled(true);
   pathSoil?.attach(earth?.material);
@@ -149,7 +155,7 @@ async function start(){
       const fragments = soilInclusions(scene,earth);
       if (fragments) { base.push(fragments); shadows.addShadowCaster(fragments); }
     }
-    contacts.attach(earth.material);
+    contacts?.attach(earth.material);
     pathSoil?.attach(earth.material);
   }
   const rosettes = base.find(mesh => mesh.name === 'Living moss · rosettes');
@@ -170,6 +176,22 @@ async function start(){
   const mist = createMossMist(scene, !glass.highQuality);
   mist.mesh.setEnabled(query.get('mist') !== '0');
   glass.addContents?.([mist.mesh]);
+  if (editingPreset) {
+    const preset = {base,specimens,pathMesh:pathStones[0],grounds:[earth,bank].filter(Boolean)};
+    let key = presetKey(query.get('copy'));
+    if (!key) {
+      const url = new URL(location.href), id = newPresetId();
+      url.searchParams.set('copy',id);
+      history.replaceState(null,'',url.href);
+      key = presetKey(id);
+    }
+    await openPebbleEditor(scene,glass,shadows,loadPlantedModel,preset,key);
+    engine.runRenderLoop(() => {glass.update();scene.render();});
+    await scene.whenReadyAsync();
+    document.getElementById('controls').hidden = false;
+    document.body.classList.add('ready');
+    return;
+  }
   const life = installTerrariumLife(scene, camera, [...base, ...specimens, ...(mossPad?.meshes ?? [])], glass, {
     enabled: query.get('life') !== '0',
   });
@@ -212,7 +234,7 @@ start().catch(error => {
     message.textContent = wording('无法打开物理造景台。','The physics editor could not open.');
     const back = document.createElement('a');
     const url = new URL(location.href);
-    url.searchParams.delete('mode');
+    for (const key of ['mode','preset','copy']) url.searchParams.delete(key);
     back.href = url.href;
     back.textContent = wording('返回成品景观','Return to the planted terrarium');
     message.after(back);
