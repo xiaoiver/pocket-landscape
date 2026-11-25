@@ -107,6 +107,7 @@ export function prepareGroundContacts(scene, base) {
   }
   const map=makeMap(scene, forAnimal('fox'));
   const attached=new Set();
+  const cleared=new Uint8Array(rocks.length);
   function attach(material){
     if(!(material instanceof PBRMaterial)||attached.has(material))return;
     new GroundContact(material,map,toRest);
@@ -116,5 +117,5 @@ export function prepareGroundContacts(scene, base) {
   for(const mesh of base){
     if(/^(Earth · planted bank|River gravel |Cushion moss )/.test(mesh.name))attach(mesh.material);
   }
-  return {attach, setTransform(world) { world.invertToRef(toRest); }, setAnimal(id) { map.update(forAnimal(id)); }};
+  return {attach, setEnabled(value) { map.update(value ? forAnimal('fox') : cleared); }, setTransform(world) { world.invertToRef(toRest); }, setAnimal(id) { map.update(forAnimal(id)); }};
 }

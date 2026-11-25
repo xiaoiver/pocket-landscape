@@ -118,7 +118,8 @@ export function prepareMossCushions(scene, bank, rosettes, {lightweight, settled
     tints.push(tint * (.74 + .29 * warm + .18 * crown), tint, tint * (.7 + .32 * (1 - warm)), 1);
   }
   const mesh = createMossTuft(scene);
-  mesh.thinInstanceSetBuffer('matrix', Float32Array.from(matrices), 16, true);
-  mesh.thinInstanceSetBuffer('color', Float32Array.from(tints), 4, true);
-  return mesh;
+  const transforms = Float32Array.from(matrices), colors = Float32Array.from(tints);
+  mesh.thinInstanceSetBuffer('matrix',transforms,16,true);
+  mesh.thinInstanceSetBuffer('color',colors,4,true);
+  return {mesh,matrices:transforms,colors};
 }

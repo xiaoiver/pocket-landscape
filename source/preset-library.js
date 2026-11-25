@@ -20,6 +20,7 @@ export function installPresetLibrary(currentSnapshot) {
   panel.querySelector('form').hidden = !currentSnapshot;
   blank.addEventListener('click',() => {
     const url = new URL(location.href);
+    url.searchParams.set('mode','build');
     url.searchParams.delete('preset');
     url.searchParams.delete('copy');
     location.assign(url.href);

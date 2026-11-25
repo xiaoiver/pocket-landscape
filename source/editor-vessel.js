@@ -1,9 +1,13 @@
 import {DynamicTexture, Mesh, MeshBuilder, PBRMaterial, PhysicsAggregate, PhysicsShapeType, Vector3} from '@babylonjs/core';
 import {glassInnerRadiusAt, vesselWalls} from './glass.js';
 
+const corkHeight = .22, corkTopRadius = .71;
+const [neckRadius,neckHeight] = vesselWalls.bottle.at(-1);
+const parkedX = Math.max(...vesselWalls.bottle.map(([r])=>r))+corkTopRadius+.14;
+
 function makeStopper(scene) {
   const cork = MeshBuilder.CreateCylinder('Tapered cork stopper',{
-    height:.22,diameterTop:1.49,diameterBottom:1.35,tessellation:72,
+    height:corkHeight,diameterTop:2*corkTopRadius,diameterBottom:2*(neckRadius-.05),tessellation:72,
   },scene);
   const texture = new DynamicTexture('Cork grain',256,scene,false);
   const ctx = texture.getContext();
@@ -25,21 +29,29 @@ function makeStopper(scene) {
   return cork;
 }
 
-export function createEditorVessel(scene, glass, shadows, initialType, initiallySealed) {
+export function createEditorVessel(scene, glass, shadows, initialType, initiallySealed, lamp) {
   const cork = makeStopper(scene);
   shadows.addShadowCaster(cork);
   glass.addContents?.([cork]);
   let shell, lid, type, sealed;
+  function clearsParkedCork(x,z) {
+    return Math.hypot(x-cork.position.x,z-cork.position.z)>corkTopRadius+.405+.02;
+  }
+  function parkCork() {
+    cork.position.set(parkedX,corkHeight/2,.53);
+    if (!clearsParkedCork(lamp.position.x,lamp.position.z)) cork.position.x=-parkedX;
+  }
   function setSealed(value) {
     sealed = type === 'bottle' && value;
     lid?.dispose();
     lid = null;
     cork.setEnabled(type === 'bottle');
     if (sealed) {
-      cork.position.set(0,2.10,0);
-      lid = new PhysicsAggregate(cork,PhysicsShapeType.CYLINDER,{mass:0,friction:.6},scene);
+      cork.position.set(0,neckHeight+.02,0);
+      cork.computeWorldMatrix(true);
+      lid = new PhysicsAggregate(cork,PhysicsShapeType.CONVEX_HULL,{mass:0,friction:.6},scene);
     } else {
-      cork.position.set(1.96,.113,.24);
+      parkCork();
     }
   }
   function setType(next, close = next === 'bottle') {
@@ -54,5 +66,5 @@ export function createEditorVessel(scene, glass, shadows, initialType, initially
     setSealed(close);
   }
   setType(initialType,initiallySealed);
-  return {setType,setSealed,get type(){return type;},get sealed(){return sealed;}};
+  return {setType,setSealed,parkCork,canPlaceLamp(x,z) {return type!=='bottle' || sealed || clearsParkedCork(x,z);},get type(){return type;},get sealed(){return sealed;}};
 }

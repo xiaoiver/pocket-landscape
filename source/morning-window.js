@@ -45,6 +45,7 @@ export async function createMorningWindow(scene, camera) {
     const merged = Mesh.MergeMeshes(parts, true);
     merged.name = material.name;
     merged.material = material;
+    merged.receiveShadows = true;
     meshes.push(merged);
   }
   function panel(name, material, z) {
@@ -79,8 +80,9 @@ export async function createMorningWindow(scene, camera) {
   // An orbit can take the eye outside the room. Hide its cutaway wall
   // before it can sit between the camera and the terrarium.
   const inward = new Vector3(Math.sin(root.rotation.y), 0, Math.cos(root.rotation.y));
+  const distanceFromWall = (x,z) => (x-root.position.x)*inward.x+(z-root.position.z)*inward.z;
   scene.onBeforeRenderObservable.add(() => {
-    const distance = Vector3.Dot(camera.position, inward) - Vector3.Dot(root.position, inward);
+    const distance = distanceFromWall(camera.position.x,camera.position.z);
     root.setEnabled(distance > .32);
     if (root.isEnabled() && pane.material !== glass && !reducedMotion.matches) {
       rain.advance(scene.getEngine().getDeltaTime() / 1000);
@@ -89,7 +91,7 @@ export async function createMorningWindow(scene, camera) {
   const frameWorld = root.computeWorldMatrix(true);
   const fromWindow = (x,y) => Vector3.TransformCoordinates(new Vector3(x,y,0),frameWorld);
   return {
-    meshes,
+    meshes,distanceFromWall,
     lightEntry: fromWindow(-width*.18, bottom+height*.92),
     // Back-project the desk onto the two clear openings. A widening sample
     // footprint softens the narrow stile as its distance from the desk grows.
@@ -110,11 +112,13 @@ export async function createMorningWindow(scene, camera) {
         return panes*coverage(v,bottom+.043,bottom+height-.055,blur);
       };
     },
-    setRain(raining) {
+    setLighting(mode) {
+      const raining=mode==='rain', night=mode==='night';
+      view.emissiveColor.set(night ? .085 : 1,night ? .125 : 1,night ? .19 : 1);
       pane.material = raining ? rain.wetMaterial() : glass;
       // The painted reveal receives only a weak bounce from the overcast window.
       for (const material of pieces.keys()) {
-        material.diffuseColor.scaleToRef((raining ? .185 : .56) / .34, material.emissiveColor);
+        material.diffuseColor.scaleToRef((night ? .095 : raining ? .185 : .56) / .34, material.emissiveColor);
       }
     },
   };
