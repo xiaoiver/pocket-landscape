@@ -18,10 +18,10 @@ async function buildViewer() {
   const specimens = zlib.gzipSync(fs.readFileSync(path.join(__dirname, 'assets/specimens/plants.glb')));
   const substrate = ['humus','humus-normal','roughness'].map(key =>
     embeddedData('substrate-'+key, fs.readFileSync(path.join(__dirname, 'assets/substrate', key+'.jpg'))));
-  const animalNames = {fox:'狐狸', deer:'小鹿', hedgehog:'刺猬'};
+  const animalNames = {fox:['狐狸','Fox'], deer:['小鹿','Fawn'], hedgehog:['刺猬','Hedgehog']};
   const figurine = (name, extension) => fs.readFileSync(path.join(__dirname, 'assets/terrarium', name+'.'+extension));
-  const animals = Object.entries(animalNames).map(([id, label]) =>
-    '<button class="animal" data-animal="'+id+'" aria-label="'+label+'" aria-pressed="'+(id==='fox')+'"><img alt="" src="data:image/png;base64,'+
+  const animals = Object.entries(animalNames).map(([id, [label, english]]) =>
+    '<button class="animal" data-animal="'+id+'" aria-label="'+label+'" data-en="'+english+'" aria-pressed="'+(id==='fox')+'"><img alt="" src="data:image/png;base64,'+
     figurine(id,'png').toString('base64')+'"></button>').join('');
   const companions = Object.keys(animalNames).filter(id => id !== 'fox').map(id =>
     embeddedData('animal-'+id, zlib.gzipSync(figurine(id,'glb'))));
@@ -32,6 +32,6 @@ async function buildViewer() {
     embeddedData('drop-atlas', fs.readFileSync(path.join(__dirname, 'assets/window-drop-atlas.png'))),
     embeddedData('specimen-data', specimens), embeddedData('model-data', model), ...substrate, ...companions, '<script>' + script + '</script>'].join('\n');
   const template = fs.readFileSync(path.join(__dirname, 'page.html'), 'utf8');
-  fs.writeFileSync(path.join(project, 'index.html'), template.replace('<!--ANIMALS-->', () => animals).replace('<!--APP-->', () => content));
+  fs.writeFileSync(path.join(project, 'index.html'), template.replace('<!--LOADING-FOX-->', 'data:image/png;base64,' + figurine('fox','png').toString('base64')).replace('<!--ANIMALS-->', () => animals).replace('<!--APP-->', () => content));
 }
 buildViewer().catch(error => { console.error(error); process.exitCode = 1; });
