@@ -57,10 +57,15 @@ button:focus-visible{outline:2px solid var(--fern);outline-offset:3px}
 .animal[data-status=error]::after{background:center/contain no-repeat url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%23814a24' stroke-width='1.8'%3E%3Cpath d='M2 8a6 6 0 1 1 1.6 4M2 3v5h5'/%3E%3C/svg%3E")}
 @media(max-width:650px){header{left:6vw}.brand i{font-size:14px}header{top:max(4vh,env(safe-area-inset-top))}.controls{margin-top:12px}}
 @media(prefers-reduced-motion:reduce){*{transition:none!important}}
+#placement-ring{position:fixed;transform:translate(-50%,-50%);border:1.5px solid #fff3cdcf;border-radius:50%;box-shadow:0 0 0 1px #34462e65;pointer-events:none}
+#placement-bar{position:fixed;bottom:max(18px,env(safe-area-inset-bottom));left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:12px;max-width:96vw;padding:0 5px 0 15px;background:var(--paper);border:1px solid var(--line);border-radius:24px;color:var(--ink);font-size:13px;white-space:nowrap}
+#placement-action{border:0;background:none;color:var(--fern);font-weight:600;min-height:44px;padding:0 12px}
 </style>
 </head>
 <body>
-<canvas id="garden" aria-label="可旋转的玻璃微景观，陶土狐狸，点选后可拖动手柄移动" tabindex="0"></canvas>
+<canvas id="garden" aria-label="可旋转的玻璃微景观，陶土狐狸，点选后再点落点，或直接拖动。键盘按回车选中，方向键移动，回车放下，Esc 取消" tabindex="0"></canvas>
+<div id="placement-ring" hidden aria-hidden="true"></div>
+<div id="placement-bar" hidden><span id="placement-message" role="status"></span><button id="placement-action"></button></div>
 <header>
   <div class="brand"><b>口袋景观</b><i>Pocket Landscape</i></div>
   <div class="controls" id="controls" hidden>
@@ -81,6 +86,7 @@ button:focus-visible{outline:2px solid var(--fern);outline-offset:3px}
     </div>
     <section class="sheet" id="animal-sheet" aria-labelledby="animal-trigger" hidden>
       <div class="animals" role="group" aria-label="选择小动物"><!--ANIMALS--></div>
+      <p class="setting-note">点选缸里的小动物，再点苔面放下。</p>
       <p class="notice" id="animal-notice" role="status"></p>
     </section>
     <section class="sheet" id="view-sheet" aria-labelledby="view-title" hidden>

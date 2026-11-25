@@ -15,7 +15,7 @@ npm ci
 npm run build
 ```
 
-Open the generated `index.html` in a WebGL 2 browser to explore offline. Drag to orbit, and use the scroll wheel or pinch to zoom. Select the figurine, then drag an arrow to move along one axis or the square to move across the ground. Tap empty space or press Esc to hide the handles.
+Open the generated `index.html` in a WebGL 2 browser to explore offline. Drag to orbit, and use the scroll wheel or pinch to zoom. Tap the figurine and then its destination, or drag it directly across the ground. Use 撤销 (Undo) to restore its last position. With the canvas focused, press Enter to select, use the arrow keys to move, and press Enter to place or Escape to cancel.
 
 Select the paw icon in the upper left, then the thumbnail of the fox, resting fawn or hedgehog.
 

@@ -80,7 +80,7 @@ export function installGardenControls({base, loadPlantedModel, shadows, glass, c
         contacts.setAnimal(id);
         placement.activate(next);
         for (const choice of buttons) choice.setAttribute('aria-pressed', String(choice === button));
-        document.getElementById('garden').setAttribute('aria-label', '可旋转的玻璃微景观，陶土' + name + '，点选后可拖动手柄移动');
+        document.getElementById('garden').setAttribute('aria-label', '可旋转的玻璃微景观，陶土' + name + '，点选后再点落点，或直接拖动。键盘按回车选中，方向键移动，回车放下，Esc 取消');
         delete button.dataset.status;
         notice.textContent = '';
       } catch (error) {
