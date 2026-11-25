@@ -1,10 +1,9 @@
-import {installPresetLibrary, newPresetId, presetKey} from './preset-library.js';
+import {newPresetId, presetKey} from './preset-library.js';
 import {openPebbleEditor} from './pebble-editor.js';
 import {labelButton, localizeInterface, wording} from './interface-language.js';
 import {Engine,Scene,ArcRotateCamera,Vector3,Color3,Color4,DirectionalLight,HemisphericLight,ShadowGenerator,MeshBuilder,StandardMaterial,DynamicTexture,Texture,HDRCubeTexture,ImportMeshAsync,SceneLoader} from '@babylonjs/core';
 import '@babylonjs/loaders/glTF/2.0';
 import {createMorningWindow} from './morning-window.js';
-import {createAnimalPlacement} from './animal-placement.js';
 import {installWeather} from './garden-controls.js';
 import {installDepthOfField} from './depth-of-field.js';
 import {createMossMist} from './moss-mist.js';
@@ -85,14 +84,16 @@ async function start(){
   modeButton.addEventListener('click', () => {
     const url = new URL(location.href);
     if (editorMode) {for (const key of ['mode','preset','copy']) url.searchParams.delete(key);}
-    else url.searchParams.set('mode','build');
+    else {
+      url.searchParams.set('mode','build');
+      url.searchParams.set('preset','fern-path');
+      url.searchParams.set('copy','draft');
+    }
     location.assign(url.href);
   });
   if (editorMode) {
     labelButton(modeButton,wording('返回成品景观','Return to the planted terrarium'));
     modeButton.dataset.editing = '';
-  } else {
-    installPresetLibrary();
   }
   let mist;
   installWeather(setRain);
@@ -196,10 +197,8 @@ async function start(){
     enabled: query.get('life') !== '0',
   });
   const fox = base.find(mesh => mesh.name.startsWith('Fox ·'));
-  const surfaces = new Set(base.filter(m => m === earth || /^(Cushion moss |River gravel |Woodland outcrop|Weathered granite)/.test(m.name)));
-  const placement = createAnimalPlacement(scene,surfaces,contacts);
-  placement.activate([fox]);
-  installDepthOfField(scene,camera,() => placement.focus);
+  fox.computeWorldMatrix(true);
+  installDepthOfField(scene,camera,fox.getBoundingInfo().boundingBox.centerWorld);
   engine.runRenderLoop(()=>{life.update();glass.update();scene.render();});
   await scene.whenReadyAsync();
   function setRain(raining) {

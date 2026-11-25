@@ -1,4 +1,4 @@
-import {labelButton, wording} from './interface-language.js';
+import {wording} from './interface-language.js';
 
 const prefix = 'pocket-landscape.fern-path.v1.';
 const validId = id => typeof id === 'string' && /^[a-zA-Z0-9-]{1,80}$/.test(id);
@@ -15,7 +15,17 @@ export function installPresetLibrary(currentSnapshot) {
   const list = document.getElementById('preset-copies');
   const name = document.getElementById('preset-name');
   const feedback = document.getElementById('editor-feedback');
-  if (currentSnapshot) labelButton(trigger,wording('另存为或打开副本','Save as or open a copy'));
+  const blank = document.getElementById('open-blank');
+  blank.hidden = !currentSnapshot;
+  panel.querySelector('form').hidden = !currentSnapshot;
+  blank.addEventListener('click',() => {
+    const url = new URL(location.href);
+    url.searchParams.delete('preset');
+    url.searchParams.delete('copy');
+    location.assign(url.href);
+  });
+  const original = document.getElementById('new-fern-path');
+  original.addEventListener('click',() => open(newPresetId()));
   const label = wording('蕨间小径','Fern Path');
   function open(id) {
     const url = new URL(location.href);
@@ -56,7 +66,7 @@ export function installPresetLibrary(currentSnapshot) {
     name.placeholder = label+' '+(copies.length+1);
     panel.hidden = false;
     trigger.setAttribute('aria-expanded','true');
-    name.focus();
+    (currentSnapshot ? name : original).focus();
   }
   trigger.addEventListener('click',() => panel.hidden ? show() : close());
   panel.addEventListener('submit',event => {

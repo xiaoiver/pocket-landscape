@@ -111,7 +111,7 @@ export async function openPebbleEditor(scene, glass, shadows, loadPlantedModel, 
     }));
     return {name:layout.name,animals:[...animals.placed.values()],edits:authored?.serialize(),vessel:vessel.type,sealed:vessel.sealed,mounds,patches,plants:[...plants.planted.values()],stones:pieces};
   }
-  if (preset) installPresetLibrary(snapshot);
+  installPresetLibrary(preset ? snapshot : undefined);
   function save() {
     const serialized = JSON.stringify(snapshot());
     if (serialized === lastSaved) return;
