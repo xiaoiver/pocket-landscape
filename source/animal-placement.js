@@ -15,7 +15,9 @@ export function createAnimalPlacement(scene, surfaces, contacts) {
     return scene.pickWithRay(floorRay,canLand)?.pickedPoint?.y;
   }
   const homeFloor = floorAt(home.x,home.z) ?? home.y;
-  const focus = new Vector3(), localFocus = new Vector3(), offset = new Vector3();
+  const focus = new Vector3(), localFocus = new Vector3();
+  const stepsPerTurn = 24;
+  let turn = 0;
   let active = [], limit = 1, footprint = .3;
   let selected = false, gesture, original, previous;
   const canvas = scene.getEngine().getRenderingCanvas();
@@ -24,33 +26,45 @@ export function createAnimalPlacement(scene, surfaces, contacts) {
   const message = document.getElementById('placement-message');
   const action = document.getElementById('placement-action');
 
+  const turnControls = document.getElementById('placement-turns');
+  const done = document.getElementById('placement-done');
+  const left = document.getElementById('placement-left');
+  const right = document.getElementById('placement-right');
+
+  function restore(pose) {
+    anchor.position.copyFrom(pose.position);
+    turn = pose.turn;
+    settle();
+  }
+
   function settle() {
     const p = anchor.position;
     const radius = Math.hypot(p.x,p.z);
     if (radius > limit) { p.x *= limit/radius; p.z *= limit/radius; }
     p.y = home.y + ((floorAt(p.x,p.z) ?? homeFloor)-homeFloor);
-    anchor.computeWorldMatrix(true);
-    p.subtractToRef(home,offset);
-    contacts.setOffset(offset);
-    p.addToRef(localFocus,focus);
+    anchor.rotation.y = turn * 2 * Math.PI / stepsPerTurn;
+    Vector3.TransformCoordinatesToRef(localFocus,anchor.computeWorldMatrix(true),focus);
+    contacts.setTransform(contents.computeWorldMatrix(true));
+    for (const mesh of active) mesh.computeWorldMatrix(true);
   }
 
   function refresh() {
     ring.hidden = !selected;
     bar.hidden = !selected && !previous;
+    turnControls.hidden = done.hidden = !selected;
     canvas.style.cursor = selected ? 'crosshair' : '';
-    message.textContent = selected ? '点选落点，或拖动小动物' : '已摆放';
+    message.textContent = selected ? '点地摆放' : '已摆放';
     action.textContent = selected ? '取消' : '撤销';
   }
 
   function select() {
-    if (!selected) original = anchor.position.clone();
+    if (!selected) original = {position:anchor.position.clone(), turn};
     selected = true;
     refresh();
   }
 
   function finish() {
-    if (original && Vector3.DistanceSquared(original, anchor.position) > .000001) previous = original;
+    if (original && (original.turn !== turn || Vector3.DistanceSquared(original.position, anchor.position) > .000001)) previous = original;
     selected = false;
     original = null;
     refresh();
@@ -63,19 +77,29 @@ export function createAnimalPlacement(scene, surfaces, contacts) {
       if (canvas.hasPointerCapture(id)) canvas.releasePointerCapture(id);
     }
     if (selected && original) {
-      anchor.position.copyFrom(original);
-      settle();
+      restore(original);
     }
     selected = false;
     original = null;
     refresh();
   }
 
+  function rotate(direction) {
+    if (!selected || gesture) return;
+    turn = (turn + direction + stepsPerTurn) % stepsPerTurn;
+    settle();
+  }
+  const turnLeft = () => rotate(1);
+  const turnRight = () => rotate(-1);
+  function confirm() {
+    finish();
+    canvas.focus({preventScroll:true});
+  }
+
   function undoOrCancel() {
     if (selected) cancel();
     else if (previous) {
-      anchor.position.copyFrom(previous);
-      settle();
+      restore(previous);
       previous = null;
       refresh();
     }
@@ -163,7 +187,7 @@ export function createAnimalPlacement(scene, surfaces, contacts) {
     anchor.position.z = hit.pickedPoint.z;
     settle();
     finish();
-  }, PointerEventTypes.POINTERTAP);
+  }, PointerEventTypes.POINTERTAP | PointerEventTypes.POINTERDOUBLETAP);
 
   function key(event) {
     if (event.key === 'Escape' && selected) { cancel(); return; }
@@ -172,6 +196,14 @@ export function createAnimalPlacement(scene, surfaces, contacts) {
       claim(event);
       if (!event.repeat) { if (selected) finish(); else select(); }
       return;
+    }
+    if (selected && !event.ctrlKey && !event.metaKey && !event.altKey) {
+      const letter = event.key.toLowerCase();
+      if (letter === 'q' || letter === 'e') {
+        claim(event);
+        rotate(letter === 'q' ? 1 : -1);
+        return;
+      }
     }
     if (!selected || !['ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(event.key)) return;
     claim(event);
@@ -187,11 +219,17 @@ export function createAnimalPlacement(scene, surfaces, contacts) {
   for (const [name, handler] of Object.entries(listeners)) canvas.addEventListener(name,handler,true);
   window.addEventListener('keydown',key,true);
   window.addEventListener('blur',cancel);
+  left.addEventListener('click',turnLeft);
+  right.addEventListener('click',turnRight);
+  done.addEventListener('click',confirm);
   action.addEventListener('click',undoOrCancel);
   scene.onDisposeObservable.addOnce(() => {
     for (const [name, handler] of Object.entries(listeners)) canvas.removeEventListener(name,handler,true);
     window.removeEventListener('keydown',key,true);
     window.removeEventListener('blur',cancel);
+    left.removeEventListener('click',turnLeft);
+    right.removeEventListener('click',turnRight);
+    done.removeEventListener('click',confirm);
     action.removeEventListener('click',undoOrCancel);
     scene.onAfterRenderObservable.remove(marker);
     scene.onPointerObservable.remove(taps);
@@ -202,6 +240,11 @@ export function createAnimalPlacement(scene, surfaces, contacts) {
     previous = null;
     refresh();
     active = meshes;
+    // Measure in the unturned pose so refocusing or changing species at
+    // any yaw preserves the rotation-independent clearance from the glass.
+    anchor.rotation.y = 0;
+    anchor.computeWorldMatrix(true);
+    contents.computeWorldMatrix(true);
     const min = new Vector3(Infinity,Infinity,Infinity);
     const max = min.scale(-1);
     let extent = 0;
