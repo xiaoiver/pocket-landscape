@@ -1,6 +1,9 @@
 import HavokPhysics from '@babylonjs/havok';
 import {Color3, HavokPlugin, Matrix, MeshBuilder, PBRMaterial, PhysicsAggregate, PhysicsShapeType, PointerEventTypes, Quaternion, Vector3} from '@babylonjs/core';
 import '@babylonjs/core/Physics/v2/physicsEngineComponent.js';
+import {installEditorCursor} from './editor-cursor.js';
+import {installEditHistory} from './edit-history.js';
+import {createEditorAnimals,maxAnimals} from './editor-animals.js';
 import {createEditorPlants, maxPlants, readPlants} from './editor-plants.js';
 import {createEditorMoss} from './editor-moss.js';
 import {editFernPath} from './fern-path-preset.js';
@@ -9,7 +12,7 @@ import {installPresetLibrary} from './preset-library.js';
 import {createEditorSoil} from './editor-soil.js';
 import {createEditorVessel} from './editor-vessel.js';
 import {glassInnerRadiusAt, vesselWalls} from './glass.js';
-import {wording} from './interface-language.js';
+import {labelButton,wording} from './interface-language.js';
 
 const blankKey = 'pocket-landscape.pebble-garden.v1';
 const maxStones = 144, maxMounds = 72, maxPatches = 48;
@@ -31,7 +34,7 @@ function readLayout(storageKey) {
     const saved = JSON.parse(localStorage.getItem(storageKey));
     if (saved && typeof saved === 'object') {
       return {
-        name:saved.name, edits:saved.edits,
+        name:saved.name, edits:saved.edits, animals:saved.animals,
         vessel:saved.vessel === 'bottle' ? 'bottle' : 'open', sealed:saved.sealed === true,
         plants:readPlants(saved.plants), mounds:readPoints(saved.mounds,maxMounds), patches:readPoints(saved.patches,maxPatches),
         stones:(Array.isArray(saved.stones) ? saved.stones : []).slice(0,maxStones).filter(s => tuple(s?.p,3) && Math.hypot(s.p[0],s.p[2])<1.38 &&
@@ -69,6 +72,8 @@ export async function openPebbleEditor(scene, glass, shadows, loadPlantedModel, 
   const specimens = preset?.specimens ?? await loadPlantedModel('specimen-data');
   const plants = createEditorPlants(scene,specimens,glass,shadows,heightAt,vessel,layout.plants,Boolean(preset));
   const authored = preset && editFernPath(preset,heightAt,restHeight,layout.edits,vessel);
+  const fox = preset?.base.find(mesh => mesh.name.startsWith('Fox ·'));
+  const animals = await createEditorAnimals({scene,glass,shadows,loadPlantedModel,fox,heightAt,restHeight,vessel,layout});
   const palette = tones.map(hex => {
     const material = new PBRMaterial('River pebble '+hex,scene);
     material.albedoColor = Color3.FromHexString(hex).toLinearSpace();
@@ -91,17 +96,20 @@ export async function openPebbleEditor(scene, glass, shadows, loadPlantedModel, 
     shadows.addShadowCaster(mesh);
     glass.addContents?.([mesh]);
     const physics = attachStone(mesh);
+    if (tuple(s.velocity,3)) physics.body.setLinearVelocity(Vector3.FromArray(s.velocity));
+    if (tuple(s.spin,3)) physics.body.setAngularVelocity(Vector3.FromArray(s.spin));
     stones.set(mesh,{r:s.r,t:s.t,physics});
     return physics.body;
   }
   for (const s of saved) createStone(s);
   const feedback = document.getElementById('editor-feedback');
   let lastSaved = '';
-  function snapshot() {
+  function snapshot(withMotion=false) {
     const pieces = Array.from(stones, ([mesh,s]) => ({
       p:mesh.position.asArray(),q:mesh.rotationQuaternion.asArray(),r:s.r,t:s.t,
+      ...(withMotion ? {velocity:s.physics.body.getLinearVelocity().asArray(),spin:s.physics.body.getAngularVelocity().asArray()} : {}),
     }));
-    return {name:layout.name,edits:authored?.serialize(),vessel:vessel.type,sealed:vessel.sealed,mounds,patches,plants:[...plants.planted.values()],stones:pieces};
+    return {name:layout.name,animals:[...animals.placed.values()],edits:authored?.serialize(),vessel:vessel.type,sealed:vessel.sealed,mounds,patches,plants:[...plants.planted.values()],stones:pieces};
   }
   if (preset) installPresetLibrary(snapshot);
   function save() {
@@ -117,10 +125,79 @@ export async function openPebbleEditor(scene, glass, shadows, loadPlantedModel, 
   window.addEventListener('pagehide',save);
   scene.onDisposeObservable.addOnce(() => {clearInterval(timer);window.removeEventListener('pagehide',save);});
 
+  function removeStone(mesh) {
+    stones.get(mesh).physics.dispose();
+    stones.delete(mesh);
+    glass.removeContents?.([mesh]);
+    shadows.removeShadowCaster(mesh);
+    mesh.dispose();
+  }
+  const capture = () => JSON.stringify(snapshot(true));
+  const history = installEditHistory(capture,serialized => {
+    select(null);
+    const next = JSON.parse(serialized);
+    for (const mesh of stones.keys()) removeStone(mesh);
+    const vesselChanged = next.vessel !== vessel.type;
+    if (vesselChanged) vessel.setType(next.vessel,next.sealed);
+    else if (next.sealed !== vessel.sealed) vessel.setSealed(next.sealed);
+    const groundChanged = JSON.stringify(mounds)!==JSON.stringify(next.mounds);
+    if (groundChanged) {
+      mounds.splice(0,mounds.length,...next.mounds);
+      soil.rebuild();
+    }
+    if (authored) {
+      if (groundChanged || JSON.stringify(authored.serialize())!==JSON.stringify(next.edits)) authored.restore(next.edits);
+      else if (vesselChanged) authored.fitVessel();
+    }
+    if (groundChanged || JSON.stringify(patches)!==JSON.stringify(next.patches)) {
+      patches.splice(0,patches.length,...next.patches);
+      moss.rebuild();
+    }
+    if (JSON.stringify([...plants.planted.values()])!==JSON.stringify(next.plants)) {
+      for (const mesh of plants.planted.keys()) plants.remove(mesh);
+      for (const plant of next.plants) plants.add(plant);
+    } else if (groundChanged || vesselChanged) plants.settleAll();
+    if (JSON.stringify([...animals.placed.values()])!==JSON.stringify(next.animals)) {
+      for (const mesh of animals.placed.keys()) animals.remove(mesh);
+      for (const animal of next.animals) animals.add(animal);
+    } else if (groundChanged || vesselChanged) animals.settleAll();
+    for (const stone of next.stones) createStone(stone);
+    reflectVessel();
+    save();
+  });
+  function commit(before) {
+    history.record(before);
+    save();
+  }
   const corkButton = document.getElementById('cork-toggle');
   const vesselButtons = [...document.querySelectorAll('[data-vessel]')];
+  const vesselTrigger = document.getElementById('vessel-trigger'), vesselPanel = document.getElementById('vessel-tools');
+  function installPicker(trigger,panel,onOpen) {
+    function show(open) {
+      panel.hidden = !open;
+      trigger.setAttribute('aria-expanded',String(open));
+      if (open) {
+        onOpen();
+        const choice = panel.querySelector('[aria-pressed=true]') || panel.querySelector('button');
+        choice.focus({preventScroll:true});
+      }
+    }
+    trigger.addEventListener('click',() => show(panel.hidden));
+    function dismissOutside(event) {
+      if (!panel.hidden && !panel.contains(event.target) && !trigger.contains(event.target)) show(false);
+    }
+    document.addEventListener('pointerdown',dismissOutside);
+    document.addEventListener('focusin',dismissOutside);
+    document.addEventListener('keydown',event => {
+      if (event.key==='Escape' && !panel.hidden) {show(false);trigger.focus();}
+    });
+    return () => show(false);
+  }
+  installPicker(vesselTrigger,vesselPanel,() => select(null));
   function reflectVessel() {
     for (const button of vesselButtons) button.setAttribute('aria-pressed',String(button.dataset.vessel === vessel.type));
+    const current = vesselButtons.find(button => button.dataset.vessel===vessel.type);
+    vesselTrigger.replaceChildren(current.querySelector('svg').cloneNode(true));
     corkButton.hidden = vessel.type !== 'bottle';
     corkButton.setAttribute('aria-pressed',String(vessel.sealed));
   }
@@ -131,9 +208,11 @@ export async function openPebbleEditor(scene, glass, shadows, loadPlantedModel, 
   for (const button of vesselButtons) button.addEventListener('click',() => {
     select(null);
     if (button.dataset.vessel === vessel.type) return;
+    const before = capture();
     vessel.setType(button.dataset.vessel);
     authored?.fitVessel();
     plants.settleAll();
+    animals.settleAll();
     // Stones already falling above the shoulder must fit the newly selected profile.
     for (const [mesh,s] of stones) {
       const p = mesh.position;
@@ -148,11 +227,11 @@ export async function openPebbleEditor(scene, glass, shadows, loadPlantedModel, 
       }
     }
     reflectVessel();
-    save();
+    commit(before);
   });
-  corkButton.addEventListener('click',() => {closeCork(!vessel.sealed);save();});
+  corkButton.addEventListener('click',() => {const before=capture();closeCork(!vessel.sealed);commit(before);});
   reflectVessel();
-  document.getElementById('vessel-tools').hidden = false;
+  vesselTrigger.hidden = false;
   function shapeSoil(edit) {
     const previous = mounds.slice();
     edit();
@@ -160,6 +239,7 @@ export async function openPebbleEditor(scene, glass, shadows, loadPlantedModel, 
     authored?.settleAll();
     moss.rebuild();
     plants.settleAll();
+    animals.settleAll();
     for (const [mesh,s] of stones) {
       const {x,z} = mesh.position;
       const lift = heightAt(x,z)-heightAt(x,z,previous);
@@ -190,9 +270,9 @@ export async function openPebbleEditor(scene, glass, shadows, loadPlantedModel, 
   let tool = preset ? 'move' : 'soil';
   let selected = null;
   const move = document.querySelector('[data-editor-tool=move]');
-  move.hidden = !preset;
+  move.hidden = false;
   const ring = document.getElementById('placement-ring');
-  if (preset) scene.onAfterRenderObservable.add(() => {
+  scene.onAfterRenderObservable.add(() => {
     if (!selected) return;
     const [x,z] = selected.item ? authored.location(selected.item) : [selected.mesh.position.x,selected.mesh.position.z];
     const center = new Vector3(x,heightAt(x,z)+.02,z);
@@ -207,6 +287,9 @@ export async function openPebbleEditor(scene, glass, shadows, loadPlantedModel, 
   });
   function select(target) {
     selected = target;
+    updateCursor(tool,Boolean(target));
+    document.getElementById('animal-turns').hidden = !animals.placed.has(target?.mesh);
+    showAnimals(animals.placed.has(target?.mesh));
     ring.hidden = !target;
     move.setAttribute('aria-current',String(Boolean(target)));
     feedback.textContent = '';
@@ -215,23 +298,116 @@ export async function openPebbleEditor(scene, glass, shadows, loadPlantedModel, 
   const buttons = [...document.querySelectorAll('[data-editor-tool]')];
   const canvas = scene.getEngine().getRenderingCanvas();
   canvas.setAttribute('aria-label',wording('造景台。点选土面使用当前工具，回车在中央使用。','Landscape editor. Tap the soil to use the selected tool, or press Enter at the center.'));
-  for (const button of buttons) button.setAttribute('aria-pressed',String(button.dataset.editorTool===tool));
+  const paw = document.getElementById('animal-trigger'), sheet = document.getElementById('animal-sheet');
+  const plantTrigger = document.getElementById('plant-trigger'), plantPanel = document.getElementById('plant-sheet');
+  const plantChoices = [...plantPanel.querySelectorAll('[data-editor-tool]')];
+  const plantLabel = plantTrigger.getAttribute('aria-label');
+  let currentPlant = plantChoices[0];
+  plantTrigger.replaceChildren(currentPlant.querySelector('svg').cloneNode(true));
+  const closePlants = installPicker(plantTrigger,plantPanel,() => {
+    select(null);
+    setTool(currentPlant.dataset.editorTool);
+  });
+  const updateCursor = installEditorCursor(scene,canvas,buttons,paw);
+  const choices = [...sheet.querySelectorAll('[data-animal]')];
+  let choiceRequest = 0;
+  let animalKind = 'fox';
+  function showAnimals(open) {
+    if (open) closePlants();
+    choiceRequest++;
+    for (const choice of choices) delete choice.dataset.status;
+    sheet.hidden = !open;
+    paw.setAttribute('aria-expanded',String(open));
+    document.getElementById('animal-notice').textContent = '';
+    for (const choice of choices) choice.setAttribute('aria-pressed',String(choice.dataset.animal===(animals.placed.get(selected?.mesh)?.kind ?? animalKind)));
+  }
+  function setTool(next) {
+    tool = next;
+    updateCursor(tool,Boolean(selected));
+    for (const button of buttons) button.setAttribute('aria-pressed',String(button.dataset.editorTool===tool));
+    const plant = plantChoices.find(button => button.dataset.editorTool===tool);
+    plantTrigger.setAttribute('aria-pressed',String(Boolean(plant)));
+    if (plant) {
+      currentPlant = plant;
+      plantTrigger.replaceChildren(plant.querySelector('svg').cloneNode(true));
+      labelButton(plantTrigger,plantLabel+' · '+plant.getAttribute('aria-label'));
+    }
+    paw.setAttribute('aria-pressed',String(tool==='animal'));
+  }
+  setTool(tool);
+  paw.hidden = false;
   for (const button of buttons) button.addEventListener('click',() => {
     select(null);
-    tool = button.dataset.editorTool;
-    feedback.textContent = '';
-    for (const item of buttons) item.setAttribute('aria-pressed',String(item===button));
+    setTool(button.dataset.editorTool);
+    if (plantPanel.contains(button)) {
+      closePlants();
+      canvas.focus({preventScroll:true});
+    }
   });
+  paw.addEventListener('click',() => showAnimals(sheet.hidden));
+  for (const choice of choices) choice.addEventListener('click',async () => {
+    const request = ++choiceRequest;
+    const kind = choice.dataset.animal;
+    for (const button of choices) delete button.dataset.status;
+    choice.dataset.status = 'loading';
+    try {
+      await animals.prepare(kind);
+    } catch {
+      if (request===choiceRequest) {
+        choice.dataset.status = 'error';
+        document.getElementById('animal-notice').textContent = wording('加载失败，点选可重试。','Could not load this figurine. Tap to retry.');
+      }
+      return;
+    }
+    if (request!==choiceRequest) return;
+    delete choice.dataset.status;
+    animalKind = kind;
+    const pose = animals.placed.get(selected?.mesh);
+    if (pose) {
+      if (pose.kind !== animalKind) {
+        const before = capture();
+        animals.remove(selected.mesh);
+        const mesh = animals.add({kind:animalKind,x:pose.x,z:pose.z,yaw:pose.yaw});
+        select({mesh});
+        commit(before);
+      }
+    } else {
+      select(null);
+      setTool('animal');
+      canvas.focus({preventScroll:true});
+    }
+    showAnimals(false);
+  });
+  document.addEventListener('pointerdown',event => {
+    if (!sheet.hidden && !sheet.contains(event.target) && !paw.contains(event.target)) showAnimals(false);
+  });
+  document.addEventListener('keydown',event => {
+    if (event.key==='Escape' && !sheet.hidden) {showAnimals(false);paw.focus();}
+  });
+  function rotateAnimal(direction) {
+    const pose = animals.placed.get(selected?.mesh);
+    if (!pose) return;
+    const before = capture();
+    pose.yaw += direction*Math.PI/12;
+    animals.settle(selected.mesh,pose);
+    commit(before);
+  }
+  document.getElementById('animal-left').addEventListener('click',() => rotateAnimal(1));
+  document.getElementById('animal-right').addEventListener('click',() => rotateAnimal(-1));
   function apply(point, mesh, item) {
     feedback.textContent = '';
-    if (vessel.sealed) closeCork(false);
+    if (tool === 'move' && !selected) {
+      if (item || plants.planted.has(mesh) || animals.placed.has(mesh) || stones.has(mesh)) select({item,mesh});
+      return;
+    }
+    const before = capture();
     if (tool === 'move') {
-      if (!selected) {
-        if (item || plants.planted.has(mesh) || stones.has(mesh)) select({item,mesh});
-        return;
-      }
       if (selected.item) authored.move(selected.item,point.x,point.z);
-      else if (plants.planted.has(selected.mesh)) {
+      else if (animals.placed.has(selected.mesh)) {
+        const pose=animals.placed.get(selected.mesh);
+        Object.assign(pose,{x:point.x,z:point.z});
+        animals.settle(selected.mesh,pose);
+      } else if (plants.planted.has(selected.mesh)) {
         Object.assign(plants.planted.get(selected.mesh),{x:point.x,z:point.z});
         plants.settleAll();
       } else {
@@ -244,6 +420,14 @@ export async function openPebbleEditor(scene, glass, shadows, loadPlantedModel, 
         stone.physics = attachStone(selected.mesh);
       }
       select(null);
+    } else if (tool === 'animal') {
+      if (animals.placed.size >= maxAnimals) {
+        feedback.textContent = wording('小动物已满，可用橡皮擦移除。','Figurine limit reached. Use the eraser to remove one.');
+        return;
+      }
+      animals.add({kind:animalKind,x:point.x,z:point.z,yaw:0});
+    } else if (tool === 'erase' && animals.placed.has(mesh)) {
+      animals.remove(mesh);
     } else if (tool === 'erase' && item) {
       authored.remove(item);
     } else if (tool === 'pebbles') {
@@ -268,10 +452,7 @@ export async function openPebbleEditor(scene, glass, shadows, loadPlantedModel, 
     } else if (plants.planted.has(mesh)) {
       plants.remove(mesh);
     } else if (stones.has(mesh)) {
-      stones.delete(mesh);
-      glass.removeContents?.([mesh]);
-      shadows.removeShadowCaster(mesh);
-      mesh.dispose();
+      removeStone(mesh);
     } else {
       const patch = nearestPoint(patches,point,.21);
       if (patch>=0) {
@@ -279,26 +460,34 @@ export async function openPebbleEditor(scene, glass, shadows, loadPlantedModel, 
         moss.rebuild();
       } else {
         const mound = nearestPoint(mounds,point,.48);
-        if (mound>=0) shapeSoil(() => mounds.splice(mound,1));
+        if (mound<0) return;
+        shapeSoil(() => mounds.splice(mound,1));
       }
     }
-    save();
+    if (vessel.sealed) closeCork(false);
+    commit(before);
   }
   scene.onPointerObservable.add(() => {
     const objects = tool === 'erase' || (tool === 'move' && !selected);
-    const planting = tool === 'fern' || tool === 'fittonia';
+    const planting = tool === 'fern' || tool === 'fittonia' || tool === 'animal';
     const hit = scene.pick(scene.pointerX,scene.pointerY,m => m.isEnabled() && (
       grounds.has(m) || (!planting && !selected && stones.has(m)) ||
-      (objects && ((m.isPickable && plants.planted.has(m)) || authored?.pickable(m)))
+      (objects && (animals.placed.has(m) || (m.isPickable && plants.planted.has(m)) || authored?.pickable(m)))
     ));
     if (hit?.pickedPoint) apply(hit.pickedPoint,hit.pickedMesh,authored?.picked(hit));
   }, PointerEventTypes.POINTERTAP | PointerEventTypes.POINTERDOUBLETAP);
   canvas.addEventListener('keydown',event => {
     if (event.key === 'Escape') {select(null);return;}
+    if (selected && !event.ctrlKey && !event.metaKey && ['q','e'].includes(event.key.toLowerCase())) {
+      event.preventDefault();
+      rotateAnimal(event.key.toLowerCase()==='q' ? 1 : -1);
+      return;
+    }
     if (event.key !== 'Enter' || event.repeat) return;
     event.preventDefault();
     const centerPlant = tool === 'erase' && [...plants.planted.keys()].reverse().find(mesh => Math.hypot(mesh.position.x,mesh.position.z)<.12);
-    apply(new Vector3(0,heightAt(0,0),0),centerPlant || soil.mesh);
+    const centerAnimal = (tool==='move' || tool==='erase') && [...animals.placed.keys()].reverse().find(mesh => Math.hypot(mesh.position.x,mesh.position.z)<.35);
+    apply(new Vector3(0,heightAt(0,0),0),centerAnimal || centerPlant || soil.mesh);
   });
   document.getElementById('editor-tools').hidden = false;
 }

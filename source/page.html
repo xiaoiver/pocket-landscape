@@ -11,15 +11,11 @@
 *{box-sizing:border-box}
 :root{--ink:#333d31;--muted:#596152;--paper:#f8f6ed;--line:#c9cbbb;--fern:#40583f}
 body{margin:0;background:#e9e5da;color:var(--ink);font-family:"PingFang SC","Hiragino Sans GB",sans-serif}
-#garden{display:block;width:100vw;height:100dvh;touch-action:none;outline:0}
+#garden{display:block;width:100vw;height:100dvh;touch-action:none;outline:0;cursor:var(--tool-cursor,auto)}
+#garden.orbiting{cursor:grabbing}
 header,#status{position:fixed}
 header{pointer-events:none}
 header{top:max(4.6vh,env(safe-area-inset-top));left:4.2vw;z-index:2}
-.brand{display:flex;align-items:baseline;gap:12px}
-.brand b{font-size:17px;letter-spacing:.14em;font-weight:600}
-.brand i{font:italic 16px Georgia,serif;color:#57614f}
-.rainy .brand{color:#f4f3e9;text-shadow:0 1px 3px #16222acc}
-.rainy .brand i{color:#ebede6}
 #status{inset:0;z-index:3;display:grid;place-content:center;justify-items:center;text-align:center;padding:24px;background:radial-gradient(ellipse at 42% 33%,#fffcf3,#f4f1e5 75%);transition:opacity .35s ease,visibility 0s .35s}
 .ready #status{opacity:0;visibility:hidden;pointer-events:none}
 .specimen{position:relative;width:110px;height:119px;isolation:isolate}
@@ -36,14 +32,13 @@ header{top:max(4.6vh,env(safe-area-inset-top));left:4.2vw;z-index:2}
 [hidden]{display:none!important}
 button{font:inherit;color:inherit;cursor:pointer}
 button:focus-visible{outline:2px solid var(--fern);outline-offset:3px}
-.controls{pointer-events:auto;margin-top:17px;width:max-content;max-width:calc(100vw - 32px)}
-.tools{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.controls{pointer-events:auto;width:max-content;max-width:calc(100vw - 32px)}
 .weather{display:flex;align-items:stretch;padding:3px;border:1px solid var(--line);background:var(--paper);border-radius:24px}
 .weather button{display:flex;align-items:center;justify-content:center;min-width:44px;min-height:44px;background:transparent;border:0;border-radius:22px;padding:0}
 .weather button[aria-pressed=true]{background:var(--fern);color:var(--paper)}
 .weather .icon{width:18px;height:18px}
 .trigger{border:1px solid var(--line);background:var(--paper);border-radius:50%;width:52px;height:52px;flex:none;display:grid;place-items:center;padding:0}
-.trigger[aria-expanded=true],.trigger[aria-pressed=true],.editor-tools button[aria-pressed=true]{background:var(--fern);color:var(--paper);border-color:var(--fern)}
+.editor-tools button[aria-pressed=true]{background:var(--fern);color:var(--paper);border-color:var(--fern)}
 .icon{width:17px;height:17px;fill:none;stroke:currentColor;stroke-linecap:round;stroke-linejoin:round;stroke-width:1.6}
 .sheet{position:absolute;left:0;margin-top:8px;max-height:calc(100dvh - 145px);overflow:auto;width:min(294px,calc(100vw - 32px));padding:15px;background:var(--paper);border:1px solid var(--line);border-radius:16px;box-shadow:0 8px 24px #35382b17}
 .setting-note{font-size:12px;color:var(--muted);margin:4px 10px}
@@ -57,27 +52,41 @@ button:focus-visible{outline:2px solid var(--fern);outline-offset:3px}
 .animal[data-status]::after{content:"";position:absolute;top:4px;right:5px;width:12px;height:12px}
 .animal[data-status=loading]::after{border:2px dotted var(--fern);border-radius:50%}
 .animal[data-status=error]::after{background:center/contain no-repeat url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%23814a24' stroke-width='1.8'%3E%3Cpath d='M2 8a6 6 0 1 1 1.6 4M2 3v5h5'/%3E%3C/svg%3E")}
-@media(max-width:650px){header{left:6vw}.brand i{font-size:14px}header{top:max(4vh,env(safe-area-inset-top))}.controls{margin-top:12px}}
+@media(max-width:650px){header{left:6vw;top:max(4vh,env(safe-area-inset-top))}}
 @media(prefers-reduced-motion:reduce){*{transition:none!important}}
 #placement-ring{position:fixed;transform:translate(-50%,-50%);border:1.5px solid #fff3cdcf;border-radius:50%;box-shadow:0 0 0 1px #34462e65;pointer-events:none}
 #placement-bar{position:fixed;bottom:max(18px,env(safe-area-inset-bottom));left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:12px;max-width:96vw;padding:3px;background:var(--paper);border:1px solid var(--line);border-radius:24px;color:var(--ink);font-size:13px;white-space:nowrap}
 #placement-bar button{display:grid;place-items:center;border-radius:50%;border:0;background:none;color:var(--fern);font-weight:600;min-width:44px;min-height:44px;padding:0 7px}
 #placement-turns{display:flex;align-items:center}
 #placement-bar #placement-done{border-radius:20px;background:var(--fern);color:var(--paper)}
-#placement-bar .icon,.tools .icon{width:21px;height:21px}
+#placement-bar .icon,.dock .icon{width:21px;height:21px}
 .editor-tools{display:flex;align-items:center;border-radius:25px;padding:3px;border:1px solid var(--line);background:var(--paper)}
 .editor-tools button{width:44px;height:44px;display:grid;place-items:center;border-radius:50%;border:0;background:transparent}
-#editor-tools{position:fixed;left:50%;bottom:max(18px,env(safe-area-inset-bottom));transform:translateX(-50%)}
-#editor-feedback:not(:empty){position:absolute;top:100%;margin-top:8px;padding:6px 12px;background:var(--paper);border-radius:8px;font-size:13px}
+.dock{position:fixed;bottom:max(14px,env(safe-area-inset-bottom));left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:6px;width:max-content;max-width:calc(100vw - 12px)}
+.dock .tool-row{min-width:0;overflow-x:auto;overscroll-behavior-x:contain;scrollbar-width:thin}
+.tool-row button{flex:none}
+#editor-tools{display:flex;align-items:center}
+.tool-row [aria-expanded=true]{box-shadow:inset 0 0 0 1px var(--fern)}
+#editor-trigger:not([data-editing]) .view-icon,#editor-trigger[data-editing] svg:first-child{display:none}
+#vessel-tools,#plant-sheet{width:max-content;padding:3px;border-radius:25px}
+.dock .trigger{width:44px;height:44px}
+.dock .sheet{left:50%;bottom:calc(100% + 8px);transform:translateX(-50%)}
+.dock button:disabled{opacity:.32;cursor:default}
+#animal-turns{justify-content:center;margin-top:8px}
+body:has(#placement-bar:not([hidden])) .dock{visibility:hidden}
+#editor-tools .icon{width:21px;height:21px}
+@media(max-width:380px){#editor-tools button{width:42px}}
+
+#history-tools{flex:none}
+#editor-feedback:empty{display:none}
+#editor-feedback:not(:empty){left:50%;transform:translateX(-50%);width:max-content;max-width:100%;position:absolute;bottom:calc(100% + 8px);padding:6px 12px;background:var(--paper);border-radius:8px;font-size:13px}
 #preset-sheet form{display:flex;gap:6px}
 #preset-sheet input{width:0;flex:1;min-height:44px;border:1px solid var(--line);border-radius:8px;padding:0 10px;background:transparent;color:var(--ink);font:inherit}
 #preset-sheet button{min-height:44px;background:transparent;border:0;color:var(--fern)}
 #preset-sheet button[type=submit]{width:44px;border-radius:50%;background:var(--fern);color:var(--paper)}
 #preset-copies{display:grid}
 #preset-copies button{text-align:left;overflow-wrap:anywhere}
-#editor-tools button[data-editor-tool=move][aria-current=true]{outline:2px solid var(--fern);outline-offset:1px}
-#editor-tools{max-width:calc(100vw - 8px);overflow-x:auto}
-#editor-tools button{flex:none}
+.tool-row button[data-editor-tool=move][aria-current=true]{outline:2px solid var(--fern);outline-offset:1px}
 </style>
 </head>
 <body>
@@ -93,46 +102,59 @@ button:focus-visible{outline:2px solid var(--fern);outline-offset:3px}
   <button id="placement-action" aria-label="取消" data-en="Cancel"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg></button>
 </div>
 <header>
-  <div class="brand"><b>口袋景观</b><i>Pocket Landscape</i></div>
   <div class="controls" id="controls" hidden>
-    <div class="tools">
-      <button class="trigger" id="editor-trigger" aria-label="自定义造景" data-en="Build a landscape" aria-pressed="false">
-        <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 10v7c0 2 4 4 9 4s9-2 9-4v-5M3 10c0 2 4 4 9 4 2 0 4-.3 5.5-.9M3 10c0-1.6 3-3.2 7-3.7M17 2v8m-4-4h8"/></svg>
-      </button>
-      <button class="trigger" id="preset-trigger" aria-label="蕨间小径副本" data-en="Fern Path copies" aria-expanded="false" aria-controls="preset-sheet" hidden><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h11m-11 0v13c0 3 15 3 15 0v-5M9 16l1-4 9-9 3 3-9 9z"/></svg></button>
-      <div class="editor-tools" id="vessel-tools" role="group" aria-label="容器" data-en="Vessels" hidden>
-        <button data-vessel="open" aria-label="敞口广口瓶" data-en="Open glass jar" aria-pressed="true"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><ellipse cx="12" cy="6" rx="8" ry="2.5"/><path d="M4 6v12c0 3.5 16 3.5 16 0V6"/></svg></button>
-        <button data-vessel="bottle" aria-label="软木塞收肩瓶" data-en="Corked shoulder bottle" aria-pressed="false"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M8.5 3h7v3h-7zM9 6v3c0 2-5 3-5 6v4c0 2.5 16 2.5 16 0v-4c0-3-5-4-5-6V6"/></svg></button>
-        <button id="cork-toggle" aria-label="盖上软木塞" data-en="Seal the bottle" aria-pressed="false" hidden><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4h14l-2 6H7zM12 12v6m-3-3 3 3 3-3M5 21h14"/></svg></button>
-      </div>
-      <div class="editor-tools" id="editor-tools" role="group" aria-label="造景工具" data-en="Landscape tools" hidden>
-        <button data-editor-tool="move" hidden aria-label="先选物件，再点落点" data-en="Select an object, then tap its destination" aria-pressed="false"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v18M3 12h18M9 6l3-3 3 3m-6 12 3 3 3-3M6 9l-3 3 3 3m12-6 3 3-3 3"/></svg></button>
-        <button data-editor-tool="soil" aria-pressed="true" aria-label="堆土，点按土面造坡" data-en="Build a slope by tapping the soil"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m13 11 7-8m-5 0 5 4M5 11l5-3 6 5-4 5-8 3z"/></svg></button>
-        <button data-editor-tool="pebbles" aria-pressed="false" aria-label="撒一把卵石" data-en="Scatter a handful of pebbles"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m7 2 1 3m6-2-1 3m6 1-2 2M3 16c0-2 3-5 6-4 3 1 4 5 1 6s-7 1-7-2Zm10 3c0-2 2-5 5-5s5 4 3 6-8 2-8-1Z"/><circle cx="15" cy="10" r="1.4"/></svg></button>
-        <button data-editor-tool="moss" aria-pressed="false" aria-label="点种苔藓" data-en="Plant a moss patch"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20c2-7 5-10 12-14M5 16C2 9 7 5 20 3c-1 9-6 15-15 13Zm7-6v4m-3-1 1-4"/></svg></button>
-        <button data-editor-tool="fern" aria-pressed="false" aria-label="种蕨类" data-en="Plant a fern"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 21C8 15 12 10 19 3M8 16c-3 0-4-3-4-5 3 1 4 2 4 5Zm3-4c-2 0-3-3-2-6 2 2 3 4 2 6Zm3-4c-1-2-1-4 1-6 1 2 1 4-1 6ZM8 16c3-3 5-3 8-3-1 3-5 5-8 3Zm5-6c2-2 5-3 8-3-2 3-5 4-8 3Z"/></svg></button>
-        <button data-editor-tool="fittonia" aria-pressed="false" aria-label="种粉脉网纹草" data-en="Plant pink fittonia"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21C4 17 2 8 6 4c4-4 12 0 14 6 1 6-3 10-8 11Z"/><path stroke="#bd7789" d="m7 5 6 15m-4-9-4-2m6 7-5-2m4-1 4-6m-2 10 6-5"/></svg></button>
-        <button data-editor-tool="erase" aria-pressed="false" aria-label="移除植物、卵石或土丘" data-en="Erase a plant, pebble or mound"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m3 14 10-11 8 7-10 11H9zM7 10l8 7m-4 4h10"/></svg></button>
-      </div>
-      <span class="notice" id="move-notice" role="status"></span>
-      <span id="editor-feedback" role="status"></span>
-      <button class="trigger" id="animal-trigger" aria-label="小动物" data-en="Figurines" aria-controls="animal-sheet" aria-expanded="false">
-        <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><ellipse cx="5" cy="10" rx="2" ry="2.6" transform="rotate(-22 5 10)"/><ellipse cx="10" cy="6.5" rx="1.9" ry="2.6"/><ellipse cx="16" cy="7.4" rx="1.9" ry="2.6" transform="rotate(17 16 7.4)"/><path d="M7 16c1.4-1.2 2.2-4.6 5-4.6s3.4 2.9 5.1 4.6c2.1 2.3.5 4.4-2 4-2.3-.4-3.4-1.2-5.8-.4C6.4 20.6 4.8 18 7 16Z"/></svg>
-      </button>
       <div class="weather" role="group" aria-label="窗边天气" data-en="Weather">
         <button data-weather="sun" aria-label="晨光" data-en="Morning sun" aria-pressed="true"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M5 5l2 2m10 10 2 2M5 19l2-2M17 7l2-2"/></svg></button>
         <button data-weather="rain" aria-label="雨天" data-en="Rain" aria-pressed="false"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 14a4 4 0 0 1 0-8 6 6 0 0 1 11.7.8A3.6 3.6 0 0 1 18.2 14H5ZM8 17l-1 2m6-2-1 3m6-3-1 2"/></svg></button>
       </div>
+    <div class="dock">
+      <div class="editor-tools tool-row">
+        <button data-editor-tool="move" hidden aria-label="先选物件，再点落点" data-en="Select an object, then tap its destination" aria-pressed="false"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v18M3 12h18M9 6l3-3 3 3m-6 12 3 3 3-3M6 9l-3 3 3 3m12-6 3 3-3 3"/></svg></button>
+        <button class="trigger" id="editor-trigger" aria-label="自定义造景" data-en="Build a landscape">
+          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 10v7c0 2 4 4 9 4s9-2 9-4v-5M3 10c0 2 4 4 9 4 2 0 4-.3 5.5-.9M3 10c0-1.6 3-3.2 7-3.7M17 2v8m-4-4h8"/></svg>
+          <svg class="icon view-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg>
+        </button>
+        <button class="trigger" id="preset-trigger" aria-label="蕨间小径副本" data-en="Fern Path copies" aria-expanded="false" aria-controls="preset-sheet" hidden><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h11m-11 0v13c0 3 15 3 15 0v-5M9 16l1-4 9-9 3 3-9 9z"/></svg></button>
+        <button id="vessel-trigger" aria-expanded="false" aria-controls="vessel-tools" aria-label="选择瓶型和瓶塞" data-en="Choose vessel and stopper" hidden></button>
+        <div id="editor-tools" role="group" aria-label="造景工具" data-en="Landscape tools" hidden>
+          <button data-editor-tool="soil" aria-pressed="true" aria-label="堆土，点按土面造坡" data-en="Build a slope by tapping the soil"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m13 11 7-8m-5 0 5 4M5 11l5-3 6 5-4 5-8 3z"/></svg></button>
+          <button data-editor-tool="pebbles" aria-pressed="false" aria-label="撒一把卵石" data-en="Scatter a handful of pebbles"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m7 2 1 3m6-2-1 3m6 1-2 2M3 16c0-2 3-5 6-4 3 1 4 5 1 6s-7 1-7-2Zm10 3c0-2 2-5 5-5s5 4 3 6-8 2-8-1Z"/><circle cx="15" cy="10" r="1.4"/></svg></button>
+          <button id="plant-trigger" aria-label="选择植物" data-en="Choose a plant" aria-controls="plant-sheet" aria-expanded="false" aria-pressed="false"></button>
+          <button hidden id="animal-trigger" aria-label="小动物" data-en="Figurines" aria-controls="animal-sheet" aria-expanded="false">
+            <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><ellipse cx="5" cy="10" rx="2" ry="2.6" transform="rotate(-22 5 10)"/><ellipse cx="10" cy="6.5" rx="1.9" ry="2.6"/><ellipse cx="16" cy="7.4" rx="1.9" ry="2.6" transform="rotate(17 16 7.4)"/><path d="M7 16c1.4-1.2 2.2-4.6 5-4.6s3.4 2.9 5.1 4.6c2.1 2.3.5 4.4-2 4-2.3-.4-3.4-1.2-5.8-.4C6.4 20.6 4.8 18 7 16Z"/></svg>
+          </button>
+          <button data-editor-tool="erase" aria-pressed="false" aria-label="移除物件、苔团或土丘" data-en="Erase an object, moss patch or mound"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m3 14 10-11 8 7-10 11H9zM7 10l8 7m-4 4h10"/></svg></button>
+        </div>
+      </div>
+      <div class="editor-tools" id="history-tools" role="group" aria-label="编辑历史" data-en="Edit history" hidden>
+        <button id="undo-edit" disabled aria-label="撤销" data-en="Undo"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 4-6 6 6 6M4 10h9a7 7 0 0 1 7 7v2"/></svg></button>
+        <button id="redo-edit" disabled aria-label="重做" data-en="Redo"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m15 4 6 6-6 6m5-6h-9a7 7 0 0 0-7 7v2"/></svg></button>
+      </div>
+      <div class="editor-tools sheet" id="plant-sheet" role="group" aria-labelledby="plant-trigger" hidden>
+        <button data-editor-tool="moss" aria-pressed="false" aria-label="点种苔藓" data-en="Plant a moss patch"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20c2-7 5-10 12-14M5 16C2 9 7 5 20 3c-1 9-6 15-15 13Zm7-6v4m-3-1 1-4"/></svg></button>
+        <button data-editor-tool="fern" aria-pressed="false" aria-label="种蕨类" data-en="Plant a fern"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 21C8 15 12 10 19 3M8 16c-3 0-4-3-4-5 3 1 4 2 4 5Zm3-4c-2 0-3-3-2-6 2 2 3 4 2 6Zm3-4c-1-2-1-4 1-6 1 2 1 4-1 6ZM8 16c3-3 5-3 8-3-1 3-5 5-8 3Zm5-6c2-2 5-3 8-3-2 3-5 4-8 3Z"/></svg></button>
+        <button data-editor-tool="fittonia" aria-pressed="false" aria-label="种粉脉网纹草" data-en="Plant pink fittonia"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21C4 17 2 8 6 4c4-4 12 0 14 6 1 6-3 10-8 11Z"/><path stroke="#bd7789" d="m7 5 6 15m-4-9-4-2m6 7-5-2m4-1 4-6m-2 10 6-5"/></svg></button>
+      </div>
+      <div class="editor-tools sheet" id="vessel-tools" role="group" aria-label="容器" data-en="Vessels" hidden>
+        <button data-vessel="open" aria-label="敞口广口瓶" data-en="Open glass jar" aria-pressed="true"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><ellipse cx="12" cy="6" rx="8" ry="2.5"/><path d="M4 6v12c0 3.5 16 3.5 16 0V6"/></svg></button>
+        <button data-vessel="bottle" aria-label="软木塞收肩瓶" data-en="Corked shoulder bottle" aria-pressed="false"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M8.5 3h7v3h-7zM9 6v3c0 2-5 3-5 6v4c0 2.5 16 2.5 16 0v-4c0-3-5-4-5-6V6"/></svg></button>
+        <button id="cork-toggle" aria-label="盖上软木塞" data-en="Seal the bottle" aria-pressed="false" hidden><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4h14l-2 6H7zM12 12v6m-3-3 3 3 3-3M5 21h14"/></svg></button>
+      </div>
+      <span class="notice" id="move-notice" role="status"></span>
+      <span id="editor-feedback" role="status"></span>
+      <section class="sheet" id="preset-sheet" aria-labelledby="preset-trigger" hidden>
+        <form><input id="preset-name" maxlength="64" aria-label="副本名称" data-en="Copy name"><button type="submit" aria-label="创建并编辑副本" data-en="Create and edit copy"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v16M4 12h16"/></svg></button></form>
+        <div id="preset-copies"></div>
+      </section>
+      <section class="sheet" id="animal-sheet" aria-labelledby="animal-trigger" hidden>
+        <div class="animals" role="group" aria-label="选择小动物" data-en="Choose a figurine"><!--ANIMALS--></div>
+        <div id="animal-turns" class="editor-tools" hidden>
+          <button id="animal-left" aria-label="向左旋转 15°（Q）" data-en="Rotate left 15° (Q)"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4v6h6M4.5 10a8 8 0 1 1 .7 6"/></svg></button>
+          <button id="animal-right" aria-label="向右旋转 15°（E）" data-en="Rotate right 15° (E)"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 4v6h-6m5.5 0a8 8 0 1 0-.7 6"/></svg></button>
+        </div>
+        <p class="notice" id="animal-notice" role="status"></p>
+      </section>
     </div>
-    <section class="sheet" id="preset-sheet" aria-labelledby="preset-trigger" hidden>
-      <form><input id="preset-name" maxlength="64" aria-label="副本名称" data-en="Copy name"><button type="submit" aria-label="创建并编辑副本" data-en="Create and edit copy"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v16M4 12h16"/></svg></button></form>
-      <div id="preset-copies"></div>
-    </section>
-    <section class="sheet" id="animal-sheet" aria-labelledby="animal-trigger" hidden>
-      <div class="animals" role="group" aria-label="选择小动物" data-en="Choose a figurine"><!--ANIMALS--></div>
-      <p class="setting-note" data-en="Tap a figurine, then tap the ground to place it.">点选缸里的小动物，再点苔面放下。</p>
-      <p class="notice" id="animal-notice" role="status"></p>
-    </section>
   </div>
 </header>
 <div id="status">

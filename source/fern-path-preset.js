@@ -66,7 +66,7 @@ export function editFernPath({base,specimens,pathMesh}, heightAt, restHeight, sa
     }});
   }
   for (const mesh of [...base,...specimens]) {
-    if (/^(Woodland outcrop|Weathered granite|Fox ·)/.test(mesh.name)) group(mesh.name,[mesh],true);
+    if (/^(Woodland outcrop|Weathered granite)/.test(mesh.name)) group(mesh.name,[mesh],true);
     if (specimens.includes(mesh)) group(mesh.name,[mesh]);
   }
   group('canopy',base.filter(m=>m.name.startsWith('Canopy ')));
@@ -93,6 +93,11 @@ export function editFernPath({base,specimens,pathMesh}, heightAt, restHeight, sa
   }
   settleAll();
   return {
+    restore(edits) {
+      changes.clear();
+      for (const [id,pose] of Object.entries(edits)) changes.set(id,pose);
+      settleAll();
+    },
     settleAll, fitVessel() {for (const id of foliage) settle(objects.get(id));},
     serialize:()=>Object.fromEntries(changes),
     pickable:mesh=>mesh.isEnabled() && mesh.isPickable && (mesh===pathMesh || byMesh.has(mesh)),

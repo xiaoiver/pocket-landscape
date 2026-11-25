@@ -1,3 +1,4 @@
+import {installEditHistory} from './edit-history.js';
 import {wording} from './interface-language.js';
 import {Matrix, PointerEventTypes, Ray, TransformNode, Vector3} from '@babylonjs/core';
 
@@ -31,6 +32,18 @@ export function createAnimalPlacement(scene, surfaces, contacts) {
   const left = document.getElementById('placement-left');
   const right = document.getElementById('placement-right');
 
+  function snapshot() {
+    return JSON.stringify({x:anchor.position.x,z:anchor.position.z,turn});
+  }
+  let before;
+  const history = installEditHistory(() => selected ? before : snapshot(),serialized => {
+    cancel();
+    const pose=JSON.parse(serialized);
+    anchor.position.x=pose.x;
+    anchor.position.z=pose.z;
+    turn=pose.turn;
+    settle();
+  });
   function restore(pose) {
     anchor.position.copyFrom(pose.position);
     turn = pose.turn;
@@ -56,13 +69,14 @@ export function createAnimalPlacement(scene, surfaces, contacts) {
   }
 
   function select() {
-    if (!selected) original = {position:anchor.position.clone(), turn};
+    if (!selected) { original = {position:anchor.position.clone(), turn}; before = snapshot(); }
     selected = true;
     refresh();
   }
 
   function finish() {
     selected = false;
+    history.record(before);
     original = null;
     refresh();
   }

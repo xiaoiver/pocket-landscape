@@ -5,7 +5,7 @@ import {Engine,Scene,ArcRotateCamera,Vector3,Color3,Color4,DirectionalLight,Hemi
 import '@babylonjs/loaders/glTF/2.0';
 import {createMorningWindow} from './morning-window.js';
 import {createAnimalPlacement} from './animal-placement.js';
-import {installGardenControls} from './garden-controls.js';
+import {installWeather} from './garden-controls.js';
 import {installDepthOfField} from './depth-of-field.js';
 import {createMossMist} from './moss-mist.js';
 import {installGlass} from './glass.js';
@@ -90,12 +90,12 @@ async function start(){
   });
   if (editorMode) {
     labelButton(modeButton,wording('返回成品景观','Return to the planted terrarium'));
-    modeButton.setAttribute('aria-pressed','true');
-    document.getElementById('animal-trigger').hidden = true;
-    document.querySelector('.weather').hidden = true;
+    modeButton.dataset.editing = '';
   } else {
     installPresetLibrary();
   }
+  let mist;
+  installWeather(setRain);
   if (editorMode && !editingPreset) {
     camera.setTarget(new Vector3(0,.98,0));
     camera.alpha = homeAlpha;
@@ -173,7 +173,7 @@ async function start(){
   glass = installGlass(scene, camera, hdr, [ground, ...casement.meshes, ...base, ...specimens, ...(drainage ? [drainage.gravel] : []), ...(mossBranchlets ? [mossBranchlets] : []), ...(mossPad?.meshes ?? [])], {
     forceLightweight, sunlight:sun, layers, animateDrops:!matchMedia('(prefers-reduced-motion: reduce)').matches,
   });
-  const mist = createMossMist(scene, !glass.highQuality);
+  mist = createMossMist(scene, !glass.highQuality);
   mist.mesh.setEnabled(query.get('mist') !== '0');
   glass.addContents?.([mist.mesh]);
   if (editingPreset) {
@@ -204,7 +204,7 @@ async function start(){
   await scene.whenReadyAsync();
   function setRain(raining) {
     casement.setRain(raining);
-    mist.setRain(raining);
+    mist?.setRain(raining);
     sun.intensity = raining ? .14 : 1.55;
     if (raining) sun.diffuse.set(.84,.91,1);
     else sun.diffuse.set(1,.94,.82);
@@ -221,7 +221,7 @@ async function start(){
     ctx.putImageData(raining ? overcastDesk : img,0,0);
     texture.update();
   }
-  installGardenControls({base, loadPlantedModel, shadows, glass, contacts, placement, setRain});
+  document.getElementById('controls').hidden = false;
   document.body.classList.add('ready');
 }
 start().catch(error => {

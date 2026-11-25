@@ -23,7 +23,7 @@ async function buildViewer() {
   const animals = Object.entries(animalNames).map(([id, [label, english]]) =>
     '<button class="animal" data-animal="'+id+'" aria-label="'+label+'" data-en="'+english+'" aria-pressed="'+(id==='fox')+'"><img alt="" src="data:image/png;base64,'+
     figurine(id,'png').toString('base64')+'"></button>').join('');
-  const companions = Object.keys(animalNames).filter(id => id !== 'fox').map(id =>
+  const companions = Object.keys(animalNames).map(id =>
     embeddedData('animal-'+id, zlib.gzipSync(figurine(id,'glb'))));
   const script = bundle.outputFiles[0].text.replace(/<\/script/gi, '<\\/script');
   const havokWasm = require.resolve('@babylonjs/havok/lib/esm/HavokPhysics.wasm');
