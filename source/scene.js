@@ -179,5 +179,7 @@ async function start(){
 start().catch(error => {
   console.error(error);
   document.querySelector('.loading-track').hidden = true;
-  document.getElementById('loading-message').textContent = wording('场景加载失败，请使用支持 WebGL 的浏览器重新打开。','The terrarium could not load. Reopen it in a browser that supports WebGL.');
+  const message = document.getElementById('loading-message');
+  message.textContent = wording('场景加载失败，请使用支持 WebGL 的浏览器重新打开。','The terrarium could not load. Reopen it in a browser that supports WebGL.');
+  message.classList.remove('notice');
 });
