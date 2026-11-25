@@ -32,6 +32,6 @@ async function buildViewer() {
     embeddedData('drop-atlas', fs.readFileSync(path.join(__dirname, 'assets/window-drop-atlas.png'))),
     embeddedData('specimen-data', specimens), embeddedData('model-data', model), ...substrate, ...companions, '<script>' + script + '</script>'].join('\n');
   const template = fs.readFileSync(path.join(__dirname, 'page.html'), 'utf8');
-  fs.writeFileSync(path.join(project, 'index.html'), template.replace('<!--ANIMALS-->', () => animals).replace('<!--APP-->', () => content));
+  fs.writeFileSync(path.join(project, 'index.html'), template.replace('<!--LOADING-FOX-->', 'data:image/png;base64,' + figurine('fox','png').toString('base64')).replace('<!--ANIMALS-->', () => animals).replace('<!--APP-->', () => content));
 }
 buildViewer().catch(error => { console.error(error); process.exitCode = 1; });

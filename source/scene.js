@@ -1,5 +1,5 @@
 import {localizeInterface, wording} from './interface-language.js';
-import {Engine,Scene,ArcRotateCamera,Vector3,Color3,Color4,DirectionalLight,HemisphericLight,ShadowGenerator,MeshBuilder,StandardMaterial,DynamicTexture,Texture,HDRCubeTexture,ImportMeshAsync} from '@babylonjs/core';
+import {Engine,Scene,ArcRotateCamera,Vector3,Color3,Color4,DirectionalLight,HemisphericLight,ShadowGenerator,MeshBuilder,StandardMaterial,DynamicTexture,Texture,HDRCubeTexture,ImportMeshAsync,SceneLoader} from '@babylonjs/core';
 import '@babylonjs/loaders/glTF/2.0';
 import {createMorningWindow} from './morning-window.js';
 import {createAnimalPlacement} from './animal-placement.js';
@@ -19,7 +19,7 @@ import {prepareGroundContacts} from './ground-contacts.js';
 import {preparePathSoil} from './path-soil.js';
 localizeInterface();
 const canvas=document.getElementById('garden');
-const status=document.getElementById('status');
+SceneLoader.ShowLoadingScreen = false;
 async function start(){
   const engine=new Engine(canvas,true,{stencil:true,preserveDrawingBuffer:true,powerPreference:'high-performance'});
   const scene=new Scene(engine);scene.useRightHandedSystem=true;
@@ -150,19 +150,7 @@ async function start(){
   const surfaces = new Set(base.filter(m => m === earth || /^(Cushion moss |River gravel |Woodland outcrop|Weathered granite)/.test(m.name)));
   const placement = createAnimalPlacement(scene,surfaces,contacts);
   placement.activate([fox]);
-  const fernTarget = new Vector3(-.63, 1.52, -.46);
-  let focus = placement.focus;
-  function setView(view) {
-    const fern = view === 'fern', home = view === 'home';
-    focus = fern ? fernTarget : placement.focus;
-    const lookAt = home ? new Vector3(0, 1.20, 0) : focus;
-    camera.inertialAlphaOffset = camera.inertialBetaOffset = camera.inertialRadiusOffset = 0;
-    camera.setTarget(lookAt.clone());
-    camera.alpha = fern ? 2.35 : homeAlpha;
-    camera.beta = fern ? 1.10 : homeBeta;
-    camera.radius = home ? fit() : (fern ? 5.4 : 3.8) / Math.min(1, engine.getAspectRatio(camera));
-  }
-  installDepthOfField(scene,camera,() => focus);
+  installDepthOfField(scene,camera,() => placement.focus);
   window.addEventListener('resize',resize);
   engine.runRenderLoop(()=>{life.update();glass.update();scene.render();});
   await scene.whenReadyAsync();
@@ -185,7 +173,11 @@ async function start(){
     ctx.putImageData(raining ? overcastDesk : img,0,0);
     texture.update();
   }
-  installGardenControls({base, loadPlantedModel, shadows, glass, contacts, placement, setRain, setView, life, mist});
-  status.hidden=true;document.body.classList.add('ready');
+  installGardenControls({base, loadPlantedModel, shadows, glass, contacts, placement, setRain});
+  document.body.classList.add('ready');
 }
-start().catch(error=>{console.error(error);status.textContent=wording('场景加载失败，请使用支持 WebGL 的浏览器重新打开。','The terrarium could not load. Reopen it in a browser that supports WebGL.');});
+start().catch(error => {
+  console.error(error);
+  document.querySelector('.loading-track').hidden = true;
+  document.getElementById('loading-message').textContent = wording('场景加载失败，请使用支持 WebGL 的浏览器重新打开。','The terrarium could not load. Reopen it in a browser that supports WebGL.');
+});

@@ -19,8 +19,6 @@ Open the generated `index.html` in a WebGL 2 browser to explore offline. Drag to
 
 Select the paw icon in the upper left, then the thumbnail of the fox, resting fawn or hedgehog.
 
-Use the eye icon to return to the whole jar, inspect the ferns, or frame the current figurine. Under the sliders icon, toggle the low mist, plant motion, and drifting motes independently.
-
 Select the sun or rain cloud beside the paw to change the weather. On rainy days, dim blue-grey light catches the rim and leaves, fading across the desk into the room. Beads cling to the pane and merge on contact. Heavier drops slide down the glass and veer slightly in gusts, clearing fine beads and drawing short ribbons of water that fade back to a trail of beads. With reduced motion enabled, the drops stay still.
 
 ![The fawn resting on the moss with all three figurines in the animal selector](docs/animal-controls.jpg)

@@ -1,45 +1,31 @@
 import {describeGarden, wording} from './interface-language.js';
 import { Quaternion, Vector3 } from '@babylonjs/core';
 
-function installSheets(setView) {
+function installAnimalMenu() {
   const controls = document.getElementById('controls');
-  const triggers = [...controls.querySelectorAll('.trigger')];
-  let open;
-  function show(next) {
-    for (const trigger of triggers) {
-      const expanded = trigger === next;
-      trigger.setAttribute('aria-expanded', String(expanded));
-      document.getElementById(trigger.getAttribute('aria-controls')).hidden = !expanded;
-    }
-    open = next;
+  const trigger = document.getElementById('animal-trigger');
+  const sheet = document.getElementById('animal-sheet');
+  function show(expanded) {
+    trigger.setAttribute('aria-expanded', String(expanded));
+    sheet.hidden = !expanded;
   }
-  for (const trigger of triggers) {
-    trigger.addEventListener('click', () => show(open === trigger ? null : trigger));
+  trigger.addEventListener('click', () => show(sheet.hidden));
+  controls.querySelector('.weather').addEventListener('click', () => show(false));
+  function dismissOutside(event) {
+    if (!sheet.hidden && !controls.contains(event.target)) show(false);
   }
-  controls.querySelector('.weather').addEventListener('click', () => show(null));
-  document.addEventListener('pointerdown', event => {
-    if (open && !controls.contains(event.target)) show(null);
-  });
-  document.addEventListener('focusin', event => {
-    if (open && !controls.contains(event.target)) show(null);
-  });
+  document.addEventListener('pointerdown', dismissOutside);
+  document.addEventListener('focusin', dismissOutside);
   document.addEventListener('keydown', event => {
-    if (event.key === 'Escape' && open) {
-      open.focus();
-      show(null);
+    if (event.key === 'Escape' && !sheet.hidden) {
+      show(false);
+      trigger.focus();
     }
   });
-  for (const button of controls.querySelectorAll('[data-view]')) {
-    button.addEventListener('click', () => {
-      setView(button.dataset.view);
-      show(null);
-      document.getElementById('garden').focus({preventScroll: true});
-    });
-  }
   controls.hidden = false;
 }
 
-export function installGardenControls({base, loadPlantedModel, shadows, glass, contacts, placement, setRain, setView, life, mist}) {
+export function installGardenControls({base, loadPlantedModel, shadows, glass, contacts, placement, setRain}) {
   const fox = base.find(mesh => mesh.name.startsWith('Fox ·'));
   const cache = new Map([['fox', Promise.resolve([fox])]]);
   const notice = document.getElementById('animal-notice');
@@ -100,24 +86,5 @@ export function installGardenControls({base, loadPlantedModel, shadows, glass, c
       for (const item of weatherChoices) item.setAttribute('aria-pressed', String(item === choice));
     });
   }
-  const mistSetting = document.getElementById('mist-setting');
-  mistSetting.checked = mist.mesh.isEnabled();
-  mistSetting.addEventListener('change', () => mist.mesh.setEnabled(mistSetting.checked));
-  const plants = document.getElementById('plants-setting'), motes = document.getElementById('motes-setting');
-  const preference = matchMedia('(prefers-reduced-motion: reduce)');
-  function reflectMotion() {
-    const available = Boolean(life.motes) && !preference.matches;
-    plants.disabled = motes.disabled = !available;
-    plants.checked = available && life.plantsOn;
-    motes.checked = available && life.motesOn;
-    const note = document.getElementById('motion-note');
-    note.hidden = available;
-    note.textContent = !life.motes ? wording('当前链接已关闭场景动态。','Animations are disabled for this link.') : wording('已按系统的减少动态效果设置暂停。','Animations are paused for your reduced motion preference.');
-  }
-  plants.addEventListener('change', () => life.setPlants(plants.checked));
-  motes.addEventListener('change', () => life.setMotes(motes.checked));
-  preference.addEventListener('change', reflectMotion);
-  mist.mesh.getScene().onDisposeObservable.addOnce(() => preference.removeEventListener('change', reflectMotion));
-  reflectMotion();
-  installSheets(setView);
+  installAnimalMenu();
 }
