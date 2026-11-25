@@ -1,3 +1,4 @@
+import {describeGarden, wording} from './interface-language.js';
 import { Quaternion, Vector3 } from '@babylonjs/core';
 
 function installSheets(setView) {
@@ -70,7 +71,7 @@ export function installGardenControls({base, loadPlantedModel, shadows, glass, c
       const name = button.getAttribute('aria-label');
       for (const choice of buttons) delete choice.dataset.status;
       button.dataset.status = 'loading';
-      notice.textContent = '正在摆放' + name + '…';
+      notice.textContent = wording('正在摆放' + name + '…', 'Placing ' + name.toLowerCase() + '…');
       try {
         const next = await cache.get(id);
         if (ticket !== request) return;
@@ -80,14 +81,14 @@ export function installGardenControls({base, loadPlantedModel, shadows, glass, c
         contacts.setAnimal(id);
         placement.activate(next);
         for (const choice of buttons) choice.setAttribute('aria-pressed', String(choice === button));
-        document.getElementById('garden').setAttribute('aria-label', '可旋转的玻璃微景观，陶土' + name + '，点选后再点落点，或直接拖动。键盘按回车选中，方向键移动，Q 和 E 转向，回车放下，Esc 取消');
+        describeGarden(name);
         delete button.dataset.status;
         notice.textContent = '';
       } catch (error) {
         if (ticket !== request) return;
         button.dataset.status = 'error';
         console.error(error);
-        notice.textContent = name + '加载失败，点选可重试。';
+        notice.textContent = wording(name + '加载失败，点选可重试。', 'Could not load the ' + name.toLowerCase() + '. Tap to retry.');
       }
     });
   }
@@ -111,7 +112,7 @@ export function installGardenControls({base, loadPlantedModel, shadows, glass, c
     motes.checked = available && life.motesOn;
     const note = document.getElementById('motion-note');
     note.hidden = available;
-    note.textContent = !life.motes ? '当前链接已关闭场景动态。' : '已按系统的减少动态效果设置暂停。';
+    note.textContent = !life.motes ? wording('当前链接已关闭场景动态。','Animations are disabled for this link.') : wording('已按系统的减少动态效果设置暂停。','Animations are paused for your reduced motion preference.');
   }
   plants.addEventListener('change', () => life.setPlants(plants.checked));
   motes.addEventListener('change', () => life.setMotes(motes.checked));

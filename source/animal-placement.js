@@ -1,3 +1,4 @@
+import {labelButton, wording} from './interface-language.js';
 import {Matrix, PointerEventTypes, Ray, TransformNode, Vector3} from '@babylonjs/core';
 
 export function createAnimalPlacement(scene, surfaces, contacts) {
@@ -26,6 +27,8 @@ export function createAnimalPlacement(scene, surfaces, contacts) {
   const message = document.getElementById('placement-message');
   const action = document.getElementById('placement-action');
 
+  const cancelIcon = document.getElementById('cancel-icon');
+  const undoIcon = document.getElementById('undo-icon');
   const turnControls = document.getElementById('placement-turns');
   const done = document.getElementById('placement-done');
   const left = document.getElementById('placement-left');
@@ -53,8 +56,10 @@ export function createAnimalPlacement(scene, surfaces, contacts) {
     bar.hidden = !selected && !previous;
     turnControls.hidden = done.hidden = !selected;
     canvas.style.cursor = selected ? 'crosshair' : '';
-    message.textContent = selected ? '点地摆放' : '已摆放';
-    action.textContent = selected ? '取消' : '撤销';
+    message.textContent = selected ? wording('点地摆放', 'Tap the ground to place') : wording('已摆放', 'Figurine placed');
+    cancelIcon.hidden = !selected;
+    undoIcon.hidden = selected;
+    labelButton(action, selected ? wording('取消', 'Cancel') : wording('撤销摆放', 'Undo placement'));
   }
 
   function select() {

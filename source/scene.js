@@ -1,3 +1,4 @@
+import {localizeInterface, wording} from './interface-language.js';
 import {Engine,Scene,ArcRotateCamera,Vector3,Color3,Color4,DirectionalLight,HemisphericLight,ShadowGenerator,MeshBuilder,StandardMaterial,DynamicTexture,Texture,HDRCubeTexture,ImportMeshAsync} from '@babylonjs/core';
 import '@babylonjs/loaders/glTF/2.0';
 import {createMorningWindow} from './morning-window.js';
@@ -16,6 +17,7 @@ import {prepareMossCushions} from './moss-cushions.js';
 import {prepareMossPad} from './moss-pad.js';
 import {prepareGroundContacts} from './ground-contacts.js';
 import {preparePathSoil} from './path-soil.js';
+localizeInterface();
 const canvas=document.getElementById('garden');
 const status=document.getElementById('status');
 async function start(){
@@ -186,4 +188,4 @@ async function start(){
   installGardenControls({base, loadPlantedModel, shadows, glass, contacts, placement, setRain, setView, life, mist});
   status.hidden=true;document.body.classList.add('ready');
 }
-start().catch(error=>{console.error(error);status.textContent='场景加载失败，请使用支持 WebGL 的浏览器重新打开。';});
+start().catch(error=>{console.error(error);status.textContent=wording('场景加载失败，请使用支持 WebGL 的浏览器重新打开。','The terrarium could not load. Reopen it in a browser that supports WebGL.');});

@@ -34,17 +34,16 @@ button:focus-visible{outline:2px solid var(--fern);outline-offset:3px}
 .trigger[aria-expanded=true]{background:var(--fern);color:var(--paper);border-color:var(--fern)}
 .icon{width:17px;height:17px;fill:none;stroke:currentColor;stroke-linecap:round;stroke-linejoin:round;stroke-width:1.6}
 .sheet{position:absolute;left:0;margin-top:8px;max-height:calc(100dvh - 145px);overflow:auto;width:min(294px,calc(100vw - 32px));padding:15px;background:var(--paper);border:1px solid var(--line);border-radius:16px;box-shadow:0 8px 24px #35382b17}
-.tools .labeled{width:auto;min-height:46px;height:auto;border-radius:24px;display:flex;gap:6px;padding:0 13px;font-size:14px;font-weight:600}
 .sheet h2{font-size:15px;margin:0 0 10px}
 .view-choices{display:grid;gap:4px}
 .view-choices button,.setting{min-height:44px;display:flex;align-items:center;gap:10px;padding:8px 10px;border:0;border-radius:9px;background:transparent;font-size:14px;text-align:left}
 .view-choices button:hover,.setting:hover{background:#e6ebdc}
-.view-choices button::after{content:"›";margin-left:auto;color:var(--muted)}
+.view-choices button .icon,.setting .icon{width:20px;height:20px;flex:none}
+#placement-action span{display:flex}
 .setting{justify-content:space-between;cursor:pointer}
 .setting input{width:18px;height:18px;accent-color:var(--fern)}
 .setting:has(input:disabled){color:var(--muted);cursor:default}
 .setting-note{font-size:12px;color:var(--muted);margin:4px 10px}
-@media(max-width:360px){.tools .labeled{padding:0 10px}.tools .labeled .icon{display:none}}
 .animals{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
 .animal{position:relative;display:grid;justify-items:center;border:1px solid transparent;background:transparent;border-radius:11px;padding:6px 2px}
 .animal:hover{background:#eeeee3}
@@ -58,65 +57,66 @@ button:focus-visible{outline:2px solid var(--fern);outline-offset:3px}
 @media(max-width:650px){header{left:6vw}.brand i{font-size:14px}header{top:max(4vh,env(safe-area-inset-top))}.controls{margin-top:12px}}
 @media(prefers-reduced-motion:reduce){*{transition:none!important}}
 #placement-ring{position:fixed;transform:translate(-50%,-50%);border:1.5px solid #fff3cdcf;border-radius:50%;box-shadow:0 0 0 1px #34462e65;pointer-events:none}
-#placement-bar{position:fixed;bottom:max(18px,env(safe-area-inset-bottom));left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:12px;max-width:96vw;padding:0 5px 0 15px;background:var(--paper);border:1px solid var(--line);border-radius:24px;color:var(--ink);font-size:13px;white-space:nowrap}
-#placement-bar button{border:0;background:none;color:var(--fern);font-weight:600;min-width:44px;min-height:44px;padding:0 7px}
+#placement-bar{position:fixed;bottom:max(18px,env(safe-area-inset-bottom));left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:12px;max-width:96vw;padding:3px;background:var(--paper);border:1px solid var(--line);border-radius:24px;color:var(--ink);font-size:13px;white-space:nowrap}
+#placement-bar button{display:grid;place-items:center;border-radius:50%;border:0;background:none;color:var(--fern);font-weight:600;min-width:44px;min-height:44px;padding:0 7px}
 #placement-turns{display:flex;align-items:center}
-#placement-bar #placement-done{border-radius:20px;background:var(--fern);color:var(--paper);min-height:36px}
-@media(max-width:420px){#placement-bar{gap:3px;padding-left:10px}}
+#placement-bar #placement-done{border-radius:20px;background:var(--fern);color:var(--paper)}
+#placement-bar .icon,.tools .icon{width:21px;height:21px}
+.setting-caption{display:flex;align-items:center;gap:10px}
 </style>
 </head>
 <body>
 <canvas id="garden" aria-label="可旋转的玻璃微景观，陶土狐狸，点选后再点落点，或直接拖动。键盘按回车选中，方向键移动，Q 和 E 转向，回车放下，Esc 取消" tabindex="0"></canvas>
 <div id="placement-ring" hidden aria-hidden="true"></div>
 <div id="placement-bar" hidden>
-  <span id="placement-message" role="status"></span>
-  <div id="placement-turns" role="group" aria-label="调整朝向" hidden>
-    <button id="placement-left" title="向左旋转 15°（Q）">左转</button>
-    <button id="placement-right" title="向右旋转 15°（E）">右转</button>
+  <span id="placement-message" class="notice" role="status"></span>
+  <div id="placement-turns" role="group" aria-label="调整朝向" data-en="Adjust orientation" hidden>
+    <button id="placement-left" aria-label="向左旋转 15°（Q）" data-en="Rotate left 15° (Q)"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4v6h6M4.5 10a8 8 0 1 1 .7 6"/></svg></button>
+    <button id="placement-right" aria-label="向右旋转 15°（E）" data-en="Rotate right 15° (E)"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 4v6h-6m5.5 0a8 8 0 1 0-.7 6"/></svg></button>
   </div>
-  <button id="placement-done" hidden>完成</button><button id="placement-action"></button>
+  <button id="placement-done" aria-label="完成摆放" data-en="Confirm placement" hidden><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m4.5 12 5 5L20 6.5"/></svg></button><button id="placement-action" aria-label="取消" data-en="Cancel"><span id="cancel-icon"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg></span><span id="undo-icon" hidden><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 4-6 5 6 5M4 9h9a6 6 0 0 1 0 12"/></svg></span></button>
 </div>
 <header>
   <div class="brand"><b>口袋景观</b><i>Pocket Landscape</i></div>
   <div class="controls" id="controls" hidden>
     <div class="tools">
-      <button class="trigger" id="animal-trigger" aria-label="小动物" aria-controls="animal-sheet" aria-expanded="false">
+      <button class="trigger" id="animal-trigger" aria-label="小动物" data-en="Figurines" aria-controls="animal-sheet" aria-expanded="false">
         <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><ellipse cx="5" cy="10" rx="2" ry="2.6" transform="rotate(-22 5 10)"/><ellipse cx="10" cy="6.5" rx="1.9" ry="2.6"/><ellipse cx="16" cy="7.4" rx="1.9" ry="2.6" transform="rotate(17 16 7.4)"/><path d="M7 16c1.4-1.2 2.2-4.6 5-4.6s3.4 2.9 5.1 4.6c2.1 2.3.5 4.4-2 4-2.3-.4-3.4-1.2-5.8-.4C6.4 20.6 4.8 18 7 16Z"/></svg>
       </button>
-      <div class="weather" role="group" aria-label="窗边天气">
-        <button data-weather="sun" aria-label="晨光" aria-pressed="true"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M5 5l2 2m10 10 2 2M5 19l2-2M17 7l2-2"/></svg></button>
-        <button data-weather="rain" aria-label="雨天" aria-pressed="false"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 14a4 4 0 0 1 0-8 6 6 0 0 1 11.7.8A3.6 3.6 0 0 1 18.2 14H5ZM8 17l-1 2m6-2-1 3m6-3-1 2"/></svg></button>
+      <div class="weather" role="group" aria-label="窗边天气" data-en="Weather">
+        <button data-weather="sun" aria-label="晨光" data-en="Morning sun" aria-pressed="true"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M5 5l2 2m10 10 2 2M5 19l2-2M17 7l2-2"/></svg></button>
+        <button data-weather="rain" aria-label="雨天" data-en="Rain" aria-pressed="false"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 14a4 4 0 0 1 0-8 6 6 0 0 1 11.7.8A3.6 3.6 0 0 1 18.2 14H5ZM8 17l-1 2m6-2-1 3m6-3-1 2"/></svg></button>
       </div>
-      <button class="trigger labeled" id="view-trigger" aria-controls="view-sheet" aria-expanded="false">
-        <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.6-6.5 10-6.5S22 12 22 12s-3.6 6.5-10 6.5S2 12 2 12Z"/><circle cx="12" cy="12" r="2.6"/></svg>观察
+      <button class="trigger" id="view-trigger" aria-label="观察视角" data-en="Views" aria-controls="view-sheet" aria-expanded="false">
+        <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.6-6.5 10-6.5S22 12 22 12s-3.6 6.5-10 6.5S2 12 2 12Z"/><circle cx="12" cy="12" r="2.6"/></svg>
       </button>
-      <button class="trigger labeled" id="environment-trigger" aria-controls="environment-sheet" aria-expanded="false">
-        <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h7m5 0h4M4 17h3m5 0h8"/><circle cx="13.5" cy="7" r="2.5"/><circle cx="9.5" cy="17" r="2.5"/></svg>环境
+      <button class="trigger" id="environment-trigger" aria-label="环境设置" data-en="Environment settings" aria-controls="environment-sheet" aria-expanded="false">
+        <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h7m5 0h4M4 17h3m5 0h8"/><circle cx="13.5" cy="7" r="2.5"/><circle cx="9.5" cy="17" r="2.5"/></svg>
       </button>
     </div>
     <section class="sheet" id="animal-sheet" aria-labelledby="animal-trigger" hidden>
-      <div class="animals" role="group" aria-label="选择小动物"><!--ANIMALS--></div>
-      <p class="setting-note">点选缸里的小动物，再点苔面放下。</p>
+      <div class="animals" role="group" aria-label="选择小动物" data-en="Choose a figurine"><!--ANIMALS--></div>
+      <p class="setting-note" data-en="Tap a figurine, then tap the ground to place it.">点选缸里的小动物，再点苔面放下。</p>
       <p class="notice" id="animal-notice" role="status"></p>
     </section>
     <section class="sheet" id="view-sheet" aria-labelledby="view-title" hidden>
-      <h2 id="view-title">观察视角</h2>
+      <h2 id="view-title" data-en="Views">观察视角</h2>
       <div class="view-choices">
-        <button data-view="home">回到全景</button>
-        <button data-view="fern">近看蕨丛</button>
-        <button data-view="animal">近看小动物</button>
+        <button data-view="home"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9V4h5m6 0h5v5m0 6v5h-5m-6 0H4v-5"/></svg><span data-en="Whole terrarium">回到全景</span></button>
+        <button data-view="fern"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 21C5 10 12 4 21 3c0 8-4 15-13 15M7 17 17 7m-6 6v-4m2 2h4"/></svg><span data-en="Fern close-up">近看蕨丛</span></button>
+        <button data-view="animal"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><ellipse cx="6" cy="9" rx="2" ry="3"/><ellipse cx="12" cy="6" rx="2" ry="3"/><ellipse cx="18" cy="9" rx="2" ry="3"/><path d="M6 18c0-2.5 3.5-7 6-7s6 4.5 6 7-3 2.4-6 1.5S6 21 6 18Z"/></svg><span data-en="Figurine close-up">近看小动物</span></button>
       </div>
     </section>
     <section class="sheet" id="environment-sheet" aria-labelledby="environment-title" hidden>
-      <h2 id="environment-title">环境细节</h2>
-      <label class="setting">苔面薄雾<input id="mist-setting" type="checkbox"></label>
-      <label class="setting">植物动态<input id="plants-setting" type="checkbox"></label>
-      <label class="setting">漂浮微粒<input id="motes-setting" type="checkbox"></label>
+      <h2 id="environment-title" data-en="Environment">环境细节</h2>
+      <label class="setting"><span class="setting-caption"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8h11m-8 4h13M3 16h12m3 0h3"/></svg><span data-en="Low mist">苔面薄雾</span></span><input id="mist-setting" type="checkbox"></label>
+      <label class="setting"><span class="setting-caption"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 9h10a3 3 0 1 0-3-3m-7 7h15a3 3 0 1 1-3 3m-9 1h3"/></svg><span data-en="Plant motion">植物动态</span></span><input id="plants-setting" type="checkbox"></label>
+      <label class="setting"><span class="setting-caption"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="6" cy="8" r="1.4"/><circle cx="16" cy="5" r="1"/><circle cx="15" cy="14" r="2"/><circle cx="7" cy="19" r="1"/></svg><span data-en="Drifting motes">漂浮微粒</span></span><input id="motes-setting" type="checkbox"></label>
       <p class="setting-note" id="motion-note" hidden></p>
     </section>
   </div>
 </header>
-<div id="status" role="status">正在打开小径…</div>
+<div id="status" role="status" data-en="Opening the terrarium…">正在打开小径…</div>
 <!--APP-->
 </body>
 </html>

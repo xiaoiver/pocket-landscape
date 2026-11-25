@@ -15,11 +15,11 @@ npm ci
 npm run build
 ```
 
-Open the generated `index.html` in a WebGL 2 browser to explore offline. Drag to orbit, and use the scroll wheel or pinch to zoom. Tap the figurine and then its destination, or drag it directly across the ground. While selected, use 左转 / 右转 to turn by 15°, then 完成 to finish in place. 撤销 (Undo) restores both position and orientation. With the canvas focused, press Enter to select, use the arrow keys to move and Q / E to rotate, then press Enter to place or Escape to cancel.
+Open the generated `index.html` in a WebGL 2 browser to explore offline. Drag to orbit, and use the scroll wheel or pinch to zoom. Tap the figurine and then its destination, or drag it directly across the ground. While selected, use the circular arrows to turn by 15°, then the check mark to confirm or the cross to cancel. The undo arrow restores both position and orientation. With the canvas focused, press Enter to select, use the arrow keys to move and Q / E to rotate, then press Enter to place or Escape to cancel.
 
 Select the paw icon in the upper left, then the thumbnail of the fox, resting fawn or hedgehog.
 
-Use 观察 (View) to return to the whole jar, inspect the ferns, or frame the current figurine. In 环境 (Environment), toggle the low mist, plant motion, and drifting motes independently.
+Use the eye icon to return to the whole jar, inspect the ferns, or frame the current figurine. Under the sliders icon, toggle the low mist, plant motion, and drifting motes independently.
 
 Select the sun or rain cloud beside the paw to change the weather. On rainy days, dim blue-grey light catches the rim and leaves, fading across the desk into the room. Beads cling to the pane and merge on contact. Heavier drops slide down the glass and veer slightly in gusts, clearing fine beads and drawing short ribbons of water that fade back to a trail of beads. With reduced motion enabled, the drops stay still.
 
