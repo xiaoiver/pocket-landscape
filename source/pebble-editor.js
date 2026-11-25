@@ -455,7 +455,14 @@ export async function openPebbleEditor(scene, glass, shadows, loadPlantedModel, 
       canvas.focus({preventScroll:true});
     }
   });
-  paw.addEventListener('click',() => showAnimals(sheet.hidden));
+  paw.addEventListener('click',() => {
+    const open = sheet.hidden;
+    if (open && !animals.placed.has(selected?.mesh)) {
+      select(null);
+      setTool('animal');
+    }
+    showAnimals(open);
+  });
   for (const choice of choices) choice.addEventListener('click',async () => {
     const kind = choice.dataset.animal;
     const target = selected?.mesh, pose = animals.placed.get(target);

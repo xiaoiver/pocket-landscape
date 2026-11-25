@@ -57,7 +57,9 @@ button:focus-visible{outline:2px solid var(--fern);outline-offset:3px}
 .tool-row button{flex:none}
 body:not(.editing) .dock :is([data-editor-tool],#preset-trigger,#vessel-trigger,#editor-tools,#history-tools,.sheet){display:none}
 #editor-tools{display:flex;align-items:center}
-.editor-tools button[aria-pressed=true],.tool-row button[aria-expanded=true],.animal[aria-pressed=true]{background:var(--fern);color:var(--paper);border-color:var(--fern)}
+.editor-tools:not(.tool-row) button[aria-pressed=true],
+.tool-row:not(:has([aria-expanded=true])) button[aria-pressed=true],
+.tool-row button[aria-expanded=true],.animal[aria-pressed=true]{background:var(--fern);color:var(--paper);border-color:var(--fern)}
 #editor-trigger:not([data-editing]) .view-icon,#editor-trigger[data-editing] svg:first-child{display:none}
 #vessel-tools,#plant-sheet,#stone-sheet{width:max-content;padding:3px;border-radius:25px}
 .dock .trigger{width:44px;height:44px}
@@ -76,7 +78,7 @@ body:not(.editing) .dock :is([data-editor-tool],#preset-trigger,#vessel-trigger,
 #preset-sheet button[type=submit]{width:44px;border-radius:50%;background:var(--fern);color:var(--paper)}
 #preset-copies{display:grid}
 #preset-copies button{text-align:left;overflow-wrap:anywhere}
-.tool-row button[data-editor-tool=move][aria-current=true]{outline:2px solid var(--fern);outline-offset:1px}
+.tool-row:not(:has([aria-expanded=true])) button[data-editor-tool=move][aria-current=true]{outline:2px solid var(--fern);outline-offset:1px}
 </style>
 </head>
 <body>
