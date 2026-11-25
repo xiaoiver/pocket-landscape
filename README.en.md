@@ -15,7 +15,7 @@ npm ci
 npm run build
 ```
 
-Open the generated `index.html` in a WebGL 2 browser to explore offline. Drag to orbit, and use the scroll wheel or pinch to zoom.
+Open the generated `index.html` in a WebGL 2 browser to explore offline. Drag to orbit, and use the scroll wheel or pinch to zoom. Select the figurine, then drag an arrow to move along one axis or the square to move across the ground. Tap empty space or press Esc to hide the handles.
 
 Select the paw icon in the upper left, then the thumbnail of the fox, resting fawn or hedgehog.
 
@@ -30,7 +30,7 @@ Select the sun or rain cloud beside the paw to change the weather. On rainy days
 | What to look for | How it is rendered |
 | --- | --- |
 | Glass wall, rolled rim and thick foot | Babylon.js revolves three cross-sections into separate meshes. In high-quality mode, a shared half-resolution, linear half-float render target captures the contents of the vessel. The thin-wall shader uses thickness and incidence angle to compute refraction and absorption. The rim and foot sample the same capture through physically based materials. HDR reflections and window highlights travel along their curved surfaces as you orbit. [Glass implementation](source/glass.js) |
-| Window light and shadows | A studio HDR environment supplies ambient light and reflections. A directional light stands in for the window. A shallow sill and one off-center mullion frame the view behind the terrarium. A separate glass pane sits in front of the soft-focus landscape. Plants and stones cast shadows on each other through a 2048 × 2048 shadow map with percentage-closer filtering (PCF). The soft tabletop shadow is baked from the model silhouette. A light-aligned shader approximates the bright caustic arc near the foot. [Scene lighting](source/scene.js) · [Tabletop shadow bake](source/shadow.py) |
+| Window light and shadows | A studio HDR environment supplies ambient light and reflections. A directional light stands in for the window. A shallow sill and one off-center mullion frame the view behind the terrarium. A separate glass pane sits in front of the soft-focus landscape. Light entering through the modeled window casts real-time shadows on the planting and tabletop through a 2048 × 2048 contact-hardening shadow map. The soft mullion shadow follows the same light direction. A light-aligned shader approximates the bright caustic arc near the foot. [Scene lighting](source/scene.js) |
 | Fittonia, fern and canopy leaves | Diffuse transmission takes its color from the leaf pigment. Fittonia has a soft sheen, while fern leaflets carry a faint waxy reflection. The procedural leaves transmit less light along the midrib. Each fern has subtly crown-oriented normals and a darker base. Cutout coverage compensation helps distant leaflets hold their shape. [Foliage shading](source/foliage.js) · [Matched views](docs/foliage-detail.jpg) |
 | Moss, path and drainage bed | Cushions of different heights meet the figurine’s paws. Low Fittonia leaves overhang the bend in the path. Along the front glass, a fringe of moss spills over the bank and soil fills pockets between drainage stones. Flat path pebbles sit partly below the soil, while coarser drainage stones nest against the inner wall. Geometry defines silhouettes and gaps. Color, normal and roughness maps supply the close-up grain. Patches of darker color and lower roughness suggest damp contact between soil and stone. [Moss bed](source/terrarium-floor.py) · [Path](source/path-gravel.py) · [Drainage](source/drainage.js) |
 
@@ -46,21 +46,19 @@ In high-quality mode, mist and droplets follow the curved wall. Droplets stay st
 
 `woodland.blend` and `woodland.glb` contain the base garden. `woodland-specimens.blend` and `woodland-specimens.glb` contain the complete scanned-plant version. The viewer loads shared terrain, rocks and props from the base GLB, then loads the foreground fittonia and two ferns from `source/assets/specimens/plants.glb`. The bundled assets are sufficient to build the page.
 
-To regenerate the base garden, run the following from the repository root. The texture and shadow scripts require Python and Pillow. Substitute the path to your Blender executable for `blender` if needed.
+To regenerate the base garden, run the following from the repository root. The texture script requires Python and Pillow. Substitute the path to your Blender executable for `blender` if needed.
 
 ```sh
 cd source
 python3 textures.py ./textures
 blender -b -P model.py -- "$PWD/textures" "$PWD/.."
-python3 shadow.py ../woodland.glb assets/shadow.png
 cd ..
 ```
 
-To regenerate the scanned-plant version, unpack the source archive inside the original Sketchfab ZIP. Replace the path below with the directory containing `model.glb` and its textures. Run these commands from the repository root. The second command updates the tabletop shadow used by the viewer.
+To regenerate the scanned-plant version, unpack the source archive inside the original Sketchfab ZIP. Replace the path below with the directory containing `model.glb` and its textures. Run these commands from the repository root.
 
 ```sh
 blender -b -P source/specimens.py -- "/path/to/extracted/scan" "$PWD"
-python3 source/shadow.py woodland-specimens.glb source/assets/specimens/shadow.png
 npm run build
 ```
 

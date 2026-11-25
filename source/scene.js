@@ -1,6 +1,7 @@
-import {Engine,Scene,ArcRotateCamera,Vector3,Color3,Color4,DirectionalLight,HemisphericLight,ShadowGenerator,MeshBuilder,Mesh,StandardMaterial,DynamicTexture,Texture,HDRCubeTexture,VertexData,ImportMeshAsync} from '@babylonjs/core';
+import {Engine,Scene,ArcRotateCamera,Vector3,Color3,Color4,DirectionalLight,HemisphericLight,ShadowGenerator,MeshBuilder,StandardMaterial,DynamicTexture,Texture,HDRCubeTexture,ImportMeshAsync} from '@babylonjs/core';
 import '@babylonjs/loaders/glTF/2.0';
 import {createMorningWindow} from './morning-window.js';
+import {createAnimalPlacement} from './animal-placement.js';
 import {installGardenControls} from './garden-controls.js';
 import {installDepthOfField} from './depth-of-field.js';
 import {createMossMist} from './moss-mist.js';
@@ -25,40 +26,37 @@ async function start(){
   camera.fov=.34;camera.minZ=.05;camera.maxZ=400;camera.lowerBetaLimit=.35;camera.upperBetaLimit=1.48;
   camera.lowerRadiusLimit=2.1;camera.upperRadiusLimit=Math.max(17,fit()*1.3);camera.wheelDeltaPercentage=.014;camera.pinchDeltaPercentage=.009;
   camera.attachControl(canvas,true);camera.panningSensibility=0;canvas.oncontextmenu=e=>e.preventDefault();
-  const sky=new HemisphericLight('Window fill',new Vector3(-.3,1,.18),scene);sky.intensity=.78;sky.groundColor=new Color3(.59,.53,.43);
-  const sun=new DirectionalLight('Morning window',new Vector3(.82,-1.50,-.70),scene);sun.position=new Vector3(-3,6,3);sun.intensity=1.55;
+  const casement = await createMorningWindow(scene, camera);
+  const aim = new Vector3(0,.70,0);
+  const ray = aim.subtract(casement.lightEntry).normalize();
+  const sky=new HemisphericLight('Window fill',ray.scale(-1),scene);sky.intensity=.78;sky.groundColor=new Color3(.59,.53,.43);
+  const sun=new DirectionalLight('Morning window',ray,scene);
+  sun.position=aim.subtract(ray.scale(8));sun.intensity=1.55;
   sun.diffuse=new Color3(1,.94,.82);sun.shadowMinZ=.1;sun.shadowMaxZ=15;
   const shadows=new ShadowGenerator(2048,sun);
-  shadows.usePercentageCloserFiltering=true;shadows.filteringQuality=ShadowGenerator.QUALITY_MEDIUM;shadows.bias=.0005;shadows.normalBias=.003;
+  shadows.useContactHardeningShadow=true;shadows.contactHardeningLightSizeUVRatio=.075;shadows.filteringQuality=ShadowGenerator.QUALITY_MEDIUM;shadows.bias=.0005;shadows.normalBias=.003;
   shadows.setDarkness(.33);sun.shadowFrustumSize=5.3;
   const ground=MeshBuilder.CreateGround('Paper tabletop',{width:350,height:350},scene);ground.receiveShadows=true;
   const floorMat=new StandardMaterial('Warm stone',scene);floorMat.specularColor=Color3.Black();floorMat.disableLighting=false;
+  // Leave headroom for the sunlit surface and its PCF shadows.
+  floorMat.diffuseColor.setAll(.66);
   const texture=new DynamicTexture('Daylight across the desk',1024,scene,false);
   const ctx=texture.getContext();const img=ctx.createImageData(1024,1024);
   const overcastDesk=ctx.createImageData(1024,1024);
+  const daylight = casement.tabletopDaylight(ray);
   for(let i=0;i<1024*1024;i++){
-    const x=(i%1024-512)*60/1024,y=(Math.floor(i/1024)-512)*60/1024;
-    const radial=Math.exp(-((x-.20)**2/1.3+(y+.09)**2/.90));
-    // One blurred mullion falls beside the pot. Limit its length so the
-    // distant tabletop stays quiet when seen at a grazing angle.
-    const across=.52*x-.854*y+2.30;
-    const along=.854*x+.52*y+1.10;
-    const frameShadow=Math.exp(-.5*(across/.16)**2-.5*(along/3.4)**2);
-    const shade=1-.078*frameShadow-.285*radial;
+    // The uploaded canvas is flipped in V: its top row faces positive world Z.
+    const x=(i%1024-512)*60/1024,z=(512-Math.floor(i/1024))*60/1024;
+    const radial=Math.exp(-(x*x/1.3+z*z/.90));
+    const shade=(.84+.16*daylight(x,z))*(1-.285*radial);
     img.data.set([222*shade,216*shade,201*shade,255],i*4);
     // Broad window bounce fades toward the near edge of the desk.
-    const contact=(1-.21*radial)*(.80+.20*Math.exp(-((x+.7)**2/20+(y-2.6)**2/13)));
+    const contact=(1-.21*radial)*(.80+.20*Math.exp(-((x+.7)**2/20+(z+2.6)**2/13)));
     overcastDesk.data.set([211*contact,216*contact,215*contact,255],i*4);
   }
   ctx.putImageData(img,0,0);texture.update();texture.wrapU=texture.wrapV=Texture.CLAMP_ADDRESSMODE;texture.uScale=texture.vScale=350/60;texture.uOffset=texture.vOffset=(1-350/60)/2;floorMat.diffuseTexture=texture;ground.material=floorMat;
-  const casement = await createMorningWindow(scene, camera);
   const hdr=new HDRCubeTexture('data:application/octet-stream;base64,'+document.getElementById('studio-data').textContent,scene,64,false,true,false,false);
   scene.environmentTexture=hdr;scene.environmentIntensity=.42;
-  const shadowPlane=new Mesh('Soft silhouette on tabletop',scene);
-  const planeData=new VertexData();planeData.positions=[-4,.005,-4,4,.005,-4,4,.005,4,-4,.005,4];
-  planeData.indices=[0,2,1,0,3,2];planeData.uvs=[0,0,1,0,1,1,0,1];planeData.applyToMesh(shadowPlane);
-  const shadeMat=new StandardMaterial('Translucent window shadow',scene);shadeMat.backFaceCulling=false;shadeMat.disableLighting=true;shadeMat.emissiveColor=Color3.White();
-  shadeMat.diffuseTexture=new Texture('data:image/png;base64,'+document.getElementById('shadow-data').textContent,scene,false,false);shadeMat.diffuseTexture.hasAlpha=true;shadeMat.useAlphaFromDiffuseTexture=true;shadowPlane.material=shadeMat;shadowPlane.alphaIndex=0;
   async function loadPlantedModel(id) {
     const encoded = document.getElementById(id).textContent.trim();
     const bytes = Uint8Array.from(atob(encoded), ch => ch.charCodeAt(0));
@@ -113,7 +111,7 @@ async function start(){
   const mossBranchlets=!hasModelledMoss && !mossPad && installMossBranchlets(scene,
     base.filter(mesh=>mesh.name.startsWith('Cushion moss ')),
     pathStones,sun);
-  const glass = installGlass(scene, camera, hdr, [ground, shadowPlane, ...casement.meshes, ...base, ...specimens, ...(drainage ? [drainage.gravel] : []), ...(mossBranchlets ? [mossBranchlets] : []), ...(mossPad?.meshes ?? [])], {
+  const glass = installGlass(scene, camera, hdr, [ground, ...casement.meshes, ...base, ...specimens, ...(drainage ? [drainage.gravel] : []), ...(mossBranchlets ? [mossBranchlets] : []), ...(mossPad?.meshes ?? [])], {
     forceLightweight, sunlight:sun, layers, animateDrops:!matchMedia('(prefers-reduced-motion: reduce)').matches,
   });
   const mist = createMossMist(scene, !glass.highQuality);
@@ -128,8 +126,10 @@ async function start(){
   }
   resize();
   const fox = base.find(mesh => mesh.name.startsWith('Fox ·'));
-  fox.computeWorldMatrix(true);
-  installDepthOfField(scene, camera, fox.getBoundingInfo().boundingBox.centerWorld.clone());
+  const surfaces = new Set(base.filter(m => m === earth || /^(Cushion moss |River gravel |Woodland outcrop|Weathered granite)/.test(m.name)));
+  const placement = createAnimalPlacement(scene,surfaces,contacts);
+  placement.activate([fox]);
+  installDepthOfField(scene,camera,placement.focus);
   window.addEventListener('resize',resize);
   engine.runRenderLoop(()=>{glass.update();scene.render();});
   await scene.whenReadyAsync();
@@ -147,12 +147,12 @@ async function start(){
     else scene.clearColor.set(.94,.925,.88,1);
     document.body.classList.toggle('rainy', raining);
     shadows.setDarkness(raining ? .74 : .33);
-    shadeMat.alpha = raining ? .16 : 1;
+    floorMat.diffuseColor.setAll(raining ? 1 : .66);
     glass.setLayer?.('caustic', !raining && layers.caustic);
     ctx.putImageData(raining ? overcastDesk : img,0,0);
     texture.update();
   }
-  installGardenControls({base, loadPlantedModel, shadows, glass, contacts, setRain});
+  installGardenControls({base, loadPlantedModel, shadows, glass, contacts, placement, setRain});
   status.hidden=true;document.body.classList.add('ready');
 }
 start().catch(error=>{console.error(error);status.textContent='场景加载失败，请使用支持 WebGL 的浏览器重新打开。';});

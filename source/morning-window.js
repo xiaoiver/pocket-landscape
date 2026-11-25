@@ -36,7 +36,9 @@ export async function createMorningWindow(scene, camera) {
   rail(plaster, 0, bottom+height+1.5, -.10, width, 3, .33);
   rail(timber, 0, bottom+height, .035, width+.11, .11, .16);
   rail(timber, 0, bottom, .075, width+.17, .085, .28);
-  rail(timber, -width*.22, mid, 0, .068, height, .105);
+  const stileX = -width*.22;
+  const stileWidth = .068;
+  rail(timber, stileX, mid, 0, stileWidth, height, .105);
 
   const meshes = [];
   for (const [material, parts] of pieces) {
@@ -84,8 +86,30 @@ export async function createMorningWindow(scene, camera) {
       rain.advance(scene.getEngine().getDeltaTime() / 1000);
     }
   });
+  const frameWorld = root.computeWorldMatrix(true);
+  const fromWindow = (x,y) => Vector3.TransformCoordinates(new Vector3(x,y,0),frameWorld);
   return {
     meshes,
+    lightEntry: fromWindow(-width*.18, bottom+height*.92),
+    // Back-project the desk onto the two clear openings. A widening sample
+    // footprint softens the narrow stile as its distance from the desk grows.
+    tabletopDaylight(direction) {
+      const localRay = Vector3.TransformNormal(direction, frameWorld.clone().invert());
+      const across = new Vector3(inward.z,0,-inward.x);
+      function coverage(p, low, high, radius) {
+        return Math.max(0, Math.min(high,p+radius)-Math.max(low,p-radius))/(2*radius);
+      }
+      return (x,z) => {
+        const dx=x-root.position.x, dz=z-root.position.z;
+        const travel=(dx*inward.x+dz*inward.z)/localRay.z;
+        if (travel < 0) return 0;
+        const u=dx*across.x+dz*across.z-travel*localRay.x, v=-travel*localRay.y;
+        const blur=.028+.055*travel;
+        const panes=coverage(u,-width/2+.055,stileX-stileWidth/2,blur)
+          + coverage(u,stileX+stileWidth/2,width/2-.055,blur);
+        return panes*coverage(v,bottom+.043,bottom+height-.055,blur);
+      };
+    },
     setRain(raining) {
       pane.material = raining ? rain.wetMaterial() : glass;
       // The painted reveal receives only a weak bounce from the overcast window.

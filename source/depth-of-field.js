@@ -12,15 +12,14 @@ export function installDepthOfField(scene, camera, subject) {
   lens.lensSize = 350;
   lens.fStop = 4;
 
-  // All three figurines occupy the same spot beside the path. Project it onto
-  // the current view axis so orbiting and zooming keep that part of the bank sharp.
+  // Project the active figurine onto the view axis after camera or gizmo motion.
   const viewPosition = new Vector3();
   function updateFocus() {
     Vector3.TransformCoordinatesToRef(subject, camera.getViewMatrix(), viewPosition);
     lens.focusDistance = Math.max(camera.minZ, -viewPosition.z) * 1000;
   }
   updateFocus();
-  camera.onViewMatrixChangedObservable.add(updateFocus);
+  scene.onBeforeRenderObservable.add(updateFocus);
 
   const pipeline = new PostProcessRenderPipeline(engine, 'Terrarium lens');
   pipeline.addEffect(lens);
