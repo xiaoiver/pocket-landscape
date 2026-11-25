@@ -17,6 +17,8 @@ npm run build
 
 Open the generated `index.html` in a WebGL 2 browser to explore offline. Drag to orbit, and use the scroll wheel or pinch to zoom. Tap the figurine and then its destination, or drag it directly across the ground. While selected, use the circular arrows to turn by 15°, then the check mark to confirm or the cross to cancel. With the canvas focused, press Enter to select, use the arrow keys to move and Q / E to rotate, then press Enter to place or Escape to cancel.
 
+Select the jar with a plus sign to build a landscape in an open jar or a corked shoulder bottle. Pick a tool and tap inside to build a slope, scatter pebbles, plant moss or erase a stone, patch or mound. Editing lifts the cork onto the table. Use the stopper icon to seal the bottle again. The vessel and layout are saved in this browser.
+
 Select the paw icon in the upper left, then the thumbnail of the fox, resting fawn or hedgehog.
 
 Select the sun or rain cloud beside the paw to change the weather. On rainy days, dim blue-grey light catches the rim and leaves, fading across the desk into the room. Beads cling to the pane and merge on contact. Heavier drops slide down the glass and veer slightly in gusts, clearing fine beads and drawing short ribbons of water that fade back to a trail of beads. With reduced motion enabled, the drops stay still.

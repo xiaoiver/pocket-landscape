@@ -29,6 +29,21 @@ function fixture({ supportsHDR, forceLightweight = false }) {
   return {engine,scene,a,b,glass};
 }
 
+function checkVesselSwitch(scene,glass) {
+  const rim = scene.getMeshByName('Rounded glass lip');
+  const wall = scene.getMeshByName('Clear handblown wall');
+  const rear = scene.getMeshByName('Reflection-only inner wall');
+  const original = Array.from(rim.getVerticesData(VertexBuffer.PositionKind));
+  const count = scene.meshes.length;
+  glass.setVessel('bottle');
+  assert(rim.getBoundingInfo().maximum.y > 2 && rim.getBoundingInfo().maximum.x < .75);
+  assert(wall.getBoundingInfo().maximum.y > 2);
+  if (rear) assert.equal(rear.getBoundingInfo().maximum.y,wall.getBoundingInfo().maximum.y);
+  glass.setVessel('open');
+  assert.deepEqual(Array.from(rim.getVerticesData(VertexBuffer.PositionKind)),original);
+  assert.equal(scene.meshes.length,count);
+}
+
 function radialNormal(mesh) {
   const p = mesh.getVerticesData(VertexBuffer.PositionKind);
   const n = mesh.getVerticesData(VertexBuffer.NormalKind);
@@ -72,6 +87,7 @@ function radialNormal(mesh) {
   assert.equal(caustic.isEnabled(),true,'fog toggle does not alter caustic');
   assert.equal(foot.material.subSurface.maximumThickness,.115);
   assert.equal(rim.material.subSurface.maximumThickness,.034);
+  checkVesselSwitch(scene,glass);
   scene.dispose();
   engine.dispose();
 }
@@ -81,6 +97,7 @@ for (const opts of [{supportsHDR:false},{supportsHDR:true,forceLightweight:true}
   assert.equal(scene.customRenderTargets.length,0);
   assert.equal(scene.getMeshByName('Approximate tabletop caustic'),null);
   assert.equal(scene.getMeshByName('Polished foot').material.name,'Lightweight foot');
+  checkVesselSwitch(scene,glass);
   scene.dispose();
   engine.dispose();
 }

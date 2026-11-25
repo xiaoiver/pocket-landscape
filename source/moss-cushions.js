@@ -56,7 +56,7 @@ function liftBed(mesh, tips, settled) {
   return positions;
 }
 
-function leafTuft(scene) {
+export function createMossTuft(scene) {
   const positions = [], colors = [], indices = [];
   // Short folded, tapering leaves. A darker foot and lighter midrib give the
   // carpet depth even when its tiny self-shadows are below shadow-map resolution.
@@ -117,7 +117,7 @@ export function prepareMossCushions(scene, bank, rosettes, {lightweight, settled
     const tint = .56 + .31 * variation + .24 * crown;
     tints.push(tint * (.74 + .29 * warm + .18 * crown), tint, tint * (.7 + .32 * (1 - warm)), 1);
   }
-  const mesh = leafTuft(scene);
+  const mesh = createMossTuft(scene);
   mesh.thinInstanceSetBuffer('matrix', Float32Array.from(matrices), 16, true);
   mesh.thinInstanceSetBuffer('color', Float32Array.from(tints), 4, true);
   return mesh;

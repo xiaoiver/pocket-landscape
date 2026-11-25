@@ -43,7 +43,7 @@ button:focus-visible{outline:2px solid var(--fern);outline-offset:3px}
 .weather button[aria-pressed=true]{background:var(--fern);color:var(--paper)}
 .weather .icon{width:18px;height:18px}
 .trigger{border:1px solid var(--line);background:var(--paper);border-radius:50%;width:52px;height:52px;flex:none;display:grid;place-items:center;padding:0}
-.trigger[aria-expanded=true]{background:var(--fern);color:var(--paper);border-color:var(--fern)}
+.trigger[aria-expanded=true],.trigger[aria-pressed=true],.editor-tools button[aria-pressed=true]{background:var(--fern);color:var(--paper);border-color:var(--fern)}
 .icon{width:17px;height:17px;fill:none;stroke:currentColor;stroke-linecap:round;stroke-linejoin:round;stroke-width:1.6}
 .sheet{position:absolute;left:0;margin-top:8px;max-height:calc(100dvh - 145px);overflow:auto;width:min(294px,calc(100vw - 32px));padding:15px;background:var(--paper);border:1px solid var(--line);border-radius:16px;box-shadow:0 8px 24px #35382b17}
 .setting-note{font-size:12px;color:var(--muted);margin:4px 10px}
@@ -65,6 +65,10 @@ button:focus-visible{outline:2px solid var(--fern);outline-offset:3px}
 #placement-turns{display:flex;align-items:center}
 #placement-bar #placement-done{border-radius:20px;background:var(--fern);color:var(--paper)}
 #placement-bar .icon,.tools .icon{width:21px;height:21px}
+.editor-tools{display:flex;align-items:center;border-radius:25px;padding:3px;border:1px solid var(--line);background:var(--paper)}
+.editor-tools button{width:44px;height:44px;display:grid;place-items:center;border-radius:50%;border:0;background:transparent}
+#editor-tools{position:fixed;left:50%;bottom:max(18px,env(safe-area-inset-bottom));transform:translateX(-50%)}
+#editor-feedback:not(:empty){position:absolute;top:100%;margin-top:8px;padding:6px 12px;background:var(--paper);border-radius:8px;font-size:13px}
 </style>
 </head>
 <body>
@@ -83,6 +87,21 @@ button:focus-visible{outline:2px solid var(--fern);outline-offset:3px}
   <div class="brand"><b>口袋景观</b><i>Pocket Landscape</i></div>
   <div class="controls" id="controls" hidden>
     <div class="tools">
+      <button class="trigger" id="editor-trigger" aria-label="自定义造景" data-en="Build a landscape" aria-pressed="false">
+        <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 10v7c0 2 4 4 9 4s9-2 9-4v-5M3 10c0 2 4 4 9 4 2 0 4-.3 5.5-.9M3 10c0-1.6 3-3.2 7-3.7M17 2v8m-4-4h8"/></svg>
+      </button>
+      <div class="editor-tools" id="vessel-tools" role="group" aria-label="容器" data-en="Vessels" hidden>
+        <button data-vessel="open" aria-label="敞口广口瓶" data-en="Open glass jar" aria-pressed="true"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><ellipse cx="12" cy="6" rx="8" ry="2.5"/><path d="M4 6v12c0 3.5 16 3.5 16 0V6"/></svg></button>
+        <button data-vessel="bottle" aria-label="软木塞收肩瓶" data-en="Corked shoulder bottle" aria-pressed="false"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M8.5 3h7v3h-7zM9 6v3c0 2-5 3-5 6v4c0 2.5 16 2.5 16 0v-4c0-3-5-4-5-6V6"/></svg></button>
+        <button id="cork-toggle" aria-label="盖上软木塞" data-en="Seal the bottle" aria-pressed="false" hidden><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4h14l-2 6H7zM12 12v6m-3-3 3 3 3-3M5 21h14"/></svg></button>
+      </div>
+      <div class="editor-tools" id="editor-tools" role="group" aria-label="造景工具" data-en="Landscape tools" hidden>
+        <button data-editor-tool="soil" aria-pressed="true" aria-label="堆土，点按土面造坡" data-en="Build a slope by tapping the soil"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m13 11 7-8m-5 0 5 4M5 11l5-3 6 5-4 5-8 3z"/></svg></button>
+        <button data-editor-tool="pebbles" aria-pressed="false" aria-label="撒一把卵石" data-en="Scatter a handful of pebbles"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m7 2 1 3m6-2-1 3m6 1-2 2M3 16c0-2 3-5 6-4 3 1 4 5 1 6s-7 1-7-2Zm10 3c0-2 2-5 5-5s5 4 3 6-8 2-8-1Z"/><circle cx="15" cy="10" r="1.4"/></svg></button>
+        <button data-editor-tool="moss" aria-pressed="false" aria-label="点种苔藓" data-en="Plant a moss patch"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20c2-7 5-10 12-14M5 16C2 9 7 5 20 3c-1 9-6 15-15 13Zm7-6v4m-3-1 1-4"/></svg></button>
+        <button data-editor-tool="erase" aria-pressed="false" aria-label="移除卵石、苔团或土丘" data-en="Erase a pebble, moss patch or mound"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m3 14 10-11 8 7-10 11H9zM7 10l8 7m-4 4h10"/></svg></button>
+      </div>
+      <span id="editor-feedback" role="status"></span>
       <button class="trigger" id="animal-trigger" aria-label="小动物" data-en="Figurines" aria-controls="animal-sheet" aria-expanded="false">
         <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><ellipse cx="5" cy="10" rx="2" ry="2.6" transform="rotate(-22 5 10)"/><ellipse cx="10" cy="6.5" rx="1.9" ry="2.6"/><ellipse cx="16" cy="7.4" rx="1.9" ry="2.6" transform="rotate(17 16 7.4)"/><path d="M7 16c1.4-1.2 2.2-4.6 5-4.6s3.4 2.9 5.1 4.6c2.1 2.3.5 4.4-2 4-2.3-.4-3.4-1.2-5.8-.4C6.4 20.6 4.8 18 7 16Z"/></svg>
       </button>
