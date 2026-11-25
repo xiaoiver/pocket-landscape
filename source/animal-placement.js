@@ -1,4 +1,4 @@
-import {labelButton, wording} from './interface-language.js';
+import {wording} from './interface-language.js';
 import {Matrix, PointerEventTypes, Ray, TransformNode, Vector3} from '@babylonjs/core';
 
 export function createAnimalPlacement(scene, surfaces, contacts) {
@@ -20,16 +20,13 @@ export function createAnimalPlacement(scene, surfaces, contacts) {
   const stepsPerTurn = 24;
   let turn = 0;
   let active = [], limit = 1, footprint = .3;
-  let selected = false, gesture, original, previous;
+  let selected = false, gesture, original;
   const canvas = scene.getEngine().getRenderingCanvas();
   const ring = document.getElementById('placement-ring');
   const bar = document.getElementById('placement-bar');
   const message = document.getElementById('placement-message');
   const action = document.getElementById('placement-action');
 
-  const cancelIcon = document.getElementById('cancel-icon');
-  const undoIcon = document.getElementById('undo-icon');
-  const turnControls = document.getElementById('placement-turns');
   const done = document.getElementById('placement-done');
   const left = document.getElementById('placement-left');
   const right = document.getElementById('placement-right');
@@ -53,13 +50,9 @@ export function createAnimalPlacement(scene, surfaces, contacts) {
 
   function refresh() {
     ring.hidden = !selected;
-    bar.hidden = !selected && !previous;
-    turnControls.hidden = done.hidden = !selected;
+    bar.hidden = !selected;
     canvas.style.cursor = selected ? 'crosshair' : '';
     message.textContent = selected ? wording('点地摆放', 'Tap the ground to place') : wording('已摆放', 'Figurine placed');
-    cancelIcon.hidden = !selected;
-    undoIcon.hidden = selected;
-    labelButton(action, selected ? wording('取消', 'Cancel') : wording('撤销摆放', 'Undo placement'));
   }
 
   function select() {
@@ -69,7 +62,6 @@ export function createAnimalPlacement(scene, surfaces, contacts) {
   }
 
   function finish() {
-    if (original && (original.turn !== turn || Vector3.DistanceSquared(original.position, anchor.position) > .000001)) previous = original;
     selected = false;
     original = null;
     refresh();
@@ -101,13 +93,8 @@ export function createAnimalPlacement(scene, surfaces, contacts) {
     canvas.focus({preventScroll:true});
   }
 
-  function undoOrCancel() {
-    if (selected) cancel();
-    else if (previous) {
-      restore(previous);
-      previous = null;
-      refresh();
-    }
+  function cancelPlacement() {
+    cancel();
     canvas.focus({preventScroll:true});
   }
 
@@ -227,7 +214,7 @@ export function createAnimalPlacement(scene, surfaces, contacts) {
   left.addEventListener('click',turnLeft);
   right.addEventListener('click',turnRight);
   done.addEventListener('click',confirm);
-  action.addEventListener('click',undoOrCancel);
+  action.addEventListener('click',cancelPlacement);
   scene.onDisposeObservable.addOnce(() => {
     for (const [name, handler] of Object.entries(listeners)) canvas.removeEventListener(name,handler,true);
     window.removeEventListener('keydown',key,true);
@@ -235,15 +222,13 @@ export function createAnimalPlacement(scene, surfaces, contacts) {
     left.removeEventListener('click',turnLeft);
     right.removeEventListener('click',turnRight);
     done.removeEventListener('click',confirm);
-    action.removeEventListener('click',undoOrCancel);
+    action.removeEventListener('click',cancelPlacement);
     scene.onAfterRenderObservable.remove(marker);
     scene.onPointerObservable.remove(taps);
   });
 
   return {focus, activate(meshes) {
     cancel();
-    previous = null;
-    refresh();
     active = meshes;
     // Measure in the unturned pose so refocusing or changing species at
     // any yaw preserves the rotation-independent clearance from the glass.

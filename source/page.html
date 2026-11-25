@@ -39,7 +39,6 @@ button:focus-visible{outline:2px solid var(--fern);outline-offset:3px}
 .view-choices button,.setting{min-height:44px;display:flex;align-items:center;gap:10px;padding:8px 10px;border:0;border-radius:9px;background:transparent;font-size:14px;text-align:left}
 .view-choices button:hover,.setting:hover{background:#e6ebdc}
 .view-choices button .icon,.setting .icon{width:20px;height:20px;flex:none}
-#placement-action span{display:flex}
 .setting{justify-content:space-between;cursor:pointer}
 .setting input{width:18px;height:18px;accent-color:var(--fern)}
 .setting:has(input:disabled){color:var(--muted);cursor:default}
@@ -70,11 +69,12 @@ button:focus-visible{outline:2px solid var(--fern);outline-offset:3px}
 <div id="placement-ring" hidden aria-hidden="true"></div>
 <div id="placement-bar" hidden>
   <span id="placement-message" class="notice" role="status"></span>
-  <div id="placement-turns" role="group" aria-label="调整朝向" data-en="Adjust orientation" hidden>
+  <div id="placement-turns" role="group" aria-label="调整朝向" data-en="Adjust orientation">
     <button id="placement-left" aria-label="向左旋转 15°（Q）" data-en="Rotate left 15° (Q)"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4v6h6M4.5 10a8 8 0 1 1 .7 6"/></svg></button>
     <button id="placement-right" aria-label="向右旋转 15°（E）" data-en="Rotate right 15° (E)"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 4v6h-6m5.5 0a8 8 0 1 0-.7 6"/></svg></button>
   </div>
-  <button id="placement-done" aria-label="完成摆放" data-en="Confirm placement" hidden><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m4.5 12 5 5L20 6.5"/></svg></button><button id="placement-action" aria-label="取消" data-en="Cancel"><span id="cancel-icon"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg></span><span id="undo-icon" hidden><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 4-6 5 6 5M4 9h9a6 6 0 0 1 0 12"/></svg></span></button>
+  <button id="placement-done" aria-label="完成摆放" data-en="Confirm placement"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m4.5 12 5 5L20 6.5"/></svg></button>
+  <button id="placement-action" aria-label="取消" data-en="Cancel"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg></button>
 </div>
 <header>
   <div class="brand"><b>口袋景观</b><i>Pocket Landscape</i></div>
