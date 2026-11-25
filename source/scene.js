@@ -121,19 +121,34 @@ async function start(){
   const life = installTerrariumLife(scene, camera, [...base, ...specimens, ...(mossPad?.meshes ?? [])], glass, {
     enabled: query.get('life') !== '0',
   });
+  let fittedRadius;
   function resize() {
     engine.setHardwareScalingLevel(1/Math.min(window.devicePixelRatio||1,2));
     engine.resize();
     glass.resize?.();
     camera.upperRadiusLimit=Math.max(17,fit()*1.35);
-    camera.radius=fit();
+    const nextFit = fit();
+    if (fittedRadius === undefined || Math.abs(camera.radius - fittedRadius) < 0.001) camera.radius = nextFit;
+    fittedRadius = nextFit;
   }
   resize();
   const fox = base.find(mesh => mesh.name.startsWith('Fox ·'));
   const surfaces = new Set(base.filter(m => m === earth || /^(Cushion moss |River gravel |Woodland outcrop|Weathered granite)/.test(m.name)));
   const placement = createAnimalPlacement(scene,surfaces,contacts);
   placement.activate([fox]);
-  installDepthOfField(scene,camera,placement.focus);
+  const fernTarget = new Vector3(-.63, 1.52, -.46);
+  let focus = placement.focus;
+  function setView(view) {
+    const fern = view === 'fern', home = view === 'home';
+    focus = fern ? fernTarget : placement.focus;
+    const lookAt = home ? new Vector3(0, 1.20, 0) : focus;
+    camera.inertialAlphaOffset = camera.inertialBetaOffset = camera.inertialRadiusOffset = 0;
+    camera.setTarget(lookAt.clone());
+    camera.alpha = fern ? 2.35 : homeAlpha;
+    camera.beta = fern ? 1.10 : homeBeta;
+    camera.radius = home ? fit() : (fern ? 5.4 : 3.8) / Math.min(1, engine.getAspectRatio(camera));
+  }
+  installDepthOfField(scene,camera,() => focus);
   window.addEventListener('resize',resize);
   engine.runRenderLoop(()=>{life.update();glass.update();scene.render();});
   await scene.whenReadyAsync();
@@ -156,7 +171,7 @@ async function start(){
     ctx.putImageData(raining ? overcastDesk : img,0,0);
     texture.update();
   }
-  installGardenControls({base, loadPlantedModel, shadows, glass, contacts, placement, setRain});
+  installGardenControls({base, loadPlantedModel, shadows, glass, contacts, placement, setRain, setView, life, mist});
   status.hidden=true;document.body.classList.add('ready');
 }
 start().catch(error=>{console.error(error);status.textContent='场景加载失败，请使用支持 WebGL 的浏览器重新打开。';});

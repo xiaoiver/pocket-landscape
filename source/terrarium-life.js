@@ -2,6 +2,8 @@ import {
   Constants, MaterialPluginBase, Mesh, PBRMaterial, PointerEventTypes, RawTexture, ShaderMaterial,
   Texture, Vector3, VertexBuffer, VertexData,
 } from '@babylonjs/core';
+import {createPlantSway} from './plant-sway.js';
+import {enableLeafPicking} from './leaf-picking.js';
 import {glassInnerRadiusAt} from './glass.js';
 
 // Air above the moss cushions and below the rolled lip. The wall profile
@@ -93,84 +95,6 @@ function hashPhase(name) {
   let hash = 0;
   for (let i = 0; i < name.length; i++) hash = (hash * 33 + name.charCodeAt(i)) >>> 0;
   return (hash % 1000) / 1000 * Math.PI * 2;
-}
-
-function plantRecord(mesh) {
-  const box = mesh.getBoundingInfo().boundingBox;
-  const height = Math.max(0.05, box.maximum.y - box.minimum.y);
-  const span = Math.max(box.maximum.x - box.minimum.x, box.maximum.z - box.minimum.z, 0.05);
-  return {
-    mesh, kind: 'plant', hover: 0, pulse: 0, pulseTarget: 0,
-    rootY: box.minimum.y, invHeight: 1 / height, phase: hashPhase(mesh.name),
-    pivotX: (box.minimum.x + box.maximum.x) / 2,
-    pivotZ: (box.minimum.z + box.maximum.z) / 2,
-    invRadius: 2 / span,
-  };
-}
-
-const SWAY = `
-if (lifePlant.x > 0.0001) {
-  float along = clamp((positionUpdated.y - lifePlant.y) * lifePlant.z, 0., 1.);
-  float reach = clamp(length(positionUpdated.xz - lifePivot.xy) * lifePivot.z, 0., 1.);
-  float weight = along * (0.35 + 0.65 * along) * (0.7 + 0.3 * reach);
-  vec3 worldP = (world * vec4(positionUpdated, 1.)).xyz;
-  float radius = length(worldP.xz);
-  vec2 tangent = radius > 0.0001 ? vec2(-worldP.z, worldP.x) / radius : vec2(1., 0.);
-  vec2 radial = radius > 0.0001 ? worldP.xz / radius : vec2(0.);
-  float room = 1. - smoothstep(1.02, 1.22, radius);
-  float openAir = smoothstep(1.36, 1.50, worldP.y);
-  float outward = max(room, openAir);
-  float phase = lifePlant.w + worldP.x * 1.6 + worldP.z * 1.25 + along * 2.4;
-  float bend = sin(lifeTime * 0.62 + phase);
-  float nod = sin(lifeTime * 0.34 + phase * 1.37 + 1.1);
-  float amp = 0.032 * lifePlant.x * weight * mix(0.58, 1., outward);
-  vec3 worldOffset = vec3(
-    tangent.x * bend + radial.x * nod * 0.28 * outward,
-    nod * 0.24,
-    tangent.y * bend + radial.y * nod * 0.28 * outward);
-  positionUpdated += transposeMat3(mat3(world)) * (worldOffset * amp);
-#ifdef NORMAL
-  normalUpdated = normalize(normalUpdated + transposeMat3(mat3(world)) * vec3(tangent.x, 0., tangent.y) * bend * weight * lifePlant.x * 0.16);
-#endif
-}
-`;
-
-class SwayPlugin extends MaterialPluginBase {
-  constructor(material, state, byMesh) {
-    super(material, 'Terrarium sway', 220);
-    this._state = state;
-    this._byMesh = byMesh;
-    this.registerForExtraEvents = true;
-    this._enable(true);
-  }
-  getUniforms() {
-    return {externalUniforms: ['lifeTime', 'lifePlant', 'lifePivot']};
-  }
-  getCustomCode(stage) {
-    if (stage !== 'vertex') return null;
-    return {
-      CUSTOM_VERTEX_DEFINITIONS: `
-        uniform float lifeTime;
-        uniform vec4 lifePlant;
-        uniform vec4 lifePivot;
-      `,
-      CUSTOM_VERTEX_UPDATE_POSITION: SWAY,
-    };
-  }
-  hardBindForSubMesh(_uniformBuffer, _scene, _engine, subMesh) {
-    const effect = subMesh.effect;
-    if (!effect || effect.getUniformIndex('lifePlant') === -1) return;
-    const record = this._byMesh.get(subMesh.getMesh());
-    effect.setFloat('lifeTime', this._state.time);
-    if (!record || !this._state.motion) {
-      effect.setFloat4('lifePlant', 0, 0, 1, 0);
-      effect.setFloat4('lifePivot', 0, 0, 0, 1);
-      return;
-    }
-    const extra = Math.min(0.7, 0.45 * record.hover + 0.55 * record.pulse);
-    effect.setFloat4('lifePlant', 1 + extra, record.rootY, record.invHeight, record.phase);
-    effect.setFloat4('lifePivot', record.pivotX, record.pivotZ, record.invRadius, 0);
-  }
 }
 
 const MOSS = `
@@ -335,29 +259,23 @@ function createMoteMesh(scene, pool) {
   };
 }
 
-function reducedMotion() {
-  return typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
-}
-
 export function installTerrariumLife(scene, camera, meshes, glass, {enabled = true, motion = true} = {}) {
   if (!enabled) return {update() {}, motes: null};
-  const state = {time: 0, motion: motion && !reducedMotion()};
+  const preference = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)');
+  const state = {time: 0, motion: false};
+  let plantsOn = true, motesOn = true;
   const records = [];
   const byMesh = new Map();
-  const swayed = new Set();
+  const atlases = new Map();
   const moist = new Set();
   const mossMeshes = new Set();
   for (const mesh of meshes) {
     if (!mesh?.isEnabled?.() || !(mesh.material instanceof PBRMaterial)) continue;
     if (isSwayFoliage(mesh.name)) {
-      const record = plantRecord(mesh);
+      const record = {mesh, ...createPlantSway(mesh), phase: hashPhase(mesh.name), hover: 0, pulse: 0, pulseTarget: 0};
       records.push(record);
       byMesh.set(mesh, record);
-      mesh.isPickable = true;
-      if (!swayed.has(mesh.material)) {
-        swayed.add(mesh.material);
-        new SwayPlugin(mesh.material, state, byMesh);
-      }
+      enableLeafPicking(mesh, atlases);
     } else if (isMossSurface(mesh.name) && !mesh.name.startsWith('Localized creeping')) {
       mossMeshes.add(mesh);
       if (!moist.has(mesh.material)) {
@@ -370,49 +288,60 @@ export function installTerrariumLife(scene, camera, meshes, glass, {enabled = tr
   const motes = createMoteMesh(scene, pool);
   glass?.addContents?.([motes.mesh]);
   let hovered = null;
-  let lastPick = 0;
+  let pickPending = false, cooldown = 0;
+  const leave = () => { hovered = null; pickPending = false; };
   const onMove = scene.onPointerObservable.add(info => {
-    if (!state.motion || info.event.buttons || info.event.pointerType === 'touch') return;
-    const now = typeof performance === 'undefined' ? 0 : performance.now();
-    if (now - lastPick < 140) return;
-    lastPick = now;
-    const hit = scene.pick(scene.pointerX, scene.pointerY, mesh => byMesh.get(mesh)?.kind === 'plant' && mesh.isEnabled(), false, camera);
-    hovered = hit?.pickedMesh ?? null;
-  }, PointerEventTypes.POINTERMOVE);
+    if (!state.motion || info.event.buttons || info.event.pointerType === 'touch') leave();
+    else pickPending = true;
+  }, PointerEventTypes.POINTERMOVE | PointerEventTypes.POINTERDOWN);
   const onTap = scene.onPointerObservable.add(info => {
     if (!state.motion) return;
     const record = byMesh.get(info.pickInfo?.pickedMesh);
     if (record) record.pulseTarget = 1;
   }, PointerEventTypes.POINTERTAP);
   const canvas = scene.getEngine().getRenderingCanvas?.();
-  const leave = () => { hovered = null; };
   canvas?.addEventListener('pointerleave', leave);
   scene.onDisposeObservable.addOnce(() => {
     scene.onPointerObservable.remove(onMove);
     scene.onPointerObservable.remove(onTap);
     canvas?.removeEventListener('pointerleave', leave);
   });
-  function allowMotion() {
-    state.motion = motion && !reducedMotion();
-    motes.mesh.setEnabled(state.motion);
-    return state.motion;
+  function syncMotion() {
+    const allowed = motion && !preference?.matches;
+    state.motion = allowed && plantsOn;
+    motes.mesh.setEnabled(allowed && motesOn);
+    if (!state.motion) leave();
   }
-  allowMotion();
+  syncMotion();
   return {
     motes: motes.mesh,
+    get plantsOn() { return plantsOn; },
+    get motesOn() { return motesOn; },
+    setPlants(value) { plantsOn = value; syncMotion(); },
+    setMotes(value) { motesOn = value; syncMotion(); },
     update(dt) {
       const step = Number.isFinite(dt) ? dt : Math.min(scene.getEngine().getDeltaTime() || 0, 50) / 1000;
-      const moving = allowMotion();
+      syncMotion();
+      cooldown = Math.max(0, cooldown - step);
+      if (pickPending && cooldown === 0) {
+        const hit = scene.pick(scene.pointerX, scene.pointerY, undefined, false, camera);
+        hovered = byMesh.has(hit?.pickedMesh) ? hit.pickedMesh : null;
+        pickPending = false;
+        cooldown = 0.14;
+      }
+      if (state.motion) state.time += step;
       let attention = 0;
       for (const record of records) {
         const target = record.mesh === hovered ? 1 : 0;
         record.hover += (target - record.hover) * (1 - Math.exp(-step * 3));
         record.pulseTarget = Math.max(0, record.pulseTarget - step * 0.4);
         record.pulse += (record.pulseTarget - record.pulse) * (1 - Math.exp(-step * 3.2));
-        if (record.kind === 'plant') attention = Math.max(attention, record.hover, record.pulse);
+        const gain = state.motion ? 1 + Math.min(0.7, 0.45 * record.hover + 0.55 * record.pulse) : 0;
+        record.bend.influence = gain * Math.sin(state.time * 0.62 + record.phase);
+        record.nod.influence = gain * Math.sin(state.time * 0.34 + record.phase * 1.37 + 1.1);
+        if (state.motion) attention = Math.max(attention, record.hover, record.pulse);
       }
-      if (moving) {
-        state.time += step;
+      if (motes.mesh.isEnabled()) {
         pool.step(step, 1 + 0.65 * attention, true);
         motes.write();
       }

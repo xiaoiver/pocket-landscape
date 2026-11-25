@@ -1,6 +1,6 @@
 import { Quaternion, Vector3 } from '@babylonjs/core';
 
-function installSheets() {
+function installSheets(setView) {
   const controls = document.getElementById('controls');
   const triggers = [...controls.querySelectorAll('.trigger')];
   let open;
@@ -28,10 +28,17 @@ function installSheets() {
       show(null);
     }
   });
+  for (const button of controls.querySelectorAll('[data-view]')) {
+    button.addEventListener('click', () => {
+      setView(button.dataset.view);
+      show(null);
+      document.getElementById('garden').focus({preventScroll: true});
+    });
+  }
   controls.hidden = false;
 }
 
-export function installGardenControls({base, loadPlantedModel, shadows, glass, contacts, placement, setRain}) {
+export function installGardenControls({base, loadPlantedModel, shadows, glass, contacts, placement, setRain, setView, life, mist}) {
   const fox = base.find(mesh => mesh.name.startsWith('Fox ·'));
   const cache = new Map([['fox', Promise.resolve([fox])]]);
   const notice = document.getElementById('animal-notice');
@@ -92,5 +99,24 @@ export function installGardenControls({base, loadPlantedModel, shadows, glass, c
       for (const item of weatherChoices) item.setAttribute('aria-pressed', String(item === choice));
     });
   }
-  installSheets();
+  const mistSetting = document.getElementById('mist-setting');
+  mistSetting.checked = mist.mesh.isEnabled();
+  mistSetting.addEventListener('change', () => mist.mesh.setEnabled(mistSetting.checked));
+  const plants = document.getElementById('plants-setting'), motes = document.getElementById('motes-setting');
+  const preference = matchMedia('(prefers-reduced-motion: reduce)');
+  function reflectMotion() {
+    const available = Boolean(life.motes) && !preference.matches;
+    plants.disabled = motes.disabled = !available;
+    plants.checked = available && life.plantsOn;
+    motes.checked = available && life.motesOn;
+    const note = document.getElementById('motion-note');
+    note.hidden = available;
+    note.textContent = !life.motes ? '当前链接已关闭场景动态。' : '已按系统的减少动态效果设置暂停。';
+  }
+  plants.addEventListener('change', () => life.setPlants(plants.checked));
+  motes.addEventListener('change', () => life.setMotes(motes.checked));
+  preference.addEventListener('change', reflectMotion);
+  mist.mesh.getScene().onDisposeObservable.addOnce(() => preference.removeEventListener('change', reflectMotion));
+  reflectMotion();
+  installSheets(setView);
 }

@@ -1,6 +1,6 @@
 import {DepthOfFieldEffect, DepthOfFieldEffectBlurLevel, PostProcessRenderPipeline, Vector3} from '@babylonjs/core';
 
-export function installDepthOfField(scene, camera, subject) {
+export function installDepthOfField(scene, camera, getSubject) {
   const engine = scene.getEngine();
   const caps = engine.getCaps();
   // Babylon's circle-of-confusion shader samples a single-channel depth texture.
@@ -12,10 +12,10 @@ export function installDepthOfField(scene, camera, subject) {
   lens.lensSize = 350;
   lens.fStop = 4;
 
-  // Project the active figurine onto the view axis after camera or gizmo motion.
+  // Follow the selected subject as the camera or figurine moves.
   const viewPosition = new Vector3();
   function updateFocus() {
-    Vector3.TransformCoordinatesToRef(subject, camera.getViewMatrix(), viewPosition);
+    Vector3.TransformCoordinatesToRef(getSubject(), camera.getViewMatrix(), viewPosition);
     lens.focusDistance = Math.max(camera.minZ, -viewPosition.z) * 1000;
   }
   updateFocus();

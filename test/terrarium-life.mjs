@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict';
 import {
-  ArcRotateCamera, BaseTexture, MeshBuilder, NullEngine, PBRMaterial, Scene, Vector3, VertexBuffer,
+  ArcRotateCamera, BaseTexture, MeshBuilder, NullEngine, PBRMaterial, PointerEventTypes, Ray, Scene, Texture, Vector3, VertexBuffer,
 } from '@babylonjs/core';
+import {enableLeafPicking} from '../source/leaf-picking.js';
 import {glassInnerRadiusAt, installGlass} from '../source/glass.js';
 import {
   MOTE_CEILING, MOTE_FLOOR, MOTE_MARGIN, createMotePool, installTerrariumLife,
@@ -99,12 +100,12 @@ function garden(lifeOptions) {
   assert.equal(life.motes.isPickable, false);
   assert.equal(life.motes.material.disableDepthWrite, true);
   assert.ok(capture.renderList.includes(life.motes), 'motes are inside the glass capture');
-  assert.equal(fern.material.pluginManager.getPlugin('Terrarium sway'), crown.material.pluginManager.getPlugin('Terrarium sway'));
-  const sway = fern.material.pluginManager.getPlugin('Terrarium sway');
-  assert.match(sway.getCustomCode('vertex').CUSTOM_VERTEX_UPDATE_POSITION, /outward/);
+  assert.equal(fern.material, crown.material);
+  assert.notEqual(fern.morphTargetManager, crown.morphTargetManager);
+  assert.equal(fern.morphTargetManager.numTargets, 2);
   const mossPlugin = moss.material.pluginManager.getPlugin('Moss surface moisture');
   assert.match(mossPlugin.getCustomCode('fragment').CUSTOM_FRAGMENT_BEFORE_LIGHTS, /lifeMoss|wet/);
-  assert.equal(earth.material.pluginManager?.getPlugin('Terrarium sway') ?? null, null);
+  assert.equal(earth.morphTargetManager, null);
   assert.equal(earth.material.pluginManager?.getPlugin('Moss surface moisture') ?? null, null);
   const effect = {
     values: {},
@@ -112,10 +113,6 @@ function garden(lifeOptions) {
     setFloat(name, value) { this.values[name] = value; },
     setFloat4(name, x, y, z, w) { this.values[name] = [x, y, z, w]; },
   };
-  sway.hardBindForSubMesh(null, scene, null, {effect, getMesh: () => fern});
-  assert.equal(effect.values.lifePlant[0], 1);
-  sway.hardBindForSubMesh(null, scene, null, {effect, getMesh: () => earth});
-  assert.equal(effect.values.lifePlant[0], 0);
   mossPlugin.hardBindForSubMesh(null, scene, null, {effect, getMesh: () => moss});
   assert.equal(effect.values.lifeMoss[1], 1);
   mossPlugin.hardBindForSubMesh(null, scene, null, {effect, getMesh: () => earth});
@@ -138,15 +135,15 @@ console.log('Sway, moss moisture, glass capture and picking contracts passed.');
 {
   const {engine, scene, fern, moss, life} = garden({motion: false});
   assert.equal(life.motes.isEnabled(), false);
-  const sway = fern.material.pluginManager.getPlugin('Terrarium sway');
+  const bend = fern.morphTargetManager.getTarget(0);
   const effect = {
     values: {},
     getUniformIndex: () => 0,
     setFloat(name, value) { this.values[name] = value; },
     setFloat4(name, x, y, z, w) { this.values[name] = [x, y, z, w]; },
   };
-  sway.hardBindForSubMesh(null, scene, null, {effect, getMesh: () => fern});
-  assert.equal(effect.values.lifePlant[0], 0);
+  life.update(1);
+  assert.equal(bend.influence, 0);
   moss.material.pluginManager.getPlugin('Moss surface moisture').hardBindForSubMesh(null, scene, null, {effect, getMesh: () => moss});
   assert.equal(effect.values.lifeMoss[1], 0);
   const before = life.motes.getVerticesData(VertexBuffer.PositionKind).slice();
@@ -161,7 +158,7 @@ console.log('Reduced motion keeps the terrarium still.');
   const {engine, scene, fern, glass, life} = garden({enabled: false});
   assert.equal(life.motes, null);
   assert.equal(fern.isPickable, false);
-  assert.equal(fern.material.pluginManager?.getPlugin('Terrarium sway') ?? null, null);
+  assert.equal(fern.morphTargetManager, null);
   assert.equal(scene.getMeshByName('Interior motes'), null);
   const capture = scene.getMeshByName('Polished foot').material.subSurface.refractionTexture;
   assert.equal(capture.renderList.some(mesh => mesh.name === 'Interior motes'), false);
@@ -171,3 +168,56 @@ console.log('Reduced motion keeps the terrarium still.');
   engine.dispose();
 }
 console.log('life=0 leaves the static scene unchanged.');
+
+// The last move within the 140 ms window must still clear a previous hover.
+{
+  const {engine, scene, fern, life} = garden();
+  let pickedMesh = fern, calls = 0;
+  scene.pick = () => { calls++; return {pickedMesh}; };
+  const move = () => scene.onPointerObservable.notifyObservers({event: {buttons: 0}}, PointerEventTypes.POINTERMOVE);
+  move();
+  life.update(.01);
+  pickedMesh = null;
+  move();
+  life.update(.04);
+  assert.equal(calls, 1);
+  life.update(.11);
+  assert.equal(calls, 2);
+  life.setPlants(false);
+  life.update(.05);
+  assert.equal(fern.morphTargetManager.getTarget(0).influence, 0);
+  assert.ok(life.motes.isEnabled());
+  life.setMotes(false);
+  life.setPlants(true);
+  life.update(.05);
+  assert.ok(fern.morphTargetManager.getTarget(0).influence);
+  assert.equal(life.motes.isEnabled(), false);
+  scene.dispose();
+  engine.dispose();
+}
+
+// An opaque texel selects the leaf. Through the transparent half of the same
+// indexed card, Babylon must continue the ray to the object behind it.
+{
+  const engine = new NullEngine(), scene = new Scene(engine);
+  const leaf = MeshBuilder.CreatePlane('Fern card', {size: 2}, scene);
+  const animal = MeshBuilder.CreateBox('Figurine', {size: 2}, scene);
+  animal.position.z = 2;
+  leaf.computeWorldMatrix(true);
+  animal.computeWorldMatrix(true);
+  const mat = new PBRMaterial('Cutout', scene);
+  mat.transparencyMode = PBRMaterial.PBRMATERIAL_ALPHATEST;
+  const atlas = new Texture(null, scene);
+  atlas.hasAlpha = true;
+  atlas.isReady = () => true;
+  atlas.getSize = () => ({width: 2, height: 1});
+  atlas.readPixels = async () => new Uint8Array([0,0,0,0, 0,0,0,255]);
+  mat.albedoTexture = atlas;
+  leaf.material = mat;
+  await enableLeafPicking(leaf, new Map());
+  const hit = x => scene.pickWithRay(new Ray(new Vector3(x, 0, -2), new Vector3(0, 0, 1))).pickedMesh;
+  assert.equal(hit(-.5)?.name, animal.name);
+  assert.equal(hit(.5)?.name, leaf.name);
+  scene.dispose();
+  engine.dispose();
+}
