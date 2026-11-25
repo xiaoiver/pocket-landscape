@@ -1,4 +1,5 @@
-import {DynamicTexture, Mesh, MeshBuilder, PBRMaterial, PhysicsAggregate, PhysicsShapeType, Vector3} from '@babylonjs/core';
+import {Mesh, MeshBuilder, PBRMaterial, PhysicsAggregate, PhysicsShapeType, Vector3, Vector4} from '@babylonjs/core';
+import {createCorkGrain} from './cork-grain.js';
 import {glassInnerRadiusAt, vesselWalls} from './glass.js';
 
 const corkHeight = .22, corkTopRadius = .71;
@@ -7,22 +8,37 @@ const parkedX = Math.max(...vesselWalls.bottle.map(([r])=>r))+corkTopRadius+.14;
 
 function makeStopper(scene) {
   const cork = MeshBuilder.CreateCylinder('Tapered cork stopper',{
-    height:corkHeight,diameterTop:2*corkTopRadius,diameterBottom:2*(neckRadius-.05),tessellation:72,
+    height:corkHeight,diameterTop:2*corkTopRadius,diameterBottom:2*(neckRadius-.05),tessellation:72,subdivisions:12,
+    faceUV:[new Vector4(0,0,1,1),new Vector4(0,0,3,.16),new Vector4(0,0,1,1)],
   },scene);
-  const texture = new DynamicTexture('Cork grain',256,scene,false);
-  const ctx = texture.getContext();
-  ctx.fillStyle = '#b88958';
-  ctx.fillRect(0,0,256,256);
-  for (let i=0;i<6800;i++) {
-    ctx.fillStyle = ['#d4ac80','#996d4b','#a27953','#75553a'][i%4];
-    ctx.globalAlpha = .3+Math.random()*.4;
-    ctx.fillRect(Math.random()*256,Math.random()*256,1+Math.random()*3,1+Math.random()*2);
+  const positions=cork.getVerticesData('position'), normals=cork.getVerticesData('normal');
+  for (let i=0;i<positions.length;i+=3) {
+    const x=positions[i],y=positions[i+1],z=positions[i+2];
+    const radius=Math.hypot(x,z);
+    if (radius<.001) continue;
+    const angle=Math.atan2(z,x);
+    const h=y/corkHeight+.5;
+    const wornEdge=Math.max(0,(h-.82)/.18);
+    const chip=.003*Math.sin(11*angle)+.0018*Math.cos(23*angle);
+    const scale=1-(.014*wornEdge*wornEdge+Math.abs(chip))/radius;
+    positions[i]*=scale;
+    positions[i+2]*=scale;
+    positions[i+1]+=chip*wornEdge;
+    if (wornEdge>0 && normals[i+1]<.99) {
+      const n=new Vector3(x/radius,normals[i+1]+1.4*wornEdge,z/radius).normalize();
+      n.toArray(normals,i);
+    }
   }
-  texture.update();
+  cork.setVerticesData('position',positions);
+  cork.setVerticesData('normal',normals);
+
+  const grain=createCorkGrain(scene);
   const material = new PBRMaterial('Natural cork',scene);
-  material.albedoTexture = texture;
-  material.metallic = 0;
-  material.roughness = .96;
+  material.albedoTexture=grain.color;
+  material.bumpTexture=grain.normal;
+  material.metallic=0;
+  material.roughness=1;
+  material.metallicF0Factor=.32;
   cork.material = material;
   cork.receiveShadows = true;
   cork.isPickable = false;
