@@ -1,5 +1,31 @@
 import {MaterialPluginBase, PBRMaterial, Texture} from '@babylonjs/core';
 
+// Height of the authored planted bank in Babylon world coordinates.
+export function soilHeight(x, z) {
+  return .60 + .14*(1-z) + .13*Math.exp(-4*((x+.65)**2+(z+.07)**2))
+    + .075*Math.sin(3*x-z)*Math.cos(4*z);
+}
+
+// Both the soil and its moss skirt must settle together, or buried moss faces
+// become visible at the rim. Keep the pebble path seated at the front opening.
+export function settleSoilShoulder(p) {
+  const r = Math.hypot(p.x, p.z);
+  if (r <= 1.25 || p.y < .30) return;
+  const ease = value => {
+    const t = Math.min(1, Math.max(0, value));
+    return t*t*(3-2*t);
+  };
+  const path = .08 + .40*Math.sin((.45-p.z)*2.8);
+  const rim = ease((r-1.25)/.07) * ease((Math.abs(p.x-path)-.18)/.12);
+  const a = Math.atan2(p.z,p.x);
+  const broken = .5 + .25*Math.sin(17*a+1.6*Math.sin(8*a)) + .25*Math.sin(37*a+.7);
+  const top = ease((p.y-soilHeight(p.x,p.z)+.15)/.138);
+  const radius = r - rim*(.005 + .014*broken + top*.010);
+  p.x *= radius/r;
+  p.z *= radius/r;
+  p.y -= rim*top*(.017 + .046*broken);
+}
+
 // A damp contact darkens the diffuse response and softens the roughness together.
 // A broken mask follows the existing drainage crest over a narrow contact zone.
 class ContactRoughness extends MaterialPluginBase {
@@ -22,6 +48,11 @@ class ContactRoughness extends MaterialPluginBase {
         }
       `,
       CUSTOM_FRAGMENT_UPDATE_ALBEDO: `
+        ${this.soil ? `
+          float fold = sin(dot(vPositionW.xz,vec2(5.3,7.1)) + 1.4*sin(vPositionW.z*9.));
+          float humus = smoothstep(.20,.68,vPositionW.y + .070*fold + .024*sin(vPositionW.x*19.));
+          surfaceAlbedo *= mix(vec3(.59,.63,.66),vec3(1.09,1.04,.97),humus);
+        ` : ''}
         surfaceAlbedo *= 1.-${this.soil ? '.13' : '.26'}*dampStoneContact(vPositionW);
       `,
       CUSTOM_FRAGMENT_UPDATE_METALLICROUGHNESS: `
@@ -32,25 +63,30 @@ class ContactRoughness extends MaterialPluginBase {
   }
 }
 
-// Brown Mud Rocks 01 · Poly Haven · CC0. Sources are embedded by build.cjs.
+// The baked humus color and normals share one grain profile. The roughness
+// map is adapted from Brown Mud Rocks 01 (Poly Haven, CC0).
 export function prepareSubstrate(scene, earth, gravel) {
   if (!(earth?.material instanceof PBRMaterial)) return undefined;
-  const normal = document.getElementById('substrate-normal')?.textContent.trim();
+  const normal = document.getElementById('substrate-humus-normal')?.textContent.trim();
   const roughness = document.getElementById('substrate-roughness')?.textContent.trim();
-  if (!normal || !roughness) return undefined;
+  const pigment = document.getElementById('substrate-humus')?.textContent.trim();
+  if (!pigment || !normal || !roughness) return undefined;
   const load = (data, strength = 1) => {
     const texture = new Texture('data:image/jpeg;base64,'+data,scene,false,false);
     texture.gammaSpace=false;
     texture.wrapU=texture.wrapV=Texture.WRAP_ADDRESSMODE;
-    texture.uScale=texture.vScale=3;
+    texture.uScale=1.05;
+    texture.vScale=.72;
     texture.anisotropicFilteringLevel=4;
     texture.level=strength;
     return texture;
   };
   const soil=earth.material, rocks=gravel.material;
-  const soilContact=soil.clone('Soil · subtle texture and damp contacts');
+  const soilContact=soil.clone('Soil · humus and damp contacts');
   // The drainage stones already share the path’s baked mineral maps.
-  soilContact.bumpTexture=load(normal,.18);
+  soilContact.albedoTexture=load(pigment);
+  soilContact.albedoTexture.gammaSpace=true;
+  soilContact.bumpTexture=load(normal,.88);
   soilContact.invertNormalMapX=!scene.useRightHandedSystem;
   soilContact.invertNormalMapY=scene.useRightHandedSystem;
   soilContact.metallicTexture=load(roughness);

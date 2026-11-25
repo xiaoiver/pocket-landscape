@@ -16,7 +16,7 @@ async function buildViewer() {
   const model = zlib.gzipSync(fs.readFileSync(path.join(project, 'woodland.glb')));
   const studio = fs.readFileSync(path.join(__dirname, 'assets/studio_small_09_1k.hdr'));
   const specimens = zlib.gzipSync(fs.readFileSync(path.join(__dirname, 'assets/specimens/plants.glb')));
-  const substrate = ['normal','roughness'].map(key =>
+  const substrate = ['humus','humus-normal','roughness'].map(key =>
     embeddedData('substrate-'+key, fs.readFileSync(path.join(__dirname, 'assets/substrate', key+'.jpg'))));
   const animalNames = {fox:'狐狸', deer:'小鹿', hedgehog:'刺猬'};
   const figurine = (name, extension) => fs.readFileSync(path.join(__dirname, 'assets/terrarium', name+'.'+extension));

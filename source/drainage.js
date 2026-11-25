@@ -1,4 +1,5 @@
 import { Color3, Material, Mesh, PBRMaterial, Vector3, VertexBuffer, VertexData } from '@babylonjs/core';
+import {settleSoilShoulder} from './substrate.js';
 import {glassInnerRadiusAt} from './glass.js';
 
 const TAU = 2*Math.PI;
@@ -37,10 +38,11 @@ function prepareSoil(earth) {
   if (!source||!sourceNormals||!indices) return undefined;
   const original=Float32Array.from(source), originalNormals=Float32Array.from(sourceNormals);
   const world=earth.computeWorldMatrix(true), inverse=world.clone().invert();
-  const transformed=[];
+  const transformed=[], shoulder=[];
   for(let i=0;i<source.length;i+=3) {
     const p=Vector3.TransformCoordinates(Vector3.FromArray(source,i),world);
     const r=Math.hypot(p.x,p.z);
+    if (r > 1.25 && p.y > .30) shoulder.push({i,p});
     if(p.y < .078 || p.y > .135 || r < 1.28) continue;
     const a=Math.atan2(p.z,p.x);
     transformed.push({i,p,r,a,depth:.116+.041*wiggle(a)});
@@ -66,8 +68,15 @@ function prepareSoil(earth) {
       minGap=Math.min(minGap,glassInnerRadiusAt(y)-radius);
       Vector3.TransformCoordinates(new Vector3(p.x*radius/r,y,p.z*radius/r),inverse).toArray(positions,i);
     }
+    // A loose shoulder settles unevenly against the glass. Apply the same
+    // displacement on both sides of the top/side UV seam.
+    for (const {i,p} of shoulder) {
+      const settled = p.clone();
+      settleSoilShoulder(settled);
+      Vector3.TransformCoordinates(settled,inverse).toArray(positions,i);
+    }
     VertexData.ComputeNormals(positions,indices,generated,{useRightHandedSystem:earth.getScene().useRightHandedSystem});
-    for(const {i} of transformed) {
+    for(const {i} of [...transformed,...shoulder]) {
       let nx=generated[i],ny=generated[i+1],nz=generated[i+2];
       if(nx*originalNormals[i]+ny*originalNormals[i+1]+nz*originalNormals[i+2]<0){nx=-nx;ny=-ny;nz=-nz;}
       normals[i]=nx;normals[i+1]=ny;normals[i+2]=nz;

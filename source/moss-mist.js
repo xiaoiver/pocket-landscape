@@ -1,5 +1,7 @@
 import { Color3, Mesh, RawTexture, ShaderMaterial, Texture, VertexData } from '@babylonjs/core';
 
+import {soilHeight} from './substrate.js';
+
 const radius = 1.26;
 
 // R stores soil elevation; G stores moisture in the two planted banks.
@@ -11,8 +13,7 @@ function bankMap(scene) {
     for (let col = 0; col < size; col++) {
       const x = radius * (2 * (col + .5) / size - 1);
       const z = radius * (2 * (row + .5) / size - 1);
-      const soil = .60 + .14*(1-z) + .13*Math.exp(-4*((x+.65)**2+(z+.07)**2))
-        + .075*Math.sin(3*x-z)*Math.cos(4*z);
+      const soil = soilHeight(x, z);
       const left = Math.exp(-((x+.54)**2/.28 + (z-.08)**2/.44));
       const right = Math.exp(-((x-.52)**2/.25 + (z+.31)**2/.32));
       const i = (row*size+col)*4;

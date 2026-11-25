@@ -8,9 +8,11 @@ import {createMossMist} from './moss-mist.js';
 import {installGlass} from './glass.js';
 import {installTerrariumLife} from './terrarium-life.js';
 import {installDrainage} from './drainage.js';
+import {soilInclusions} from './soil-inclusions.js';
 import {prepareSubstrate} from './substrate.js';
 import {prepareClay,prepareFoliage} from './foliage.js';
 import {installMossBranchlets} from './moss-branchlets.js';
+import {prepareMossCushions} from './moss-cushions.js';
 import {prepareMossPad} from './moss-pad.js';
 import {prepareGroundContacts} from './ground-contacts.js';
 import {preparePathSoil} from './path-soil.js';
@@ -103,10 +105,20 @@ async function start(){
     const active = query.get('drainage') !== '0';
     drainage.setEnabled(active);
     substrate?.setEnabled(active);
+    if (active && substrate) {
+      const fragments = soilInclusions(scene,earth);
+      if (fragments) { base.push(fragments); shadows.addShadowCaster(fragments); }
+    }
     contacts.attach(earth.material);
     pathSoil?.attach(earth.material);
   }
-  const hasModelledMoss=base.some(mesh=>mesh.name==='Living moss · rosettes');
+  const rosettes = base.find(mesh => mesh.name === 'Living moss · rosettes');
+  const bank = base.find(mesh => mesh.name === 'Cushion moss · continuous bank');
+  const shoots = prepareMossCushions(scene, bank, rosettes, {
+    lightweight: forceLightweight, settled: drainage?.gravel.isEnabled(),
+  });
+  if (shoots) { base.push(shoots); shadows.addShadowCaster(shoots); }
+  const hasModelledMoss = Boolean(rosettes);
   const mossPad=!hasModelledMoss && prepareMossPad(scene,earth,base);
   if(mossPad)mossPad.setEnabled(true);
   const mossBranchlets=!hasModelledMoss && !mossPad && installMossBranchlets(scene,

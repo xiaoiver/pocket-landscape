@@ -38,6 +38,8 @@ npm run build
 
 相机默认启用轻微景深，焦平面跟随小径旁的陶土摆件。旋转或拉近镜头时，摆件周围的苔藓保留纹理，远处窗框和雨滴逐渐柔化。
 
+[苔簇和沿杯土层，同机位前后对比](docs/moss-soil-comparison.jpg)
+
 苔坡上方有一层贴地薄雾。雾层依地形高度起伏，向杯壁渐隐，晨光下很淡，雨天更明显。渲染时共用缸内物体的深度遮挡，也参与杯壁折射。可用 `?mist=0` 关闭这层雾做同机位对照。[雨天对照，左无雾、右有雾](docs/moss-mist.jpg)
 
 高画质模式下，凝雾和水珠附着在杯壁上。系统启用「减少动态效果」时，水珠保持静止。触屏粗指针设备或缺少所需半浮点纹理支持的设备使用轻量 Fresnel 玻璃。可用 `?glass=lightweight` 对照两种效果。[玻璃近景与实现笔记](docs/glass-optics.md)
@@ -69,7 +71,7 @@ npm run build
 - **粉脉网纹草**来自 harenil 的 Pink Angel Fittonia 摄影扫描。模型经过缩放、旋转和定位，简化后清除了叶片间的扫描补面，保留 44,910 个三角形，漫反射贴图从 8K 缩为 2K。离线网页的素材元数据也包含作者与许可链接。[原作品](https://sketchfab.com/3d-models/pink-angel-fittonia-130670511c9144b6ac8aeb7b9f00482c) · [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/)
 - **蕨类**采用 Rico Cilliers 和 Rob Tuytel 的 Fern 02 中 B、C 两丛，按杯体调整了尺寸和朝向。靠壁羽片绕各自叶柄向内转，在杯口内侧留出间隙，保留下垂的轮廓。[Fern 02](https://polyhaven.com/a/fern_02) · [CC0](https://polyhaven.com/license)
 - **六块景石**来自 Kless Gyzen 的 Rock Moss Set 01。六种石形分别简化、旋转并埋入苔床。颜色贴图降低了棕色饱和度，保留苔斑、法线和粗糙度细节。[Rock Moss Set 01](https://polyhaven.com/a/rock_moss_set_01) · [CC0](https://polyhaven.com/license) · [景石近景](docs/outcrop-detail.jpg)
-- **苔面与泥土**分别使用 ambientCG 的 Moss 003 和 Poly Haven 的 Brown Mud Rocks 01。前者提供颜色、法线和高度细节，后者提供土壤法线和粗糙度。[Moss 003](https://ambientcg.com/a/Moss003) · [ambientCG CC0](https://docs.ambientcg.com/license/) · [Brown Mud Rocks 01](https://polyhaven.com/a/brown_mud_rocks_01) · [Poly Haven CC0](https://polyhaven.com/license) · [小径与排水层近景](docs/pebble-detail.jpg)
+- **苔面与泥土**分别使用 ambientCG 的 Moss 003 和 Poly Haven 的 Brown Mud Rocks 01。前者提供颜色、法线和高度细节，后者提供土壤粗糙度。土粒的颜色与法线来自同一份程序生成的高度图。[Moss 003](https://ambientcg.com/a/Moss003) · [ambientCG CC0](https://docs.ambientcg.com/license/) · [Brown Mud Rocks 01](https://polyhaven.com/a/brown_mud_rocks_01) · [Poly Haven CC0](https://polyhaven.com/license) · [小径与排水层近景](docs/pebble-detail.jpg)
 - **窗上雨滴**采用 Lucas Bebber 为 Codrops 绘制的水滴形状与折射方向贴图。水量图记录水滴的厚度和覆盖范围，着色器在滴内采样另一张更清晰的窗外照片。[Rain & Water Effect Experiments](https://github.com/codrops/RainEffect)
 - **窗外晨景**截取自 Greg Zaal 的 Spruit Sunrise 全景照片，经过柔焦和降饱和处理。[Spruit Sunrise](https://polyhaven.com/a/spruit_sunrise) · [CC0](https://polyhaven.com/license)
 - **环境光**采用 Sergej Majboroda 的 Studio Small 09。[Studio Small 09](https://polyhaven.com/a/studio_small_09) · [CC0](https://polyhaven.com/license)
