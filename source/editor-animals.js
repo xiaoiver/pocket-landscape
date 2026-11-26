@@ -34,7 +34,7 @@ export async function createEditorAnimals({scene,glass,shadows,loadPlantedModel,
     let x=pose.x, z=pose.z;
     for (let i=0;i<6;i++) {
       const top=heightAt(x,z)+(pose.lift || 0)+height;
-      const limit=Math.min(1.31,glassInnerRadiusAt(top,vesselWalls[vessel.type])-.012)-radius;
+      const limit=Math.max(0,Math.min(1.31,glassInnerRadiusAt(top,vesselWalls[vessel.type])-.012)-radius);
       const distance=Math.hypot(x,z);
       if (distance<=limit) break;
       x *= limit/distance;
@@ -43,7 +43,7 @@ export async function createEditorAnimals({scene,glass,shadows,loadPlantedModel,
     const y=heightAt(x,z)+(pose.lift || 0);
     mesh.position.set(x,y,z);
     Quaternion.RotationYawPitchRollToRef(pose.yaw,0,0,mesh.rotationQuaternion);
-    mesh.scaling.setAll(vessel.type==='bottle' ? Math.min(1,(1.96-y)/height) : 1);
+    mesh.scaling.setAll(vessel.type==='bottle' ? Math.max(.01,Math.min(1,(1.96-y)/height)) : 1);
     mesh.computeWorldMatrix(true);
     bodies.set(mesh,new PhysicsAggregate(mesh,PhysicsShapeType.CONVEX_HULL,{mass:0,friction:.62},scene));
   }

@@ -1,6 +1,6 @@
-import {Mesh, MeshBuilder, PBRMaterial, PhysicsAggregate, PhysicsShapeType, Vector3, Vector4} from '@babylonjs/core';
+import {MeshBuilder, PBRMaterial, PhysicsAggregate, PhysicsShapeType, Vector3, Vector4} from '@babylonjs/core';
 import {createCorkGrain} from './cork-grain.js';
-import {glassInnerRadiusAt, vesselWalls} from './glass.js';
+import {createVesselWall, INNER_WALL_INSET, vesselWalls} from './glass.js';
 
 const corkHeight = .22, corkTopRadius = .71;
 const [neckRadius,neckHeight] = vesselWalls.bottle.at(-1);
@@ -74,9 +74,7 @@ export function createEditorVessel(scene, glass, shadows, initialType, initially
     shell?.dispose();
     type = next;
     glass.setVessel(type);
-    const wall = vesselWalls[type];
-    const shape = wall.map(([,y]) => new Vector3(glassInnerRadiusAt(y,wall),y,0));
-    shell = MeshBuilder.CreateLathe('Jar collision wall',{shape,tessellation:64,sideOrientation:Mesh.DOUBLESIDE},scene);
+    shell=createVesselWall(scene,'Jar collision wall',type,{inset:INNER_WALL_INSET,collision:true});
     shell.isVisible = shell.isPickable = false;
     new PhysicsAggregate(shell,PhysicsShapeType.MESH,{mass:0,friction:.48,restitution:.12},scene);
     setSealed(close);

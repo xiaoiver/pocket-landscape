@@ -55,14 +55,14 @@ export function createEditorPlants(scene, specimens, glass, shadows, heightAt, v
     // A move inward can put the roots higher on the slope. Recheck the crown
     // against the shoulder at the new elevation before setting the final pose.
     for (let i=0; i<6; i++) {
-      const clearance = Math.min(1.32,glassInnerRadiusAt(heightAt(x,z)+height,wall)) - radius - .012;
+      const clearance = Math.max(0,Math.min(1.32,glassInnerRadiusAt(heightAt(x,z)+height,wall)) - radius - .012);
       const distance = Math.hypot(x,z);
       if (distance <= clearance) break;
       x *= clearance/distance;
       z *= clearance/distance;
     }
     const y = heightAt(x,z);
-    const headroom = vessel.type === 'bottle' ? Math.min(1,(1.96-y)/height) : 1;
+    const headroom = vessel.type === 'bottle' ? Math.max(.01,Math.min(1,(1.96-y)/height)) : 1;
     mesh.scaling.setAll(templates.get(plant.kind).scale*headroom);
     mesh.position.set(x,y,z);
   }

@@ -14,6 +14,8 @@ import {installPresetLibrary} from './preset-library.js';
 import {createSoilInclusions} from './soil-inclusions.js';
 import {softenPebbleGloss} from './pebble-material.js';
 import {createEditorSoil, createSoilCollider} from './editor-soil.js';
+import {createLooseSoil} from './loose-soil.js';
+import {createDeskSoil} from './desk-soil.js';
 import {createEditorVessel} from './editor-vessel.js';
 import {glassInnerRadiusAt, vesselWalls} from './glass.js';
 import {labelButton,wording} from './interface-language.js';
@@ -38,8 +40,8 @@ function readLayout(storageKey) {
     const saved = JSON.parse(localStorage.getItem(storageKey));
     if (saved && typeof saved === 'object') {
       return {
-        name:saved.name, lamp:saved.lamp, rocks:saved.rocks, edits:saved.edits, animals:saved.animals, erasedMoss:saved.erasedMoss,
-        vessel:saved.vessel === 'bottle' ? 'bottle' : 'open', sealed:saved.sealed === true,
+        name:saved.name, looseSoil:saved.looseSoil, lamp:saved.lamp, rocks:saved.rocks, edits:saved.edits, animals:saved.animals, erasedMoss:saved.erasedMoss,
+        vessel:Object.hasOwn(vesselWalls,saved.vessel) ? saved.vessel : 'open', sealed:saved.sealed === true,
         plants:readPlants(saved.plants), mounds:readPoints(saved.mounds,maxMounds), patches:readPoints(saved.patches,maxPatches),
         stones:(Array.isArray(saved.stones) ? saved.stones : []).slice(0,maxStones).filter(s => tuple(s?.p,3) && Math.hypot(s.p[0],s.p[2])<1.38 &&
           s.p[1]>0 && s.p[1]<2 && tuple(s.q,4) && tuple(s.r,3) && s.r.every(n=>n>=.004 && n<=.1) &&
@@ -73,7 +75,10 @@ export async function openPebbleEditor(scene, glass, shadows, loadPlantedModel, 
     groundHeight = samplePresetGround(preset.grounds);
   }
   const inclusions = preset?.fragmentMaterial && createSoilInclusions(scene,preset.fragmentMaterial);
-  const soil = createEditorSoil(scene,mounds,preset && ((x,z) => groundHeight(x,z)),preset?.grounds[0],inclusions);
+  const loose=createLooseSoil();
+  loose.restore(layout.looseSoil);
+  const soil = createEditorSoil(scene,mounds,preset && ((x,z) => groundHeight(x,z)),preset?.grounds[0],inclusions,loose);
+  const deskSoil=createDeskSoil(scene,glass,shadows,soil.mesh.material,loose.spilled);
   if (inclusions) {
     glass.addContents?.([inclusions.mesh]);
     shadows.addShadowCaster(inclusions.mesh);
@@ -203,7 +208,7 @@ export async function openPebbleEditor(scene, glass, shadows, loadPlantedModel, 
       p:mesh.position.asArray(),q:mesh.rotationQuaternion.asArray(),r:s.r,t:s.t,support:keys.get(s.support),
       ...(withMotion && !s.support ? {velocity:s.physics.body.getLinearVelocity().asArray(),spin:s.physics.body.getAngularVelocity().asArray()} : {}),
     }));
-    return {name:layout.name,lamp:lampPosition,rocks:[...rocks.placed.values()],erasedMoss:originalMoss?.serialize(),animals:[...animals.placed.values()],edits:authored?.serialize(),vessel:vessel.type,sealed:vessel.sealed,mounds,patches,plants:[...plants.planted.values()],stones:pieces};
+    return {name:layout.name,looseSoil:loose.serialize(),lamp:lampPosition,rocks:[...rocks.placed.values()],erasedMoss:originalMoss?.serialize(),animals:[...animals.placed.values()],edits:authored?.serialize(),vessel:vessel.type,sealed:vessel.sealed,mounds,patches,plants:[...plants.planted.values()],stones:pieces};
   }
   installPresetLibrary(preset ? snapshot : undefined);
   function save() {
@@ -243,7 +248,12 @@ export async function openPebbleEditor(scene, glass, shadows, loadPlantedModel, 
       originalMoss.restore(next.erasedMoss);
       rebuildBank();
     }
-    const groundChanged = mossCutChanged || JSON.stringify(mounds)!==JSON.stringify(next.mounds);
+    const looseChanged=JSON.stringify(loose.serialize())!==JSON.stringify(next.looseSoil);
+    if (looseChanged) {
+      loose.restore(next.looseSoil);
+      deskSoil.sync();
+    }
+    const groundChanged = looseChanged || mossCutChanged || JSON.stringify(mounds)!==JSON.stringify(next.mounds);
     if (groundChanged) {
       mounds.splice(0,mounds.length,...next.mounds);
       soil.rebuild();
@@ -338,7 +348,7 @@ export async function openPebbleEditor(scene, glass, shadows, loadPlantedModel, 
   reflectVessel();
   vesselTrigger.hidden = false;
   function shapeSoil(edit) {
-    const previous = mounds.slice();
+    const previous = new Map([...stones.keys()].map(mesh=>[mesh,heightAt(mesh.position.x,mesh.position.z)]));
     edit();
     soil.rebuild();
     authored?.settleAll();
@@ -348,7 +358,7 @@ export async function openPebbleEditor(scene, glass, shadows, loadPlantedModel, 
     rocks.settleAll();
     for (const [mesh,s] of stones) {
       const {x,z} = mesh.position;
-      const lift = heightAt(x,z)-heightAt(x,z,previous);
+      const lift = heightAt(x,z)-previous.get(mesh);
       mesh.position.y = Math.max(mesh.position.y+Math.max(0,lift),heightAt(x,z)+Math.max(...s.r));
       releaseStone(mesh,s);
     }
@@ -597,8 +607,12 @@ export async function openPebbleEditor(scene, glass, shadows, loadPlantedModel, 
       if (stones.size >= maxStones) {feedback.textContent = wording('卵石已满，可用橡皮擦移除。','Pebble limit reached. Use the eraser to remove some.');return;}
       pour(point);
     } else if (tool === 'soil') {
-      if (mounds.length >= maxMounds) {feedback.textContent = wording('土丘已满，可用橡皮擦移除。','Soil limit reached. Use the eraser to remove a mound.');return;}
-      shapeSoil(() => mounds.push([point.x,point.z]));
+      if (mounds.length+loose.marks.length >= maxMounds) {feedback.textContent = wording('土丘已满，可用橡皮擦移除。','Soil limit reached. Use the eraser to remove a mound.');return;}
+      if (vessel.type==='bowl') {
+        let overflow;
+        shapeSoil(()=>{overflow=loose.add(point.x,point.z,soil.baseHeight);});
+        deskSoil.emit(overflow);
+      } else shapeSoil(() => mounds.push([point.x,point.z]));
     } else if (tool === 'fern' || tool === 'fittonia') {
       if (plants.planted.size >= maxPlants) {
         feedback.textContent = wording('植物已满，可用橡皮擦移除。','Plant limit reached. Use the eraser to remove a plant.');
@@ -622,8 +636,12 @@ export async function openPebbleEditor(scene, glass, shadows, loadPlantedModel, 
         shapeSoil(rebuildBank);
       } else {
         const mound = nearestPoint(mounds,point,.48);
-        if (mound<0) return;
-        shapeSoil(() => mounds.splice(mound,1));
+        const looseMark=nearestPoint(loose.marks,point,.48);
+        const distance=p=>Math.hypot(p[0]-point.x,p[1]-point.z);
+        if (looseMark>=0 && (mound<0 || distance(loose.marks[looseMark])<=distance(mounds[mound])))
+          shapeSoil(()=>loose.erase(looseMark));
+        else if (mound>=0) shapeSoil(()=>mounds.splice(mound,1));
+        else return;
       }
     }
     commit(before);
@@ -659,7 +677,7 @@ export async function openPebbleEditor(scene, glass, shadows, loadPlantedModel, 
   });
   document.getElementById('editor-tools').hidden = false;
   return {setActive(value) {
-    if (active && !value) save();
+    if (active && !value) {save();deskSoil.sync();}
     active = value;
     lamp.positionAt(value ? lampPosition : undefined);
     if (value && !vessel.sealed) vessel.parkCork();

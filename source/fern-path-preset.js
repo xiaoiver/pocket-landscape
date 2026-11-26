@@ -1,6 +1,7 @@
 import {PhysicsAggregate, PhysicsShapeType} from '@babylonjs/core';
 import {enableLeafPicking} from './leaf-picking.js';
 import {glassInnerRadiusAt, vesselWalls} from './glass.js';
+import {fitBowlFoliage} from './slant-bowl.js';
 import {indexPath} from './preset-path.js';
 
 // Keep original geometry and material assignments. Saved copies store only
@@ -34,6 +35,7 @@ export function editFernPath({base,specimens,pathMesh}, heightAt, restHeight, sa
       else mesh.isPickable=true;
       return mesh.position.clone();
     });
+    const originalWorld=solid ? [] : meshes.map(mesh=>mesh.getWorldMatrix().clone());
     const scales=meshes.map(mesh => mesh.scaling.clone());
     const bodies=[];
     if (!solid) foliage.push(id);
@@ -44,7 +46,9 @@ export function editFernPath({base,specimens,pathMesh}, heightAt, restHeight, sa
       // The open preset grows above its rim. Fit those crowns under the
       // shoulder and stopper only when the narrower vessel is selected.
       let scale=1;
-      if (!solid && vessel.type==='bottle') {
+      if (!solid && vessel.type==='bowl') {
+        scale=fitBowlFoliage(meshes,originalWorld,x,minY,z,dx,dy,dz);
+      } else if (!solid && vessel.type==='bottle') {
         const span=Math.hypot(maxX-minX,maxZ-minZ)/2;
         const r=Math.hypot(x+dx,z+dz);
         let low=0, high=1;
