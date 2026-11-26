@@ -1,3 +1,4 @@
+import {readModelBytes} from './embedded-model.js';
 import {installPresetEditorMode} from './preset-editor-mode.js';
 import {openPebbleEditor} from './pebble-editor.js';
 import {labelButton, localizeInterface, wording} from './interface-language.js';
@@ -131,10 +132,7 @@ async function start(){
     return;
   }
   async function loadPlantedModel(id,meshNames) {
-    const encoded = document.getElementById(id).textContent.trim();
-    const bytes = Uint8Array.from(atob(encoded), ch => ch.charCodeAt(0));
-    const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'));
-    const glb = new Uint8Array(await new Response(stream).arrayBuffer());
+    const glb = await readModelBytes(id);
     const result = await ImportMeshAsync(glb, scene, {pluginExtension: '.glb',meshNames});
     const meshes = result.meshes.filter(mesh => mesh.getTotalVertices() > 0);
     for (const mesh of meshes) {

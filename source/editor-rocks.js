@@ -3,10 +3,10 @@ import {glassInnerRadiusAt, vesselWalls} from './glass.js';
 
 const scans = ['01','02','03','04','05','06'];
 const modelName = scan => 'Woodland outcrop · '+scan;
+export const rockModelNames = scans.map(modelName);
 export const maxRocks = 24;
 
-export async function createEditorRocks({scene,glass,shadows,heightAt,vessel,preset,loadPlantedModel,saved}) {
-  const sources = preset?.base ?? await loadPlantedModel('model-data',scans.map(modelName));
+export function createEditorRocks({scene,glass,shadows,heightAt,vessel,preset,sources,saved}) {
   const templates = new Map(), placed = new Map();
   for (const scan of scans) {
     const source = sources.find(m=>m.name===modelName(scan));

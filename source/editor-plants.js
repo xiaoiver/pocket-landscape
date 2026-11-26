@@ -1,34 +1,82 @@
-import {Matrix, VertexBuffer} from '@babylonjs/core';
+import {Matrix, Mesh, VertexBuffer, VertexData} from '@babylonjs/core';
 import {prepareFoliage} from './foliage.js';
 import {enableLeafPicking} from './leaf-picking.js';
 import {glassInnerRadiusAt, vesselWalls} from './glass.js';
 
 const varieties = {
   fern: {name:'Fern 02 · B', height:.77},
+  fernC: {name:'Fern 02 · C', height:.72},
+  canopy: {parts:['Canopy 0','Canopy 1','Canopy 2','Canopy 3'], height:.94},
+  ivory: {parts:['Fittonia · ivory','Petioles'], height:.57},
+  rose: {parts:['Fittonia · rose','Petioles'], height:.49},
   fittonia: {name:'Pink Angel Fittonia · harenil', height:.46},
 };
+export const basePlantNames = [...new Set(Object.values(varieties).flatMap(v => v.parts ?? []))];
+export const isPlantTool = kind => Object.hasOwn(varieties,kind);
 export const maxPlants = 16;
 
 export function readPlants(saved) {
   if (!Array.isArray(saved)) return [];
-  return saved.filter(p => p && Object.hasOwn(varieties,p.kind) &&
+  return saved.filter(p => p && isPlantTool(p.kind) &&
     Number.isFinite(p.x) && Number.isFinite(p.z) && Math.hypot(p.x,p.z)<=1.33 &&
     Number.isFinite(p.yaw)).slice(0,maxPlants);
 }
 
-export function createEditorPlants(scene, specimens, glass, shadows, heightAt, vessel, saved, useCopies=false) {
+// The model stores both fittonias' stems in one mesh. The gap between the
+// rose clump and the two ivory clumps lies at x=.53 in its baked coordinates.
+function fittoniaStems(source, kind) {
+  const stems = new Mesh(kind+' stems',source.getScene());
+  const original = VertexData.ExtractFromMesh(source);
+  const data = new VertexData();
+  data.positions = []; data.normals = []; data.uvs = []; data.indices = [];
+  const remap = new Map();
+  for (const index of original.indices) {
+    const offset = index*3;
+    if ((original.positions[offset]<.53) !== (kind==='rose')) continue;
+    if (!remap.has(index)) {
+      remap.set(index,remap.size);
+      data.positions.push(...original.positions.slice(offset,offset+3));
+      data.normals.push(...original.normals.slice(offset,offset+3));
+      data.uvs.push(0,0);
+    }
+    data.indices.push(remap.get(index));
+  }
+  data.applyToMesh(stems);
+  stems.material = source.material;
+  stems.sideOrientation = source.sideOrientation;
+  return stems;
+}
+
+export function createEditorPlants(scene, sources, glass, shadows, heightAt, vessel, saved, useCopies=false) {
   const templates = new Map(), planted = new Map(), atlases = new Map();
-  const sources = new Map(specimens.map(mesh => [mesh.name,mesh]));
-  if (!useCopies) for (const mesh of specimens) mesh.setEnabled(false);
+  const byName = new Map(sources.map(mesh => [mesh.name,mesh]));
+  if (!useCopies) {
+    for (const mesh of sources) mesh.setEnabled(false);
+    prepareFoliage(scene,sources);
+  }
   for (const [kind, variety] of Object.entries(varieties)) {
-    const source = sources.get(variety.name);
-    const mesh = useCopies ? source.clone(kind+' planting template',null,true) : source;
-    if (useCopies) {
-      mesh.makeGeometryUnique();
-      mesh.setEnabled(false);
-      mesh.position.setAll(0);
-      mesh.scaling.setAll(1);
-    } else prepareFoliage(scene,[mesh]);
+    let mesh;
+    if (variety.parts) {
+      const parts = variety.parts.map(name => byName.get(name));
+      let stems;
+      if (variety.parts.includes('Petioles')) {
+        stems = fittoniaStems(byName.get('Petioles'),kind);
+        parts[parts.indexOf(byName.get('Petioles'))] = stems;
+      }
+      mesh = Mesh.MergeMeshes(parts,false,true,undefined,false,true);
+      stems?.dispose();
+    } else {
+      const source = byName.get(variety.name);
+      mesh = useCopies ? source.clone(kind+' planting template',null,true) : source;
+      if (useCopies) mesh.makeGeometryUnique();
+    }
+    mesh.name = kind+' planting template';
+    mesh.setEnabled(false);
+    mesh.parent = null;
+    mesh.position.setAll(0);
+    mesh.scaling.setAll(1);
+    mesh.geometry.useBoundingInfoFromGeometry = false;
+    mesh.refreshBoundingInfo();
     // Specimens are baked into landscape coordinates. Recenter at the stems
     // near the soil line so turning the plant keeps its roots in place.
     const {minimum,maximum} = mesh.getBoundingInfo().boundingBox;
@@ -41,6 +89,7 @@ export function createEditorPlants(scene, specimens, glass, shadows, heightAt, v
     }
     rootX /= count; rootZ /= count;
     mesh.bakeTransformIntoVertices(Matrix.Translation(-rootX,-rootY,-rootZ));
+    mesh.refreshBoundingInfo();
     const scale = variety.height/height;
     let radius = 0;
     const centered = mesh.getVerticesData(VertexBuffer.PositionKind);
