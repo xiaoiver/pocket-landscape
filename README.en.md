@@ -15,6 +15,8 @@ npm ci
 npm run build
 ```
 
+For web hosting, run `npm run build:web` and publish the contents of `dist/`, keeping `index.html` alongside `assets/`. The browser loads animal models on demand.
+
 Open the generated `index.html` in a WebGL 2 browser to explore offline. Drag to orbit, and use the scroll wheel or pinch to zoom.
 
 Select the pencil to edit a working copy of Fern Path from the current camera angle and in the same weather. On first use, a message beside the pencil shows while the tools initialize. Select the eye to view the original, then the pencil to resume your edits. With the hand tool, tap a rock, path pebble, plant or fox, then tap the ground to move it or press Delete or Backspace to remove it. Tap the original moss bed with the eraser to expose a patch of soil, then use a planting tool to replant it. Open the folder to save a named copy, reopen a previous one, or start from the original scene. Each copy is stored independently in this browser.

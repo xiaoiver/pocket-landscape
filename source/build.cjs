@@ -1,10 +1,23 @@
 const { build } = require('esbuild');
 const fs = require('node:fs');
 const path = require('node:path');
+const {createHash} = require('node:crypto');
 const {packModels, embeddedData} = require('./pack-models.cjs');
 
 const project = path.resolve(__dirname, '..');
+const online = process.argv.includes('--web');
+const output = online ? path.join(project,'dist') : project;
+
+function webChunk(id, bytes) {
+  if (bytes.length < 1024) return embeddedData(id,bytes);
+  const hash = createHash('sha256').update(bytes).digest('hex').slice(0,16);
+  const name = id+'-'+hash+'.bin';
+  fs.writeFileSync(path.join(output,'assets',name),bytes);
+  return '<script type="application/octet-stream" id="'+id+'" data-file="assets/'+name+'"></script>';
+}
+
 async function buildViewer() {
+  if (online) fs.mkdirSync(path.join(output,'assets'),{recursive:true});
   const bundle = await build({
     entryPoints: [path.join(__dirname, 'scene.js')],
     bundle: true, write: false, format: 'iife', minify: true,
@@ -31,8 +44,8 @@ async function buildViewer() {
     embeddedData('window-view', fs.readFileSync(path.join(__dirname, 'assets/window-morning.jpg'))),
     embeddedData('window-detail', fs.readFileSync(path.join(__dirname, 'assets/window-refraction.jpg'))),
     embeddedData('drop-atlas', fs.readFileSync(path.join(__dirname, 'assets/window-drop-atlas.png'))),
-    ...packModels(models), ...substrate, '<script>' + script + '</script>'].join('\n');
+    ...packModels(models,online ? webChunk : embeddedData), ...substrate, '<script>' + script + '</script>'].join('\n');
   const template = fs.readFileSync(path.join(__dirname, 'page.html'), 'utf8');
-  fs.writeFileSync(path.join(project, 'index.html'), template.replace('<!--LOADING-FOX-->', 'data:image/png;base64,' + figurine('fox','png').toString('base64')).replace('<!--ANIMALS-->', () => animals).replace('<!--APP-->', () => content));
+  fs.writeFileSync(path.join(output, 'index.html'), template.replace('<!--LOADING-FOX-->', 'data:image/png;base64,' + figurine('fox','png').toString('base64')).replace('<!--ANIMALS-->', () => animals).replace('<!--APP-->', () => content));
 }
 buildViewer().catch(error => { console.error(error); process.exitCode = 1; });
