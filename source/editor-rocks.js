@@ -32,7 +32,7 @@ export async function createEditorRocks({scene,glass,shadows,heightAt,vessel,pre
     let {x,z} = pose;
     for (let i=0;i<6;i++) {
       const top = heightAt(x,z)+height*.76;
-      const limit = Math.min(1.31,glassInnerRadiusAt(top,vesselWalls[vessel.type]))-radius-.012;
+      const limit = Math.max(0,Math.min(1.31,glassInnerRadiusAt(top,vesselWalls[vessel.type]))-radius-.012);
       const distance = Math.hypot(x,z);
       if (distance<=limit) break;
       x *= limit/distance;

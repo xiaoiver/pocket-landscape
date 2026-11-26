@@ -39,6 +39,16 @@ function checkVesselSwitch(scene,glass) {
   assert(rim.getBoundingInfo().maximum.y > 2 && rim.getBoundingInfo().maximum.x < .75);
   assert(wall.getBoundingInfo().maximum.y > 2);
   if (rear) assert.equal(rear.getBoundingInfo().maximum.y,wall.getBoundingInfo().maximum.y);
+  glass.setVessel('bowl');
+  const points=rim.getVerticesData(VertexBuffer.PositionKind);
+  let front=-Infinity,back=Infinity,frontHeight,backHeight;
+  for (let i=0;i<points.length;i+=3) {
+    if (points[i+2]>front) {front=points[i+2];frontHeight=points[i+1];}
+    if (points[i+2]<back) {back=points[i+2];backHeight=points[i+1];}
+  }
+  assert(backHeight-frontHeight>1.4,'opening faces the default view');
+  assert(wall.getBoundingInfo().maximum.x>1.43,'the belly extends beyond the heel');
+  if (rear) assert(Math.abs(rear.getBoundingInfo().maximum.y-wall.getBoundingInfo().maximum.y)<.01);
   glass.setVessel('open');
   assert.deepEqual(Array.from(rim.getVerticesData(VertexBuffer.PositionKind)),original);
   assert.equal(scene.meshes.length,count);

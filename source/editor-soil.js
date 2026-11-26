@@ -44,7 +44,7 @@ function bankRim(earth) {
   return columns.size > 2 ? [...columns.values()].sort((a,b)=>b.u-a.u) : null;
 }
 
-export function createEditorSoil(scene, mounds, restHeight, earth, inclusions) {
+export function createEditorSoil(scene, mounds, restHeight, earth, inclusions, loose) {
   const mesh = new Mesh('Editor soil', scene);
   const rimColumns = earth && bankRim(earth);
   if (earth) {
@@ -64,17 +64,29 @@ export function createEditorSoil(scene, mounds, restHeight, earth, inclusions) {
   }
   mesh.receiveShadows = true;
   let collider;
-  function surface(x,z,brushes=mounds) {
-    const level = soilLevel(brushes,x,z);
+  function baseSurface(x,z) {
+    const level = soilLevel(mounds,x,z);
     return restHeight ? Math.min(1.28,restHeight(x,z) + level-.13-.09) : level;
   }
-  function heightAt(x,z,brushes=mounds) {
-    return restHeight ? Math.max(restHeight(x,z),surface(x,z,brushes)) : surface(x,z,brushes);
+  function baseHeight(x,z) {
+    const y=baseSurface(x,z);
+    return restHeight ? Math.max(restHeight(x,z),y) : y;
+  }
+  function surface(x,z) {
+    const fill=loose.marks.length ? loose.depth(x,z) : 0;
+    if (fill<.0001) return baseSurface(x,z);
+    const y=baseHeight(x,z)+fill;
+    // Tuck the edge of the new soil below the original moss.
+    return restHeight ? Math.max(baseSurface(x,z),y-Math.max(0,.088-4*fill)) : y;
+  }
+  function heightAt(x,z) {
+    const y=surface(x,z);
+    return restHeight ? Math.max(restHeight(x,z),y) : y;
   }
   function rebuild() {
     collider?.dispose();
     collider = null;
-    mesh.setEnabled(!restHeight || mounds.length>0);
+    mesh.setEnabled(!restHeight || mounds.length>0 || loose.marks.length>0);
     if (!mesh.isEnabled()) { inclusions?.mesh.setEnabled(false); return; }
     const segments = rimColumns ? rimColumns.length-1 : 128, rings = 36, tilesPerUnit = 1.4;
     const positions = [], indices = [], uvs = [], normals = [];
@@ -154,5 +166,5 @@ export function createEditorSoil(scene, mounds, restHeight, earth, inclusions) {
     collider = createSoilCollider(mesh);
   }
   rebuild();
-  return {mesh,rebuild,heightAt};
+  return {mesh,rebuild,heightAt,baseHeight};
 }

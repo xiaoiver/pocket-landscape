@@ -1,3 +1,4 @@
+import {bowlWall,bowlEnvelope,tiltBowlMesh} from './slant-bowl.js';
 import {
   Color3, Constants, MaterialPluginBase, Mesh, MeshBuilder, PBRMaterial, RawTexture, RenderTargetTexture,
   ShaderMaterial, Texture, Vector2, Vector3, VertexData,
@@ -153,9 +154,10 @@ void main() {
 const WALL = [[1.315,.08],[1.34,.12],[1.351,.24],[1.367,1.39],[1.366,1.43]];
 export const vesselWalls = {
   open: WALL,
+  bowl: bowlEnvelope,
   bottle: [...WALL.slice(0,3),[1.368,1.23],[1.36,1.38],[1.31,1.49],[1.16,1.61],[.93,1.72],[.75,1.81],[.70,1.87],[.70,2.08]],
 };
-const INNER_WALL_INSET = .008;
+export const INNER_WALL_INSET = .008;
 
 // Same geometric profile used by the optical rear wall; does not read optical thickness.
 export function glassInnerRadiusAt(y, wall = WALL) {
@@ -175,11 +177,19 @@ const LIP = Array.from({length:21}, (_, i) => {
   return [1.365 + .021*Math.cos(a), 1.43 + .019*Math.sin(a)];
 });
 
-function profile(scene, name, shape, alphaIndex) {
+export function createVesselWall(scene,name,type,{inset=0,reverse=false,collision=false}={}) {
+  const points=(type==='bowl' ? bowlWall : vesselWalls[type]).map(([r,y])=>[r-inset,y]);
+  if (reverse) points.reverse();
+  const mesh=profile(scene,name,points,1,collision);
+  if (type==='bowl') tiltBowlMesh(mesh);
+  return mesh;
+}
+
+function profile(scene, name, shape, alphaIndex, collision=false) {
   const mesh = MeshBuilder.CreateLathe(name, {
     shape: shape.map(([r,y]) => new Vector3(r,y,0)),
-    tessellation: 160,
-    sideOrientation: Mesh.FRONTSIDE,
+    tessellation: collision ? 64 : 160,
+    sideOrientation: collision ? Mesh.DOUBLESIDE : Mesh.FRONTSIDE,
   }, scene);
   mesh.isPickable = false;
   mesh.alphaIndex = alphaIndex;
@@ -324,18 +334,19 @@ export function installGlass(scene, camera, hdr, contents, {forceLightweight = f
   let inner, vessel = 'open';
   function setVessel(next) {
     if (next === vessel) return;
-    const shape = vesselWalls[next];
+    const shape = next==='bowl' ? bowlWall : vesselWalls[next];
     const [radius,height] = shape[shape.length-1];
     const lip = LIP.map(([r,y]) => [radius + (r-1.366), height + (y-1.43)]);
-    function reshape(mesh, points) {
-      const template = profile(scene,'Glass profile template',points,0);
+    function reshape(mesh, template) {
       VertexData.ExtractFromMesh(template).applyToMesh(mesh);
       mesh.refreshBoundingInfo();
       template.dispose();
     }
-    reshape(wall,shape);
-    reshape(rim,lip);
-    if (inner) reshape(inner,shape.map(([r,y]) => [r-INNER_WALL_INSET,y]).reverse());
+    reshape(wall,createVesselWall(scene,'Outer wall template',next));
+    const lipMesh=profile(scene,'Lip template',lip,0);
+    if (next==='bowl') tiltBowlMesh(lipMesh,true);
+    reshape(rim,lipMesh);
+    if (inner) reshape(inner,createVesselWall(scene,'Inner wall template',next,{inset:INNER_WALL_INSET,reverse:true}));
     vessel = next;
   }
   // Explicitly prefer the original single-pass glass on cramped / coarse-pointer devices.

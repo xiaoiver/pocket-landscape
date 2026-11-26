@@ -31,8 +31,10 @@ header{top:max(4.6vh,env(safe-area-inset-top));left:4.2vw;z-index:2}
 @media(prefers-reduced-motion:reduce){.loading-track::after{animation:none;transform:translateX(75%)}}
 [hidden]{display:none!important}
 button{font:inherit;color:inherit;cursor:pointer}
-button:focus-visible{outline:2px solid var(--fern);outline-offset:3px}
+button:focus-visible,.repo-link:focus-visible{outline:2px solid var(--fern);outline-offset:3px}
 .controls{pointer-events:auto;width:max-content;max-width:calc(100vw - 32px)}
+.repo-link{position:fixed;top:max(4.6vh,env(safe-area-inset-top));right:max(4.2vw,env(safe-area-inset-right));width:50px;height:50px;display:grid;place-items:center;color:var(--ink);background:var(--paper);border:1px solid var(--line);border-radius:50%}
+.repo-link:hover{color:var(--fern);border-color:var(--fern)}
 .weather{display:flex;align-items:stretch;padding:3px;border:1px solid var(--line);background:var(--paper);border-radius:24px}
 .weather button{display:flex;align-items:center;justify-content:center;min-width:44px;min-height:44px;background:transparent;border:0;border-radius:22px;padding:0}
 .weather button[aria-pressed=true]{background:var(--fern);color:var(--paper)}
@@ -46,7 +48,7 @@ button:focus-visible{outline:2px solid var(--fern);outline-offset:3px}
 .animal:hover{background:#eeeee3}
 .animal img{width:64px;height:60px;object-fit:contain}
 .notice{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
-@media(max-width:650px){header{left:6vw;top:max(4vh,env(safe-area-inset-top))}}
+@media(max-width:650px){header,.repo-link{top:max(4vh,env(safe-area-inset-top))}header{left:6vw}.repo-link{right:max(6vw,env(safe-area-inset-right))}}
 @media(prefers-reduced-motion:reduce){*{transition:none!important}}
 #placement-ring{position:fixed;transform:translate(-50%,-50%);border:1.5px solid #fff3cdcf;border-radius:50%;box-shadow:0 0 0 1px #34462e65;pointer-events:none}
 .dock .icon{width:21px;height:21px}
@@ -86,6 +88,9 @@ body:not(.editing) .dock :is([data-editor-tool],#preset-trigger,#vessel-trigger,
 <div id="placement-ring" hidden aria-hidden="true"></div>
 <header>
   <div class="controls" id="controls" hidden>
+      <a class="repo-link" href="https://github.com/xiaoiver/pocket-landscape" target="_blank" rel="noopener noreferrer" aria-label="在新标签页打开 GitHub 项目仓库" data-en="Open the project on GitHub in a new tab">
+        <svg width="22" height="22" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82A7.65 7.65 0 0 1 8 3.86c.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></svg>
+      </a>
       <div class="weather" role="group" aria-label="场景光照" data-en="Scene lighting">
         <button data-weather="sun" aria-label="晨光" data-en="Morning sun" aria-pressed="true"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M5 5l2 2m10 10 2 2M5 19l2-2M17 7l2-2"/></svg></button>
         <button data-weather="rain" aria-label="雨天" data-en="Rain" aria-pressed="false"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 14a4 4 0 0 1 0-8 6 6 0 0 1 11.7.8A3.6 3.6 0 0 1 18.2 14H5ZM8 17l-1 2m6-2-1 3m6-3-1 2"/></svg></button>
@@ -125,6 +130,7 @@ body:not(.editing) .dock :is([data-editor-tool],#preset-trigger,#vessel-trigger,
       </div>
       <div class="editor-tools sheet" id="vessel-tools" role="group" aria-label="容器" data-en="Vessels" hidden>
         <button data-vessel="open" aria-label="敞口广口瓶" data-en="Open glass jar" aria-pressed="true"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><ellipse cx="12" cy="6" rx="8" ry="2.5"/><path d="M4 6v12c0 3.5 16 3.5 16 0V6"/></svg></button>
+        <button data-vessel="bowl" aria-label="斜口球形苔景缸" data-en="Slant-cut glass bowl" aria-pressed="false"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><ellipse cx="12" cy="8" rx="7" ry="3.6" transform="rotate(-23 12 8)"/><path d="M5.4 10c-2 3.6-1.6 7.8 1.6 10 1.8 1.2 8.1 1.2 10 0 4.8-3.4 4-10.5 1.4-14.3"/></svg></button>
         <button data-vessel="bottle" aria-label="软木塞收肩瓶" data-en="Corked shoulder bottle" aria-pressed="false"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M8.5 3h7v3h-7zM9 6v3c0 2-5 3-5 6v4c0 2.5 16 2.5 16 0v-4c0-3-5-4-5-6V6"/></svg></button>
         <button id="cork-toggle" aria-label="盖上软木塞" data-en="Seal the bottle" aria-pressed="false" hidden><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4h14l-2 6H7zM12 12v6m-3-3 3 3 3-3M5 21h14"/></svg></button>
       </div>
