@@ -4,8 +4,8 @@ import '@babylonjs/core/Physics/v2/physicsEngineComponent.js';
 import {installEditorCursor} from './editor-cursor.js';
 import {installEditHistory} from './edit-history.js';
 import {createEditorAnimals,maxAnimals} from './editor-animals.js';
-import {createEditorPlants, maxPlants, readPlants} from './editor-plants.js';
-import {createEditorRocks, maxRocks} from './editor-rocks.js';
+import {basePlantNames, createEditorPlants, isPlantTool, maxPlants, readPlants} from './editor-plants.js';
+import {createEditorRocks, maxRocks, rockModelNames} from './editor-rocks.js';
 import {createEditorMoss} from './editor-moss.js';
 import {editFernPath} from './fern-path-preset.js';
 import {createPresetMoss} from './preset-moss.js';
@@ -98,9 +98,12 @@ export async function openPebbleEditor(scene, glass, shadows, loadPlantedModel, 
   shadows.addShadowCaster(moss.mesh);
   shadows.addShadowCaster(soil.mesh);
   const vessel = createEditorVessel(scene,glass,shadows,layout.vessel,layout.sealed,lamp);
-  const specimens = preset?.specimens ?? await loadPlantedModel('specimen-data');
-  const plants = createEditorPlants(scene,specimens,glass,shadows,heightAt,vessel,layout.plants,Boolean(preset));
-  const rocks = await createEditorRocks({scene,glass,shadows,heightAt,vessel,preset,loadPlantedModel,saved:layout.rocks});
+  const [specimens,base] = preset ? [preset.specimens,preset.base] : await Promise.all([
+    loadPlantedModel('specimen-data'),loadPlantedModel('model-data',[...rockModelNames,...basePlantNames]),
+  ]);
+  const foliage = [...specimens,...base.filter(mesh => basePlantNames.includes(mesh.name))];
+  const plants = createEditorPlants(scene,foliage,glass,shadows,heightAt,vessel,layout.plants,Boolean(preset));
+  const rocks = createEditorRocks({scene,glass,shadows,heightAt,vessel,preset,sources:base,saved:layout.rocks});
   const authored = preset && editFernPath(preset,heightAt,restHeight,layout.edits,vessel);
   const fox = preset?.base.find(mesh => mesh.name.startsWith('Fox ·'));
   const animals = await createEditorAnimals({scene,glass,shadows,loadPlantedModel,fox,heightAt,restHeight,vessel,layout});
@@ -613,7 +616,7 @@ export async function openPebbleEditor(scene, glass, shadows, loadPlantedModel, 
         shapeSoil(()=>{overflow=loose.add(point.x,point.z,soil.baseHeight);});
         deskSoil.emit(overflow);
       } else shapeSoil(() => mounds.push([point.x,point.z]));
-    } else if (tool === 'fern' || tool === 'fittonia') {
+    } else if (isPlantTool(tool)) {
       if (plants.planted.size >= maxPlants) {
         feedback.textContent = wording('植物已满，可用橡皮擦移除。','Plant limit reached. Use the eraser to remove a plant.');
         return;
@@ -655,7 +658,7 @@ export async function openPebbleEditor(scene, glass, shadows, loadPlantedModel, 
       return;
     }
     const objects = tool === 'erase' || (tool === 'move' && !selected);
-    const planting = tool === 'rock' || tool === 'fern' || tool === 'fittonia' || tool === 'animal';
+    const planting = tool === 'rock' || isPlantTool(tool) || tool === 'animal';
     const hit = scene.pick(scene.pointerX,scene.pointerY,m => m.isEnabled() && (
       grounds.has(m) || (tool==='move' && !selected && lamp.meshes.includes(m)) || (tool==='erase' && originalMoss?.layers.includes(m)) || (!planting && !selected && stones.has(m)) ||
       (objects && (rocks.placed.has(m) || animals.placed.has(m) || (m.isPickable && plants.planted.has(m)) || authored?.pickable(m)))
