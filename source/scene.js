@@ -39,6 +39,14 @@ async function start(){
   }
   camera.fov=.34;camera.minZ=.05;camera.maxZ=400;camera.lowerBetaLimit=.35;camera.upperBetaLimit=1.48;
   camera.lowerRadiusLimit=2.1;camera.upperRadiusLimit=Math.max(17,fit()*1.3);camera.wheelDeltaPercentage=.014;camera.pinchDeltaPercentage=.009;
+  // Fade the remote tabletop to the room colour before its finite edge
+  // reaches the horizon. Keep the clear zone around the jar at every zoom.
+  scene.fogMode=Scene.FOGMODE_LINEAR;
+  scene.fogColor.set(scene.clearColor.r,scene.clearColor.g,scene.clearColor.b);
+  scene.onBeforeRenderObservable.add(()=>{
+    scene.fogStart=camera.radius+4;
+    scene.fogEnd=camera.radius+42;
+  });
   camera.attachControl(canvas,true);camera.panningSensibility=0;canvas.oncontextmenu=e=>e.preventDefault();
   const casement = await createMorningWindow(scene, camera);
   const aim = new Vector3(0,.70,0);
@@ -230,6 +238,7 @@ async function start(){
     if (night) scene.clearColor.set(.055,.075,.115,1);
     else if (raining) scene.clearColor.set(.235,.285,.33,1);
     else scene.clearColor.set(.94,.925,.88,1);
+    scene.fogColor.set(scene.clearColor.r,scene.clearColor.g,scene.clearColor.b);
     document.body.classList.toggle('rainy', raining);
     sunShadows.setDarkness(raining ? .74 : .33);
     ground.material=night ? nightDesk : floorMat;

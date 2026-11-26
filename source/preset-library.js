@@ -1,4 +1,4 @@
-import {wording} from './interface-language.js';
+import {labelButton, wording} from './interface-language.js';
 
 const prefixes = {
   'fern-path':'pocket-landscape.fern-path.v1.',
@@ -12,7 +12,7 @@ export function presetKey(id, kind='fern-path') {
   return validId(id) && Object.hasOwn(prefixes,kind) ? prefixes[kind]+id : null;
 }
 
-export function installPresetLibrary(currentSnapshot, kind='fern-path') {
+export function installPresetLibrary(currentSnapshot, kind, onDelete) {
   const trigger = document.getElementById('preset-trigger');
   const panel = document.getElementById('preset-sheet');
   const list = document.getElementById('preset-copies');
@@ -43,9 +43,7 @@ export function installPresetLibrary(currentSnapshot, kind='fern-path') {
     panel.hidden = true;
     trigger.setAttribute('aria-expanded','false');
   }
-  function show() {
-    const animal = document.getElementById('animal-trigger');
-    if (animal.getAttribute('aria-expanded')==='true') animal.click();
+  function renderCopies() {
     list.replaceChildren();
     const copies = [];
     try {
@@ -61,15 +59,42 @@ export function installPresetLibrary(currentSnapshot, kind='fern-path') {
         } catch { /* Other copies can still be opened. */ }
       }
     } catch { /* Report storage failure if a save is attempted. */ }
-    for (const copy of copies) {
-      const button = document.createElement('button');
-      button.type = 'button';
+    const template = document.getElementById('preset-copy-row');
+    for (const [index,copy] of copies.entries()) {
+      const row = template.content.firstElementChild.cloneNode(true);
+      const button = row.querySelector('.copy-name');
       button.textContent = copy.name;
       button.addEventListener('click',() => open(copy.id,copy.sceneKind));
-      list.append(button);
+      const remove = row.querySelector('.delete-copy');
+      labelButton(remove,wording('删除“'+copy.name+'”','Delete “'+copy.name+'”'));
+      remove.addEventListener('click',() => {
+        if (!window.confirm(wording('删除已保存的“'+copy.name+'”？','Delete the saved copy “'+copy.name+'”?'))) return;
+        const key = presetKey(copy.id,copy.sceneKind);
+        try { localStorage.removeItem(key); }
+        catch {
+          feedback.textContent = wording('浏览器无法删除此副本。','The browser could not delete this copy.');
+          return;
+        }
+        onDelete(key);
+        renderCopies();
+        const remaining = list.querySelectorAll('.copy-name');
+        (remaining[index] ?? remaining[index-1] ?? (name.closest('form').hidden ? original : name)).focus();
+      });
+      list.append(row);
     }
-    name.value = '';
     name.placeholder = label+' '+(copies.length+1);
+  }
+  window.addEventListener('storage',event => {
+    if (event.storageArea !== localStorage || event.newValue !== null ||
+        !Object.values(prefixes).some(prefix => event.key?.startsWith(prefix))) return;
+    onDelete(event.key);
+    if (!panel.hidden) renderCopies();
+  });
+  function show() {
+    const animal = document.getElementById('animal-trigger');
+    if (animal.getAttribute('aria-expanded')==='true') animal.click();
+    name.value = '';
+    renderCopies();
     panel.hidden = false;
     trigger.setAttribute('aria-expanded','true');
     document.getElementById('return-to-preview').focus();
