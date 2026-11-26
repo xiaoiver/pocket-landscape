@@ -247,9 +247,16 @@ export async function openPebbleEditor(scene, glass, shadows, loadPlantedModel, 
     }));
     return {drainage:preset ? undefined : true,name:layout.name,looseSoil:loose.serialize(),lamp:lampPosition,books:bookPosition,rocks:[...rocks.placed.values()],erasedMoss:originalMoss?.serialize(),animals:[...animals.placed.values()],edits:authored?.serialize(),vessel:vessel.type,sealed:vessel.sealed,mounds,patches,plants:[...plants.planted.values()],stones:pieces};
   }
-  const closeSceneMenu = installPresetLibrary(preset || slope ? snapshot : undefined,slope ? 'pebble-slope' : 'fern-path');
+  let deleted = false;
+  const closeSceneMenu = installPresetLibrary(preset || slope ? snapshot : undefined,slope ? 'pebble-slope' : 'fern-path',key => {
+    if (key !== storageKey) return;
+    deleted = true; // Suppress autosave, including the final pagehide save.
+    const url = new URL(location.href);
+    for (const param of ['mode','preset','copy']) url.searchParams.delete(param);
+    location.replace(url.href);
+  });
   function save() {
-    if (!active) return;
+    if (!active || deleted) return;
     const serialized = JSON.stringify(snapshot());
     if (serialized === lastSaved) return;
     try {
@@ -586,7 +593,7 @@ export async function openPebbleEditor(scene, glass, shadows, loadPlantedModel, 
   document.addEventListener('keydown',event => {
     if (!active || !selected || event.defaultPrevented || event.isComposing ||
         event.ctrlKey || event.metaKey || event.altKey || event.target.isContentEditable ||
-        event.target.closest?.('input,textarea,select')) return;
+        event.target.closest?.('input,textarea,select,#preset-sheet')) return;
     if (event.key === 'Delete' || event.key === 'Backspace') {
       if (selected.deskProp || event.repeat) return;
       const before = capture();

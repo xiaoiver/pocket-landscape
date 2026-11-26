@@ -68,7 +68,10 @@ body:not(.editing) .dock :is([data-editor-tool],#vessel-trigger,#editor-tools,#h
 #preset-trigger[aria-expanded=true]{background:var(--fern);color:var(--paper)}
 #preset-sheet{top:100%;right:0;left:auto;max-width:calc(100vw - 12vw)}
 #preset-sheet .icon,#preset-trigger .icon{width:21px;height:21px}
-#preset-sheet button{min-width:44px}
+#preset-sheet button{min-width:44px;min-height:44px;display:grid;place-items:center;padding:0;border:0;border-radius:50%;background:transparent;color:var(--fern)}
+#preset-sheet button:hover{background:#e8ebdf}
+#preset-sheet button:focus-visible{outline-offset:-3px}
+.preset-actions{display:flex;gap:4px;margin-bottom:6px}
 #vessel-tools,#plant-sheet,#stone-sheet{width:max-content;padding:3px;border-radius:25px}
 #plant-sheet{max-width:calc(100vw - 16px);flex-wrap:wrap;justify-content:center}
 .dock .trigger{width:44px;height:44px}
@@ -89,10 +92,13 @@ body:not(.editing) .dock :is([data-editor-tool],#vessel-trigger,#editor-tools,#h
 #editor-feedback:not(:empty){left:50%;transform:translateX(-50%);width:max-content;max-width:calc(100vw - 32px);position:absolute;bottom:calc(100% + 8px);padding:6px 12px;background:var(--paper);border-radius:8px;font-size:13px}
 #preset-sheet form{display:flex;gap:6px}
 #preset-sheet input{width:0;flex:1;min-height:44px;border:1px solid var(--line);border-radius:8px;padding:0 10px;background:transparent;color:var(--ink);font:inherit}
-#preset-sheet button{min-height:44px;background:transparent;border:0;color:var(--fern)}
-#preset-sheet button[type=submit]{width:44px;border-radius:50%;background:var(--fern);color:var(--paper)}
-#preset-copies{display:grid}
-#preset-copies button{text-align:left;overflow-wrap:anywhere}
+#preset-sheet button[type=submit]{flex:0 0 44px;height:44px;border-radius:50%;background:var(--fern);color:var(--paper)}
+#preset-copies:not(:empty){display:grid;margin-top:8px;padding-top:6px;border-top:1px solid var(--line)}
+.preset-copy{display:grid;grid-template-columns:minmax(0,1fr) 44px;align-items:center;gap:4px}
+#preset-copies .copy-name{display:block;padding:6px 8px;border-radius:8px;text-align:left;overflow-wrap:anywhere}
+#preset-copies .delete-copy{color:var(--muted)}
+#preset-copies .delete-copy:is(:hover,:focus-visible){background:#f1e5df;color:#843f31}
+#preset-copies .icon{width:17px;height:17px}
 .tool-row:not(:has([aria-expanded=true])) button[data-editor-tool=move][aria-current=true]{outline:2px solid var(--fern);outline-offset:1px}
 </style>
 </head>
@@ -108,12 +114,18 @@ body:not(.editing) .dock :is([data-editor-tool],#vessel-trigger,#editor-tools,#h
         <svg width="22" height="22" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82A7.65 7.65 0 0 1 8 3.86c.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></svg>
       </a>
       <section class="sheet" id="preset-sheet" aria-labelledby="preset-trigger" hidden>
-        <button id="return-to-preview" aria-label="返回初始场景预览" data-en="Return to the original scene preview"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg></button>
-        <button id="open-blank" aria-label="打开空瓶造景台" data-en="Open blank-jar workspace"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 10v7c0 2 4 4 9 4s9-2 9-4v-5M3 10c0 2 4 4 9 4 2 0 4-.3 5.5-.9M3 10c0-1.6 3-3.2 7-3.7M17 2v8m-4-4h8"/></svg></button>
-        <button id="new-fern-path" aria-label="从蕨间小径原景新建" data-en="Start from the original Fern Path"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9v9c0 3 16 3 16 0v-6M3 8c2 2 7 3 11 2M8 8C6 4 9 2 14 2c0 4-2 6-6 6zm9-2h5m-2.5-2.5v5"/></svg></button>
-        <button id="new-pebble-slope" aria-label="从卵石坡新建" data-en="Start from Pebble Slope"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M2 10c5 0 6 8 13 8h7M18 3v6m-3-3h6"/><ellipse cx="7" cy="8" rx="2.5" ry="2"/><path d="m16 16 2-3 3 1 1 3"/></svg></button>
+        <div class="preset-actions">
+          <button id="return-to-preview" aria-label="返回初始场景预览" data-en="Return to the original scene preview"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg></button>
+          <button id="open-blank" aria-label="打开空瓶造景台" data-en="Open blank-jar workspace"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 10v7c0 2 4 4 9 4s9-2 9-4v-5M3 10c0 2 4 4 9 4 2 0 4-.3 5.5-.9M3 10c0-1.6 3-3.2 7-3.7M17 2v8m-4-4h8"/></svg></button>
+          <button id="new-fern-path" aria-label="从蕨间小径原景新建" data-en="Start from the original Fern Path"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9v9c0 3 16 3 16 0v-6M3 8c2 2 7 3 11 2M8 8C6 4 9 2 14 2c0 4-2 6-6 6zm9-2h5m-2.5-2.5v5"/></svg></button>
+          <button id="new-pebble-slope" aria-label="从卵石坡新建" data-en="Start from Pebble Slope"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M2 10c5 0 6 8 13 8h7M18 3v6m-3-3h6"/><ellipse cx="7" cy="8" rx="2.5" ry="2"/><path d="m16 16 2-3 3 1 1 3"/></svg></button>
+        </div>
         <form><input id="preset-name" maxlength="64" aria-label="副本名称" data-en="Copy name"><button type="submit" aria-label="创建并编辑副本" data-en="Create and edit copy"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v16M4 12h16"/></svg></button></form>
         <div id="preset-copies"></div>
+        <template id="preset-copy-row"><div class="preset-copy">
+          <button type="button" class="copy-name"></button>
+          <button type="button" class="delete-copy"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13M10 10v7m4-7v7"/></svg></button>
+        </div></template>
       </section>
     </div>
       <div class="weather" role="group" aria-label="场景光照" data-en="Scene lighting">
