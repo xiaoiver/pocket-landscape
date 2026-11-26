@@ -34,21 +34,54 @@ export function createDeskSoil(scene,glass,shadows,soilMaterial,volumes) {
       if (v<1e-8) continue;
       const angle=i*2*Math.PI/spillSectors;
       const width=.10+1.26*Math.cbrt(v),r=1.345+width*.82;
-      patches.push({x:r*Math.cos(angle),z:r*Math.sin(angle),width,peak:3*v/(Math.PI*width*width)});
+      patches.push({sector:i,x:r*Math.cos(angle),z:r*Math.sin(angle),width,peak:3*v/(Math.PI*width*width)});
     }
     pile.setEnabled(Boolean(patches.length));
     if (!patches.length) return;
     // A single continuous surface where neighboring deposits run together.
     const positions=[],indices=[],uvs=[],normals=[],vertices=new Map();
-    const spacing=.029;
+    const spacing=.029, edgeHeight=.0025;
+    // Clip to an actual height contour. Drawing complete cells outside the
+    // deposit leaves square steps and almost coplanar faces on the tabletop.
+    const crossings=new Map();
+    function point(x,y,z) {
+      const index=positions.length/3;
+      positions.push(x,y,z);uvs.push(x*.95,z*.95);
+      return index;
+    }
     function vertex(i,j) {
       const key=i+','+j;
       if (vertices.has(key)) return vertices.get(key);
       const x=i*spacing,z=j*spacing,h=height(x,z);
       const jitter=Math.sin(i*73.17+j*41.37)*43758.5453;
-      const y=h*(.95+.10*(jitter-Math.floor(jitter)))-.001;
-      const index=positions.length/3;
-      positions.push(x,y,z);uvs.push(x*.95,z*.95);vertices.set(key,index);return index;
+      const index=point(x,h*(.95+.10*(jitter-Math.floor(jitter))),z);
+      vertices.set(key,index);return index;
+    }
+    function crossing(a,b) {
+      const key=Math.min(a,b)+','+Math.max(a,b);
+      if (crossings.has(key)) return crossings.get(key);
+      const t=(edgeHeight-positions[3*a+1])/(positions[3*b+1]-positions[3*a+1]);
+      const x=positions[3*a]+t*(positions[3*b]-positions[3*a]);
+      const z=positions[3*a+2]+t*(positions[3*b+2]-positions[3*a+2]);
+      const edge={top:point(x,edgeHeight,z),foot:point(x,-.0005,z)};
+      crossings.set(key,edge);return edge;
+    }
+    function triangle(a,b,c) {
+      const corners=[a,b,c],above=corners.map(v=>positions[3*v+1]>edgeHeight);
+      if (above.every(Boolean)) {indices.push(a,b,c);return;}
+      if (!above.some(Boolean)) return;
+      const polygon=[];
+      let enter,exit;
+      for (let i=0;i<3;i++) {
+        const j=(i+1)%3;
+        if (above[i]) polygon.push(corners[i]);
+        if (above[i]===above[j]) continue;
+        const edge=crossing(corners[i],corners[j]);
+        polygon.push(edge.top);
+        if (above[i]) exit=edge; else enter=edge;
+      }
+      for (let i=1;i<polygon.length-1;i++) indices.push(polygon[0],polygon[i],polygon[i+1]);
+      indices.push(enter.top,exit.top,exit.foot,enter.top,exit.foot,enter.foot);
     }
     const tiles=new Set();
     for (const p of patches) {
@@ -58,7 +91,7 @@ export function createDeskSoil(scene,glass,shadows,soilMaterial,volumes) {
           if (tiles.has(key) || Math.hypot((i+.5)*spacing-p.x,(j+.5)*spacing-p.z)>1.15*p.width+spacing) continue;
           tiles.add(key);
           const a=vertex(i,j),b=vertex(i+1,j),c=vertex(i,j+1),d=vertex(i+1,j+1);
-          indices.push(a,c,b,b,c,d);
+          triangle(a,c,b);triangle(b,c,d);
         }
       }
     }
@@ -69,7 +102,7 @@ export function createDeskSoil(scene,glass,shadows,soilMaterial,volumes) {
         const r=patch.width*(.82+.34*((n*7)%13)/13);
         const x=patch.x+r*Math.cos(angle),z=patch.z+r*Math.sin(angle);
         if (Math.hypot(x,z)<1.36) continue;
-        const y=Math.max(.0005,height(x,z)),size=Math.min(.027,patch.width*(.017+.025*((n*3)%7)/7));
+        const y=Math.max(.0015,height(x,z)),size=Math.min(.027,patch.width*(.017+.025*((n*3)%7)/7));
         const tip=positions.length/3;
         positions.push(x+.14*size,y+size*.83,z);uvs.push(x*.95,z*.95);
         for (let j=0;j<5;j++) {
@@ -141,5 +174,17 @@ export function createDeskSoil(scene,glass,shadows,soilMaterial,volumes) {
     if (dirty) rebuild();
   });
   rebuild();
-  return {emit,sync};
+  function erase(point) {
+    // Remove the nearest visible deposit, including its scattered crumbs.
+    // Pending clods retain their volume until they reach the desk.
+    let nearest, distance=Infinity;
+    for (const patch of patches) {
+      const d=Math.hypot(point.x-patch.x,point.z-patch.z)/patch.width;
+      if (d<distance) {nearest=patch;distance=d;}
+    }
+    if (!nearest) return;
+    volumes[nearest.sector]=pending[nearest.sector];
+    rebuild();
+  }
+  return {mesh:pile,emit,sync,erase};
 }

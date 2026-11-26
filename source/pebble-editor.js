@@ -687,6 +687,8 @@ export async function openPebbleEditor(scene, glass, shadows, loadPlantedModel, 
       }
       patches.push([point.x,point.z]);
       moss.rebuild();
+    } else if (tool==='erase' && mesh===deskSoil.mesh) {
+      deskSoil.erase(point);
     } else if (!removeObject(item,mesh)) {
       const patch = nearestPoint(patches,point,.21);
       if (patch>=0) {
@@ -718,7 +720,7 @@ export async function openPebbleEditor(scene, glass, shadows, loadPlantedModel, 
     const objects = tool === 'erase' || (tool === 'move' && !selected);
     const planting = tool === 'rock' || isPlantTool(tool) || tool === 'animal';
     const hit = scene.pick(scene.pointerX,scene.pointerY,m => m.isEnabled() && (
-      grounds.has(m) || (tool==='move' && !selected && (lamp.meshes.includes(m) || books.meshes.includes(m))) || (tool==='erase' && originalMoss?.layers.includes(m)) || (!planting && !selected && stones.has(m)) ||
+      grounds.has(m) || (tool==='erase' && m===deskSoil.mesh) || (tool==='move' && !selected && (lamp.meshes.includes(m) || books.meshes.includes(m))) || (tool==='erase' && originalMoss?.layers.includes(m)) || (!planting && !selected && stones.has(m)) ||
       (objects && (rocks.placed.has(m) || animals.placed.has(m) || (m.isPickable && plants.planted.has(m)) || authored?.pickable(m)))
     ));
     if (hit?.pickedPoint) apply(hit.pickedPoint,hit.pickedMesh,authored?.picked(hit));
