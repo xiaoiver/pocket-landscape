@@ -1,7 +1,7 @@
 import {readModelBytes} from './embedded-model.js';
 import {installPresetEditorMode} from './preset-editor-mode.js';
 import {openPebbleEditor} from './pebble-editor.js';
-import {labelButton, localizeInterface, wording} from './interface-language.js';
+import {localizeInterface, wording} from './interface-language.js';
 import {Engine,Scene,ArcRotateCamera,Vector3,Color3,Color4,DirectionalLight,HemisphericLight,ShadowGenerator,MeshBuilder,PBRMaterial,StandardMaterial,DynamicTexture,Texture,HDRCubeTexture,ImportMeshAsync,SceneLoader} from '@babylonjs/core';
 import '@babylonjs/loaders/glTF/2.0';
 import {createDeskBooks} from './desk-books.js';
@@ -49,7 +49,7 @@ async function start(){
   const sunShadows=new ShadowGenerator(2048,sun);
   sunShadows.useContactHardeningShadow=true;sunShadows.contactHardeningLightSizeUVRatio=.075;sunShadows.filteringQuality=ShadowGenerator.QUALITY_MEDIUM;sunShadows.bias=.0005;sunShadows.normalBias=.003;
   sunShadows.setDarkness(.33);sun.shadowFrustumSize=5.3;
-  const books=createDeskBooks(scene);
+  const books=createDeskBooks(scene,await loadPlantedModel('book-data'),casement);
   const lamp=createDeskLamp(scene,casement,books);
   for (const mesh of lamp.meshes) sunShadows.addShadowCaster(mesh,false);
   const shadows = {
@@ -62,9 +62,9 @@ async function start(){
       lamp.shadows.removeShadowCaster(mesh,descendants);
     },
   };
-  for (const book of books) shadows.addShadowCaster(book,false);
+  for (const book of books.meshes) shadows.addShadowCaster(book,false);
   const ground=MeshBuilder.CreateGround('Paper tabletop',{width:350,height:350},scene);ground.receiveShadows=true;
-  const desk = {lamp,table:ground};
+  const desk = {lamp,books,table:ground};
   const floorMat=new StandardMaterial('Warm stone',scene);floorMat.specularColor=Color3.Black();floorMat.disableLighting=false;
   // Leave headroom for the sunlit surface and its PCF shadows.
   floorMat.diffuseColor.setAll(.66);
@@ -88,6 +88,8 @@ async function start(){
   nightDesk.albedoTexture=texture;
   nightDesk.albedoColor=new Color3(.36,.34,.31);
   nightDesk.roughness=.94;nightDesk.metallic=0;
+  // Keep diffuse room fill on the paper without mirroring the studio lights at grazing angles.
+  nightDesk.metallicF0Factor=0;
   const hdr=new HDRCubeTexture('data:application/octet-stream;base64,'+document.getElementById('studio-data').textContent,scene,64,false,true,false,false);
   scene.environmentTexture=hdr;scene.environmentIntensity=.42;
   const query = new URLSearchParams(location.search);
@@ -110,11 +112,8 @@ async function start(){
   let mist;
   installWeather(setLighting);
   if (editorMode && !editingPreset) {
-    const modeButton = document.getElementById('editor-trigger');
-    modeButton.dataset.editing = '';
     document.body.classList.add('editing');
-    labelButton(modeButton,wording('返回成品景观','Return to the planted terrarium'));
-    modeButton.addEventListener('click',() => {
+    document.getElementById('return-to-preview').addEventListener('click',() => {
       const url = new URL(location.href);
       for (const key of ['mode','preset','copy']) url.searchParams.delete(key);
       location.assign(url.href);
@@ -123,7 +122,7 @@ async function start(){
     camera.alpha = homeAlpha;
     camera.beta = 1.02;
     camera.radius = fit();
-    glass = installGlass(scene,camera,hdr,[ground,...casement.meshes,...books,...lamp.meshes],{forceLightweight,sunlight:sun,layers});
+    glass = installGlass(scene,camera,hdr,[ground,...casement.meshes,...books.meshes,...lamp.meshes],{forceLightweight,sunlight:sun,layers});
     await openPebbleEditor(scene,glass,shadows,loadPlantedModel,desk);
     engine.runRenderLoop(() => {glass.update();scene.render();});
     await scene.whenReadyAsync();
@@ -197,7 +196,7 @@ async function start(){
   const mossBranchlets=!hasModelledMoss && !mossPad && installMossBranchlets(scene,
     base.filter(mesh=>mesh.name.startsWith('Cushion moss ')),
     pathStones,sun);
-  glass = installGlass(scene, camera, hdr, [ground, ...casement.meshes, ...books, ...lamp.meshes, ...base, ...specimens, ...(drainage ? [drainage.gravel] : []), ...(mossBranchlets ? [mossBranchlets] : []), ...(mossPad?.meshes ?? [])], {
+  glass = installGlass(scene, camera, hdr, [ground, ...casement.meshes, ...books.meshes, ...lamp.meshes, ...base, ...specimens, ...(drainage ? [drainage.gravel] : []), ...(mossBranchlets ? [mossBranchlets] : []), ...(mossPad?.meshes ?? [])], {
     forceLightweight, sunlight:sun, layers, animateDrops:!matchMedia('(prefers-reduced-motion: reduce)').matches,
   });
   mist = createMossMist(scene, !glass.highQuality);

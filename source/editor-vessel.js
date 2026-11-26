@@ -45,7 +45,7 @@ function makeStopper(scene) {
   return cork;
 }
 
-export function createEditorVessel(scene, glass, shadows, initialType, initiallySealed, lamp) {
+export function createEditorVessel(scene, glass, shadows, initialType, initiallySealed, lamp, books) {
   const cork = makeStopper(scene);
   shadows.addShadowCaster(cork);
   glass.addContents?.([cork]);
@@ -54,8 +54,10 @@ export function createEditorVessel(scene, glass, shadows, initialType, initially
     return Math.hypot(x-cork.position.x,z-cork.position.z)>corkTopRadius+.405+.02;
   }
   function parkCork() {
-    cork.position.set(parkedX,corkHeight/2,.53);
-    if (!clearsParkedCork(lamp.position.x,lamp.position.z)) cork.position.x=-parkedX;
+    for (const [x,z] of [[parkedX,.53],[-parkedX,.53],[0,parkedX],[0,-parkedX]]) {
+      cork.position.set(x,corkHeight/2,z);
+      if (clearsParkedCork(lamp.position.x,lamp.position.z) && books.clearsCircle(x,z,corkTopRadius)) break;
+    }
   }
   function setSealed(value) {
     sealed = type === 'bottle' && value;
@@ -80,5 +82,11 @@ export function createEditorVessel(scene, glass, shadows, initialType, initially
     setSealed(close);
   }
   setType(initialType,initiallySealed);
-  return {setType,setSealed,parkCork,canPlaceLamp(x,z) {return type!=='bottle' || sealed || clearsParkedCork(x,z);},get type(){return type;},get sealed(){return sealed;}};
+  function canPlaceBooks(x,z) {
+    return type!=='bottle' || sealed || books.clearsCircle(cork.position.x,cork.position.z,corkTopRadius,x,z);
+  }
+  function canPlaceLamp(x,z) {
+    return type!=='bottle' || sealed || clearsParkedCork(x,z);
+  }
+  return {setType,setSealed,parkCork,canPlaceBooks,canPlaceLamp,get type(){return type;},get sealed(){return sealed;}};
 }

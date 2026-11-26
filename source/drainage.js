@@ -110,7 +110,7 @@ function roundedStone() {
   return {points,faces};
 }
 
-function stones(scene, pathMaterial) {
+export function createDrainageGravel(scene, pathMaterial) {
   const random=random01(0xa930573d);
   const range=(a,b)=>a+(b-a)*random();
   const positions=[],colors=[],indices=[],uvs=[],contacts=[];
@@ -199,7 +199,7 @@ export function installDrainage(scene, earth, pathMaterial) {
   if(!earth) return undefined;
   const soil=prepareSoil(earth);
   if(!soil) return undefined;
-  const stonesState=stones(scene,pathMaterial),gravel=stonesState.mesh;
+  const stonesState=createDrainageGravel(scene,pathMaterial),gravel=stonesState.mesh;
   const contact=soil.compute(stonesState.contacts);
   gravel.setEnabled(false);
   return {gravel,setEnabled(active) {
