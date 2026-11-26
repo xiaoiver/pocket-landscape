@@ -23,7 +23,7 @@ function embeddedData(id, bytes) {
   return '<script type="application/octet-stream" id="' + id + '">' + bytes.toString('base64') + '</script>';
 }
 
-function packModels(models) {
+function packModels(models, emitChunk = embeddedData) {
   const entries = Object.entries(models).map(([id,glb]) => ({id,glb,images:imageRanges(glb)}));
   const counts = new Map();
   for (const {images} of entries) {
@@ -32,7 +32,7 @@ function packModels(models) {
 
   const scripts = [], shared = new Map();
   function chunk(id,bytes) {
-    scripts.push(embeddedData(id,gzipSync(bytes)));
+    scripts.push(emitChunk(id,gzipSync(bytes)));
     return id;
   }
   for (const {id,glb,images} of entries) {

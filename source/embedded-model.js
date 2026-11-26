@@ -1,6 +1,17 @@
 async function unpack(element) {
-  const bytes = Uint8Array.from(atob(element.textContent.trim()),ch => ch.charCodeAt(0));
-  const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'));
+  let body;
+  if (element.dataset.file) {
+    // The hosted page also has an extensionless URL without a trailing slash.
+    const base = new URL(location.href);
+    if (!base.pathname.endsWith('/') && !base.pathname.endsWith('/index.html')) base.pathname += '/';
+    const response = await fetch(new URL(element.dataset.file,base));
+    if (!response.ok) throw new Error('Could not load '+element.id+' (HTTP '+response.status+')');
+    body = response.body;
+  } else {
+    const bytes = Uint8Array.from(atob(element.textContent.trim()),ch => ch.charCodeAt(0));
+    body = new Blob([bytes]).stream();
+  }
+  const stream = body.pipeThrough(new DecompressionStream('gzip'));
   return new Response(stream).arrayBuffer();
 }
 

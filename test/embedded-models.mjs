@@ -23,3 +23,25 @@ globalThis.document = {getElementById:id => elements.get(id)};
 for (const [id,glb] of Object.entries(models)) {
   assert(Buffer.from(await readModelBytes(id)).equals(glb),id+' must round-trip byte for byte');
 }
+
+// The public route is served without a trailing slash. Loading one figurine
+// must neither request the other models nor keep a failed download cached.
+const files = new Map();
+const requested = [];
+for (const script of packModels(models,(id,bytes) => {
+  const file = 'assets/'+id+'.bin';
+  files.set('/experiences/pocket-landscape/'+file,bytes);
+  return '<script type="application/octet-stream" id="'+id+'" data-file="'+file+'"></script>';
+})) {
+  const [,id,parts,file] = script.match(/id="([^"]+)"(?: data-parts="([^"]+)")?(?: data-file="([^"]+)")?/);
+  elements.set(id,{id,dataset:{parts,file}});
+}
+globalThis.location = new URL('https://example.test/experiences/pocket-landscape?mode=build');
+globalThis.fetch = async url => {
+  requested.push(url.pathname);
+  const bytes = files.get(url.pathname);
+  return bytes && requested.length > 1 ? new Response(bytes) : new Response(null,{status:404});
+};
+await assert.rejects(readModelBytes('animal-deer'),/HTTP 404/);
+assert(Buffer.from(await readModelBytes('animal-deer')).equals(models['animal-deer']));
+assert.deepEqual(requested,Array(2).fill('/experiences/pocket-landscape/assets/animal-deer.bin'));

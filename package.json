@@ -2,7 +2,8 @@
   "name": "pocket-landscape-woodland",
   "private": true,
   "scripts": {
-    "build": "node source/build.cjs"
+    "build": "node source/build.cjs",
+    "build:web": "node source/build.cjs --web"
   },
   "dependencies": {
     "@babylonjs/core": "9.37.1",
