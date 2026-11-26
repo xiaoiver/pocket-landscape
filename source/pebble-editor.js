@@ -13,7 +13,8 @@ import {samplePresetGround} from './preset-ground.js';
 import {installPresetLibrary} from './preset-library.js';
 import {createSoilInclusions} from './soil-inclusions.js';
 import {softenPebbleGloss} from './pebble-material.js';
-import {createEditorSoil, createSoilCollider} from './editor-soil.js';
+import {createDrainageGravel} from './drainage.js';
+import {blankDrainageLift, createEditorSoil, createSoilCollider} from './editor-soil.js';
 import {createLooseSoil} from './loose-soil.js';
 import {createDeskSoil} from './desk-soil.js';
 import {createEditorVessel} from './editor-vessel.js';
@@ -40,11 +41,11 @@ function readLayout(storageKey) {
     const saved = JSON.parse(localStorage.getItem(storageKey));
     if (saved && typeof saved === 'object') {
       return {
-        name:saved.name, looseSoil:saved.looseSoil, lamp:saved.lamp, rocks:saved.rocks, edits:saved.edits, animals:saved.animals, erasedMoss:saved.erasedMoss,
+        drainage:saved.drainage, name:saved.name, looseSoil:saved.looseSoil, lamp:saved.lamp, books:saved.books, rocks:saved.rocks, edits:saved.edits, animals:saved.animals, erasedMoss:saved.erasedMoss,
         vessel:Object.hasOwn(vesselWalls,saved.vessel) ? saved.vessel : 'open', sealed:saved.sealed === true,
         plants:readPlants(saved.plants), mounds:readPoints(saved.mounds,maxMounds), patches:readPoints(saved.patches,maxPatches),
         stones:(Array.isArray(saved.stones) ? saved.stones : []).slice(0,maxStones).filter(s => tuple(s?.p,3) && Math.hypot(s.p[0],s.p[2])<1.38 &&
-          s.p[1]>0 && s.p[1]<2 && tuple(s.q,4) && tuple(s.r,3) && s.r.every(n=>n>=.004 && n<=.1) &&
+          s.p[1]>0 && s.p[1]<(storageKey===blankKey && saved.drainage ? 2+blankDrainageLift : 2) && tuple(s.q,4) && tuple(s.r,3) && s.r.every(n=>n>=.004 && n<=.1) &&
           Number.isInteger(s.t) && s.t>=0 && s.t<tones.length),
       };
     }
@@ -59,9 +60,17 @@ export async function openPebbleEditor(scene, glass, shadows, loadPlantedModel, 
   scene.enablePhysics(new Vector3(0,-8,0),new HavokPlugin(true,havok));
   scene.getPhysicsEngine().setSubTimeStep(1000/90);
   const layout = readLayout(storageKey);
-  const {lamp,table} = desk;
-  let lampPosition = tuple(layout.lamp,2) && lamp.canStandAt(...layout.lamp) ? layout.lamp : undefined;
-  if (active) lamp.positionAt(lampPosition);
+  const {lamp,books,table} = desk;
+  let bookPosition=tuple(layout.books,2) && books.canStandAt(...layout.books) ? layout.books : undefined;
+  // Older layouts could leave the lamp where the books now stand by default.
+  if (!layout.books && tuple(layout.lamp,2) && !lamp.canStandAt(...layout.lamp,books.home) &&
+      lamp.canStandAt(...layout.lamp,[-2.13,-1.95])) bookPosition=[-2.13,-1.95];
+  let lampPosition=tuple(layout.lamp,2) && lamp.canStandAt(...layout.lamp,bookPosition ?? books.home) ? layout.lamp : undefined;
+  if (!lampPosition && bookPosition && !books.clearsCircle(lamp.position.x,lamp.position.z,.405,...bookPosition)) bookPosition=undefined;
+  if (active) {
+    books.positionAt(bookPosition);
+    lamp.positionAt(lampPosition);
+  }
   if (preset && !layout.name) layout.name = wording('蕨间小径','Fern Path');
   const {mounds, patches, stones:saved} = layout;
   const restHeight = preset && samplePresetGround(preset.grounds);
@@ -83,6 +92,18 @@ export async function openPebbleEditor(scene, glass, shadows, loadPlantedModel, 
     glass.addContents?.([inclusions.mesh]);
     shadows.addShadowCaster(inclusions.mesh);
   }
+  if (!preset) {
+    const {mesh:gravel} = createDrainageGravel(scene);
+    softenPebbleGloss(gravel.material);
+    shadows.addShadowCaster(gravel);
+    glass.addContents?.([gravel]);
+    // Legacy blank layouts stored pebble poses in world coordinates.
+    if (!layout.drainage) {
+      for (const stone of saved) {
+        if (stone.support || stone.p[1]<soil.heightAt(stone.p[0],stone.p[2])) stone.p[1]+=blankDrainageLift;
+      }
+    }
+  }
   const heightAt = soil.heightAt;
   const grounds = new Set([soil.mesh,...(preset?.grounds ?? [])]);
   if (preset) {
@@ -97,7 +118,7 @@ export async function openPebbleEditor(scene, glass, shadows, loadPlantedModel, 
   glass.addContents?.([soil.mesh,moss.mesh]);
   shadows.addShadowCaster(moss.mesh);
   shadows.addShadowCaster(soil.mesh);
-  const vessel = createEditorVessel(scene,glass,shadows,layout.vessel,layout.sealed,lamp);
+  const vessel = createEditorVessel(scene,glass,shadows,layout.vessel,layout.sealed,lamp,books);
   const [specimens,base] = preset ? [preset.specimens,preset.base] : await Promise.all([
     loadPlantedModel('specimen-data'),loadPlantedModel('model-data',[...rockModelNames,...basePlantNames]),
   ]);
@@ -211,9 +232,9 @@ export async function openPebbleEditor(scene, glass, shadows, loadPlantedModel, 
       p:mesh.position.asArray(),q:mesh.rotationQuaternion.asArray(),r:s.r,t:s.t,support:keys.get(s.support),
       ...(withMotion && !s.support ? {velocity:s.physics.body.getLinearVelocity().asArray(),spin:s.physics.body.getAngularVelocity().asArray()} : {}),
     }));
-    return {name:layout.name,looseSoil:loose.serialize(),lamp:lampPosition,rocks:[...rocks.placed.values()],erasedMoss:originalMoss?.serialize(),animals:[...animals.placed.values()],edits:authored?.serialize(),vessel:vessel.type,sealed:vessel.sealed,mounds,patches,plants:[...plants.planted.values()],stones:pieces};
+    return {drainage:preset ? undefined : true,name:layout.name,looseSoil:loose.serialize(),lamp:lampPosition,books:bookPosition,rocks:[...rocks.placed.values()],erasedMoss:originalMoss?.serialize(),animals:[...animals.placed.values()],edits:authored?.serialize(),vessel:vessel.type,sealed:vessel.sealed,mounds,patches,plants:[...plants.planted.values()],stones:pieces};
   }
-  installPresetLibrary(preset ? snapshot : undefined);
+  const closeSceneMenu = installPresetLibrary(preset ? snapshot : undefined);
   function save() {
     if (!active) return;
     const serialized = JSON.stringify(snapshot());
@@ -239,6 +260,8 @@ export async function openPebbleEditor(scene, glass, shadows, loadPlantedModel, 
   const history = installEditHistory(capture,serialized => {
     select(null);
     const next = JSON.parse(serialized);
+    bookPosition=next.books;
+    books.positionAt(bookPosition);
     lampPosition=next.lamp;
     lamp.positionAt(lampPosition);
     for (const mesh of stones.keys()) removeStone(mesh);
@@ -394,8 +417,8 @@ export async function openPebbleEditor(scene, glass, shadows, loadPlantedModel, 
   const ring = document.getElementById('placement-ring');
   scene.onAfterRenderObservable.add(() => {
     if (!selected) return;
-    const [x,z] = selected.lamp ? [lamp.position.x,lamp.position.z] : selected.item ? authored.location(selected.item) : [selected.mesh.position.x,selected.mesh.position.z];
-    const center = new Vector3(x,selected.lamp ? .115 : heightAt(x,z)+.02,z);
+    const [x,z] = selected.deskProp ? [selected.deskProp.position.x,selected.deskProp.position.z] : selected.item ? authored.location(selected.item) : [selected.mesh.position.x,selected.mesh.position.z];
+    const center = new Vector3(x,selected.deskProp ? (selected.deskProp===books ? books.height : .115) : heightAt(x,z)+.02,z);
     const engine=scene.getEngine(), camera=scene.activeCamera;
     const view=camera.viewport.toGlobal(engine.getRenderWidth(),engine.getRenderHeight());
     const screen=Vector3.Project(center,Matrix.IdentityReadOnly,scene.getTransformMatrix(),view);
@@ -415,7 +438,7 @@ export async function openPebbleEditor(scene, glass, shadows, loadPlantedModel, 
     ring.hidden = !target;
     move.setAttribute('aria-current',String(Boolean(target)));
     feedback.textContent = '';
-    document.getElementById('move-notice').textContent = target?.lamp ? wording('点选桌面放置台灯','Tap the tabletop to place the lamp') : target ? wording('点选落点，或按 Delete / Backspace 删除','Tap a destination, or press Delete / Backspace to remove') : '';
+    document.getElementById('move-notice').textContent = target?.deskProp ? (target.deskProp===books ? wording('点选桌面放置书摞','Tap the tabletop to place the books') : wording('点选桌面放置台灯','Tap the tabletop to place the lamp')) : target ? wording('点选落点，或按 Delete / Backspace 删除','Tap a destination, or press Delete / Backspace to remove') : '';
   }
   const buttons = [...document.querySelectorAll('[data-editor-tool]')];
   const canvas = scene.getEngine().getRenderingCanvas();
@@ -534,7 +557,7 @@ export async function openPebbleEditor(scene, glass, shadows, loadPlantedModel, 
         event.ctrlKey || event.metaKey || event.altKey || event.target.isContentEditable ||
         event.target.closest?.('input,textarea,select')) return;
     if (event.key === 'Delete' || event.key === 'Backspace') {
-      if (selected.lamp || event.repeat) return;
+      if (selected.deskProp || event.repeat) return;
       const before = capture();
       if (!removeObject(selected.item,selected.mesh)) return;
       event.preventDefault();
@@ -553,7 +576,8 @@ export async function openPebbleEditor(scene, glass, shadows, loadPlantedModel, 
   async function apply(point, mesh, item) {
     feedback.textContent = '';
     if (tool === 'move' && !selected) {
-      if (lamp.meshes.includes(mesh)) select({lamp:true});
+      if (lamp.meshes.includes(mesh)) select({deskProp:lamp});
+      else if (books.meshes.includes(mesh)) select({deskProp:books});
       else if (item || rocks.placed.has(mesh) || plants.planted.has(mesh) || animals.placed.has(mesh) || stones.has(mesh)) select({item,mesh});
       return;
     }
@@ -569,13 +593,19 @@ export async function openPebbleEditor(scene, glass, shadows, loadPlantedModel, 
     }
     const before = capture();
     if (tool === 'move') {
-      if (selected.lamp) {
-        if (mesh!==table || !lamp.canStandAt(point.x,point.z) || !vessel.canPlaceLamp(point.x,point.z)) {
+      if (selected.deskProp) {
+        const {x,z}=point;
+        const clear = selected.deskProp===books
+          ? books.canStandAt(x,z) && books.clearsCircle(lamp.position.x,lamp.position.z,.405,x,z) && vessel.canPlaceBooks(x,z)
+          : lamp.canStandAt(x,z) && vessel.canPlaceLamp(x,z);
+        if (mesh!==table || !clear) {
           feedback.textContent=wording('请点瓶旁空出的桌面','Tap a clear spot on the tabletop beside the jar.');
           return;
         }
-        lampPosition=[point.x,point.z];
-        lamp.positionAt(lampPosition);
+        const position=[x,z];
+        if (selected.deskProp===books) bookPosition=position;
+        else lampPosition=position;
+        selected.deskProp.positionAt(position);
       } else if (selected.item) authored.move(selected.item,point.x,point.z);
       else if (rocks.placed.has(selected.mesh)) {
         const pose = rocks.placed.get(selected.mesh);
@@ -651,16 +681,16 @@ export async function openPebbleEditor(scene, glass, shadows, loadPlantedModel, 
   }
   scene.onPointerObservable.add(() => {
     if (!active) return;
-    if (selected?.lamp) {
+    if (selected?.deskProp) {
       const hit = scene.pick(scene.pointerX,scene.pointerY,m => m.isEnabled() && m.isVisible &&
-        (m===table || grounds.has(m) || m.isPickable || lamp.meshes.includes(m)));
+        (m===table || grounds.has(m) || m.isPickable || lamp.meshes.includes(m) || books.meshes.includes(m)));
       if (hit?.pickedPoint) apply(hit.pickedPoint,hit.pickedMesh);
       return;
     }
     const objects = tool === 'erase' || (tool === 'move' && !selected);
     const planting = tool === 'rock' || isPlantTool(tool) || tool === 'animal';
     const hit = scene.pick(scene.pointerX,scene.pointerY,m => m.isEnabled() && (
-      grounds.has(m) || (tool==='move' && !selected && lamp.meshes.includes(m)) || (tool==='erase' && originalMoss?.layers.includes(m)) || (!planting && !selected && stones.has(m)) ||
+      grounds.has(m) || (tool==='move' && !selected && (lamp.meshes.includes(m) || books.meshes.includes(m))) || (tool==='erase' && originalMoss?.layers.includes(m)) || (!planting && !selected && stones.has(m)) ||
       (objects && (rocks.placed.has(m) || animals.placed.has(m) || (m.isPickable && plants.planted.has(m)) || authored?.pickable(m)))
     ));
     if (hit?.pickedPoint) apply(hit.pickedPoint,hit.pickedMesh,authored?.picked(hit));
@@ -682,6 +712,8 @@ export async function openPebbleEditor(scene, glass, shadows, loadPlantedModel, 
   return {setActive(value) {
     if (active && !value) {save();deskSoil.sync();}
     active = value;
+    closeSceneMenu();
+    books.positionAt(value ? bookPosition : undefined);
     lamp.positionAt(value ? lampPosition : undefined);
     if (value && !vessel.sealed) vessel.parkCork();
     select(null);

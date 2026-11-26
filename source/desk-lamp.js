@@ -55,14 +55,10 @@ export function createDeskLamp(scene,casement,books) {
     enamel.emissiveColor.set(on ? .022 : 0,on ? .021 : 0,on ? .014 : 0);
   }
   setLit(false);
-  function canStandAt(x,z) {
+  function canStandAt(x,z,bookPosition) {
     const distance = Math.hypot(x,z);
     if (distance<1.85 || distance>=light.range || casement.distanceFromWall(x,z)<=.55) return false;
-    return books.every(mesh => {
-      const {minimumWorld:min,maximumWorld:max}=mesh.getBoundingInfo().boundingBox;
-      const dx=Math.max(min.x-x,0,x-max.x), dz=Math.max(min.z-z,0,z-max.z);
-      return Math.hypot(dx,dz)>.405;
-    });
+    return books.clearsCircle(x,z,.405,...(bookPosition ?? []));
   }
   function positionAt(point) {
     const [x,z] = point ?? [home.x,home.z];

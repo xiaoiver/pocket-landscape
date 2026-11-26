@@ -20,12 +20,13 @@ async function buildViewer() {
   const animals = Object.entries(animalNames).map(([id, [label, english]]) =>
     '<button class="animal" data-animal="'+id+'" aria-label="'+label+'" data-en="'+english+'" aria-pressed="'+(id==='fox')+'"><img alt="" src="data:image/png;base64,'+
     figurine(id,'png').toString('base64')+'"></button>').join('');
-  const models = {'model-data':model, 'specimen-data':specimens};
+  const models = {'model-data':model, 'specimen-data':specimens, 'book-data':fs.readFileSync(path.join(__dirname,'assets/desk-books.glb'))};
   for (const id of Object.keys(animalNames)) models['animal-'+id] = figurine(id,'glb');
   const script = bundle.outputFiles[0].text.replace(/<\/script/gi, '<\\/script');
   const havokWasm = require.resolve('@babylonjs/havok/lib/esm/HavokPhysics.wasm');
   const havokLicense = fs.readFileSync(path.resolve(path.dirname(havokWasm),'../../LICENSE'),'utf8');
-  const content = ['<!-- @babylonjs/havok\n' + havokLicense + '-->', embeddedData('studio-data', studio),
+  const bookLicense = fs.readFileSync(path.join(__dirname,'assets/irma-book-LICENSE.txt'),'utf8');
+  const content = ['<!-- irma-book binding geometry\n'+bookLicense+'-->', '<!-- @babylonjs/havok\n' + havokLicense + '-->', embeddedData('studio-data', studio),
     embeddedData('havok-wasm',fs.readFileSync(havokWasm)),
     embeddedData('window-view', fs.readFileSync(path.join(__dirname, 'assets/window-morning.jpg'))),
     embeddedData('window-detail', fs.readFileSync(path.join(__dirname, 'assets/window-refraction.jpg'))),

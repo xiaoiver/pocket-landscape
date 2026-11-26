@@ -3,13 +3,11 @@
 import {TransformNode} from '@babylonjs/core';
 import {openPebbleEditor} from './pebble-editor.js';
 import {newPresetId, presetKey} from './preset-library.js';
-import {labelButton, wording} from './interface-language.js';
+import {wording} from './interface-language.js';
 
 export function installPresetEditorMode({scene, glass, shadows, loadPlantedModel, desk, preset, onModeChange}) {
   const button = document.getElementById('editor-trigger');
   const feedback = document.getElementById('editor-feedback');
-  const enterLabel = button.getAttribute('aria-label');
-  const returnLabel = wording('返回成品景观','Return to the planted terrarium');
   const params = new URLSearchParams(location.search);
   const initialEdit = params.get('mode') === 'build';
   const copyId = initialEdit ? (presetKey(params.get('copy')) ? params.get('copy') : newPresetId()) : 'draft';
@@ -114,10 +112,17 @@ export function installPresetEditorMode({scene, glass, shadows, loadPlantedModel
     session?.(editing);
     onModeChange(editing);
     document.body.classList.toggle('editing',editing);
-    button.toggleAttribute('data-editing',editing);
-    labelButton(button,editing ? returnLabel : enterLabel);
   }
-  button.addEventListener('click',() => { writeUrl(!editing); void show(!editing); });
+  button.addEventListener('click',async () => {
+    writeUrl(true);
+    await show(true);
+    if (editing) document.querySelector('[data-editor-tool="move"]').focus();
+  });
+  document.getElementById('return-to-preview').addEventListener('click',async () => {
+    writeUrl(false);
+    await show(false);
+    button.focus();
+  });
   window.addEventListener('popstate',() => {
     const route = new URLSearchParams(location.search);
     if (route.get('mode') === 'build' && (route.get('preset') !== 'fern-path' || route.get('copy') !== copyId)) {

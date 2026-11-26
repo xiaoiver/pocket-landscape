@@ -5,6 +5,8 @@ export function createSoilCollider(mesh) {
 }
 
 const radius = 1.32;
+// The editable surface sits above the permanent gravel course in a blank jar.
+export const blankDrainageLift = .19;
 export function soilLevel(mounds, x, z) {
   let height = .13;
   for (const [cx, cz] of mounds) {
@@ -66,7 +68,7 @@ export function createEditorSoil(scene, mounds, restHeight, earth, inclusions, l
   let collider;
   function baseSurface(x,z) {
     const level = soilLevel(mounds,x,z);
-    return restHeight ? Math.min(1.28,restHeight(x,z) + level-.13-.09) : level;
+    return restHeight ? Math.min(1.28,restHeight(x,z) + level-.13-.09) : level+blankDrainageLift;
   }
   function baseHeight(x,z) {
     const y=baseSurface(x,z);
@@ -127,31 +129,39 @@ export function createEditorSoil(scene, mounds, restHeight, earth, inclusions, l
     const rim = 1+(rings-1)*segments;
     const wall = positions.length/3;
     const repeats = Math.round(2*Math.PI*radius*tilesPerUnit);
+    const rows = restHeight ? 2 : 3;
     for (let i=0; i<=segments; i++) {
       const source = 3*(rim+i%segments);
       const x = positions[source], top = positions[source+1], z = positions[source+2];
       const edge = rimColumns?.[i];
-      const bottom = edge ? Math.min(top,edge.y) : .066;
-      positions.push(x,top,z,x,bottom,z);
-      if (edge) {
-        // Continue the bank's humus grain from its last texel up the new face.
-        const vAt = y => edge.v+(y-edge.y)*edge.vPerUnit;
-        uvs.push(edge.u,vAt(top),edge.u,vAt(bottom));
+      if (restHeight) {
+        const bottom = edge ? Math.min(top,edge.y) : .066;
+        positions.push(x,top,z,x,bottom,z);
+        const vAt = y => edge ? edge.v+(y-edge.y)*edge.vPerUnit : y*tilesPerUnit;
+        const u = edge?.u ?? repeats*i/segments;
+        uvs.push(u,vAt(top),u,vAt(bottom));
       } else {
+        // Let the wall recede behind the two ranks of gravel. Keep the join
+        // fixed when the player heaps soil up against the glass.
+        const angle = 2*Math.PI*i/segments;
+        const join = .235+.018*Math.sin(5*angle)+.011*Math.cos(3*angle);
+        positions.push(x,top,z,x,join,z,x*.86,.066,z*.86);
         const u = repeats*i/segments;
-        uvs.push(u,top*tilesPerUnit,u,bottom*tilesPerUnit);
+        uvs.push(u,top*tilesPerUnit,u,join*tilesPerUnit,u,.066*tilesPerUnit);
       }
       if (i<segments && (inBrush[rim+i] || inBrush[rim+(i+1)%segments])) {
-        const a = wall+2*i;
-        indices.push(a,a+3,a+1,a,a+2,a+3);
+        for (let j=0;j<rows-1;j++) {
+          const a = wall+rows*i+j, b = a+rows;
+          indices.push(a,b+1,a+1,a,b,b+1);
+        }
       }
     }
     VertexData.ComputeNormals(positions,indices,normals,{useRightHandedSystem:true});
     // The duplicated texture seam shares the same radial normal on both sides.
     for (let i=0; i<=segments; i++) {
       const angle = 2*Math.PI*i/segments;
-      for (let j=0;j<2;j++) {
-        const k = 3*(wall+2*i+j);
+      for (let j=0;j<rows;j++) {
+        const k = 3*(wall+rows*i+j);
         const normal = rimColumns?.[i].normal;
         normals[k]=normal?.x ?? Math.cos(angle);
         normals[k+1]=normal?.y ?? 0;

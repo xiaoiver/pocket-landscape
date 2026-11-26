@@ -67,7 +67,7 @@ export function installPresetLibrary(currentSnapshot) {
     name.placeholder = label+' '+(copies.length+1);
     panel.hidden = false;
     trigger.setAttribute('aria-expanded','true');
-    (currentSnapshot ? name : original).focus();
+    document.getElementById('return-to-preview').focus();
   }
   trigger.addEventListener('click',() => panel.hidden ? show() : close());
   panel.addEventListener('submit',event => {
@@ -92,4 +92,5 @@ export function installPresetLibrary(currentSnapshot) {
     if (!panel.hidden && event.key === 'Escape') {close();trigger.focus();}
   });
   trigger.hidden = false;
+  return close;
 }
