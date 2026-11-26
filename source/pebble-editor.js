@@ -1,6 +1,7 @@
 import HavokPhysics from '@babylonjs/havok';
 import {Color3, HavokPlugin, Matrix, MeshBuilder, PBRMaterial, PhysicsAggregate, PhysicsMotionType, PhysicsShapeType, PointerEventTypes, Ray, Quaternion, Vector3} from '@babylonjs/core';
 import '@babylonjs/core/Physics/v2/physicsEngineComponent.js';
+import {installPebblePour,tapHandful} from './pebble-pour.js';
 import {installEditorCursor} from './editor-cursor.js';
 import {installEditHistory} from './edit-history.js';
 import {createEditorAnimals,maxAnimals} from './editor-animals.js';
@@ -22,7 +23,7 @@ import {glassInnerRadiusAt, vesselWalls} from './glass.js';
 import {labelButton,wording} from './interface-language.js';
 
 const blankKey = 'pocket-landscape.pebble-garden.v1';
-const maxStones = 144, maxMounds = 72, maxPatches = 48;
+const maxMounds = 72, maxPatches = 48;
 const tones = ['#a5a19a','#70675a','#b59978','#676d69','#c4b5a0','#585955'];
 const tuple = (v, length) => Array.isArray(v) && v.length === length && v.every(Number.isFinite);
 function readPoints(points, limit) {
@@ -36,7 +37,7 @@ function nearestPoint(points, point, radius) {
   });
   return nearest;
 }
-function readLayout(storageKey) {
+function readLayout(storageKey,slope) {
   try {
     const saved = JSON.parse(localStorage.getItem(storageKey));
     if (saved && typeof saved === 'object') {
@@ -44,22 +45,28 @@ function readLayout(storageKey) {
         drainage:saved.drainage, name:saved.name, looseSoil:saved.looseSoil, lamp:saved.lamp, books:saved.books, rocks:saved.rocks, edits:saved.edits, animals:saved.animals, erasedMoss:saved.erasedMoss,
         vessel:Object.hasOwn(vesselWalls,saved.vessel) ? saved.vessel : 'open', sealed:saved.sealed === true,
         plants:readPlants(saved.plants), mounds:readPoints(saved.mounds,maxMounds), patches:readPoints(saved.patches,maxPatches),
-        stones:(Array.isArray(saved.stones) ? saved.stones : []).slice(0,maxStones).filter(s => tuple(s?.p,3) && Math.hypot(s.p[0],s.p[2])<1.38 &&
-          s.p[1]>0 && s.p[1]<(storageKey===blankKey && saved.drainage ? 2+blankDrainageLift : 2) && tuple(s.q,4) && tuple(s.r,3) && s.r.every(n=>n>=.004 && n<=.1) &&
+        stones:(Array.isArray(saved.stones) ? saved.stones : []).filter(s => tuple(s?.p,3) && Math.hypot(s.p[0],s.p[2])<1.38 &&
+          s.p[1]>0 && s.p[1]<(saved.drainage ? 2+blankDrainageLift : 2) && tuple(s.q,4) && tuple(s.r,3) && s.r.every(n=>n>=.004 && n<=.1) &&
           Number.isInteger(s.t) && s.t>=0 && s.t<tones.length),
       };
     }
   } catch { /* Storage may be unavailable when browsing a local file. */ }
-  return {vessel:'open',sealed:false,mounds:[],patches:[],plants:[],stones:[]};
+  const blank = {vessel:'open',sealed:false,mounds:[],patches:[],plants:[],stones:[]};
+  if (!slope) return blank;
+  return {...blank,drainage:true,name:wording('卵石坡','Pebble Slope'),
+    mounds:[[-.66,-.48],[-.46,-.35],[-.57,-.12],[-.42,.02],[-.62,.18],[-.52,.38],[-.69,.52]],
+    patches:[[-.76,-.48],[-.82,-.34],[-.68,.47]],
+    rocks:[{scan:'06',x:.44,z:.08,yaw:.35},{scan:'03',x:.65,z:-.23,yaw:-.55}],
+  };
 }
 
-export async function openPebbleEditor(scene, glass, shadows, loadPlantedModel, desk, preset, storageKey=blankKey) {
+export async function openPebbleEditor(scene, glass, shadows, loadPlantedModel, desk, {preset,storageKey=blankKey,slope=false}={}) {
   let active = !preset;
   const wasm = Uint8Array.from(atob(document.getElementById('havok-wasm').textContent), c => c.charCodeAt(0));
   const havok = await HavokPhysics({wasmBinary:wasm, locateFile:name => new URL(name,document.baseURI).href});
   scene.enablePhysics(new Vector3(0,-8,0),new HavokPlugin(true,havok));
   scene.getPhysicsEngine().setSubTimeStep(1000/90);
-  const layout = readLayout(storageKey);
+  const layout = readLayout(storageKey,slope);
   const {lamp,books,table} = desk;
   let bookPosition=tuple(layout.books,2) && books.canStandAt(...layout.books) ? layout.books : undefined;
   // Older layouts could leave the lamp where the books now stand by default.
@@ -139,7 +146,7 @@ export async function openPebbleEditor(scene, glass, shadows, loadPlantedModel, 
   function attachStone(mesh, seated=false) {
     // Terrain edits and moves can replace the body before the next render.
     mesh.computeWorldMatrix(true);
-    const physics = new PhysicsAggregate(mesh,PhysicsShapeType.CONVEX_HULL,{mass:seated ? 0 : .05,friction:.85,restitution:0},scene);
+    const physics = new PhysicsAggregate(mesh,PhysicsShapeType.CONVEX_HULL,{mass:seated ? 0 : .05,friction:slope ? .38 : .85,restitution:0},scene);
     if (!seated) {
       physics.body.setLinearDamping(.5);
       physics.body.setAngularDamping(2);
@@ -166,6 +173,12 @@ export async function openPebbleEditor(scene, glass, shadows, loadPlantedModel, 
       let support = stone.contact;
       stone.contact = null;
       const {x,y,z} = mesh.position;
+      if (slope && y >= heightAt(x,z)-stone.r[1]) {
+        // A collision on the hillside is often the start of a roll. Only
+        // anchor a pebble after it has slowed down on a supporting body.
+        if (!support || stone.physics.body.getLinearVelocity().lengthSquared()>.0036 ||
+            stone.physics.body.getAngularVelocity().lengthSquared()>.25) continue;
+      }
       // Small chips can cross a thin soil triangle in one physics step.
       // Also recover pebbles already embedded in a restored or reshaped bed.
       if (grounds.has(support?.transformNode) || y<=heightAt(x,z)) {
@@ -234,7 +247,7 @@ export async function openPebbleEditor(scene, glass, shadows, loadPlantedModel, 
     }));
     return {drainage:preset ? undefined : true,name:layout.name,looseSoil:loose.serialize(),lamp:lampPosition,books:bookPosition,rocks:[...rocks.placed.values()],erasedMoss:originalMoss?.serialize(),animals:[...animals.placed.values()],edits:authored?.serialize(),vessel:vessel.type,sealed:vessel.sealed,mounds,patches,plants:[...plants.planted.values()],stones:pieces};
   }
-  const closeSceneMenu = installPresetLibrary(preset ? snapshot : undefined);
+  const closeSceneMenu = installPresetLibrary(preset || slope ? snapshot : undefined,slope ? 'pebble-slope' : 'fern-path');
   function save() {
     if (!active) return;
     const serialized = JSON.stringify(snapshot());
@@ -389,18 +402,19 @@ export async function openPebbleEditor(scene, glass, shadows, loadPlantedModel, 
       releaseStone(mesh,s);
     }
   }
-  function pour(point) {
-    const count = Math.min(8,maxStones-stones.size);
+  function pour(point,count=tapHandful) {
+    feedback.textContent = '';
+    const before = capture();
     for (let i=0;i<count;i++) {
       const angle = Math.random()*Math.PI*2;
       const spread = .17*Math.sqrt(Math.random());
       let x = point.x+spread*Math.cos(angle), z = point.z+spread*Math.sin(angle);
-      const height = Math.min(1.87,Math.max(point.y,heightAt(x,z))+.13+i*.043);
+      const height = Math.min(1.87,Math.max(point.y,heightAt(x,z))+.13+i/count*.344);
       const edge = glassInnerRadiusAt(height+.1,vesselWalls[vessel.type])-.09;
       const clamp = Math.min(1,edge/Math.hypot(x,z));
       x *= clamp; z *= clamp;
       // Sample across the size range in each handful, with more fine gravel.
-      const size = .014+.047*((i+Math.random())/8)**1.8;
+      const size = .014+.047*((i+Math.random())/count)**1.8;
       const minor = size*(.62+Math.random()*.30);
       createStone({
         p:[x,height,z],
@@ -409,8 +423,9 @@ export async function openPebbleEditor(scene, glass, shadows, loadPlantedModel, 
         velocity:[.1*Math.cos(angle),-.28,.1*Math.sin(angle)],spin:[Math.sin(angle)*2,1,Math.cos(angle)*2],
       });
     }
+    commit(before);
   }
-  let tool = preset ? 'move' : 'soil';
+  let tool = preset ? 'move' : slope ? 'pebbles' : 'soil';
   let selected = null;
   const move = document.querySelector('[data-editor-tool=move]');
   move.hidden = false;
@@ -442,6 +457,14 @@ export async function openPebbleEditor(scene, glass, shadows, loadPlantedModel, 
   }
   const buttons = [...document.querySelectorAll('[data-editor-tool]')];
   const canvas = scene.getEngine().getRenderingCanvas();
+  const cancelPour = installPebblePour(scene,canvas,{
+    enabled:() => active && tool==='pebbles',
+    pick:(x,y) => scene.pick(x,y,m => m.isEnabled() && (grounds.has(m) || stones.has(m)))?.pickedPoint,
+    release:pour,
+  });
+  if (slope) document.getElementById('pour-hint').textContent = wording(
+    '轻点坡面撒 8 颗，长按更多。用手形工具挪开景石再试试。',
+    'Tap the slope for 8 pebbles or hold for more. Move a rock and try again.');
   const viewLabel = canvas.getAttribute('aria-label');
   const editLabel = wording('造景台。点选土面使用当前工具，回车在中央使用。','Landscape editor. Tap the soil to use the selected tool, or press Enter at the center.');
   if (active) canvas.setAttribute('aria-label',editLabel);
@@ -473,8 +496,16 @@ export async function openPebbleEditor(scene, glass, shadows, loadPlantedModel, 
     paw.setAttribute('aria-expanded',String(open));
     for (const choice of choices) choice.setAttribute('aria-pressed',String(choice.dataset.animal===animalKind));
   }
+  function reflectPourHint() {
+    const show = active && tool==='pebbles';
+    document.getElementById('pour-hint').hidden = !show;
+    if (show) canvas.setAttribute('aria-describedby','pour-hint');
+    else canvas.removeAttribute('aria-describedby');
+  }
   function setTool(next) {
+    cancelPour();
     tool = next;
+    reflectPourHint();
     updateCursor(tool,Boolean(selected));
     for (const button of buttons) button.setAttribute('aria-pressed',String(button.dataset.editorTool===tool));
     for (const palette of palettes) palette.reflect(tool);
@@ -636,9 +667,6 @@ export async function openPebbleEditor(scene, glass, shadows, loadPlantedModel, 
     } else if (tool === 'rock') {
       if (rocks.placed.size >= maxRocks) {feedback.textContent = wording('景石已满，可用橡皮擦移除。','Rock limit reached. Use the eraser to remove one.');return;}
       rocks.place(point.x,point.z);
-    } else if (tool === 'pebbles') {
-      if (stones.size >= maxStones) {feedback.textContent = wording('卵石已满，可用橡皮擦移除。','Pebble limit reached. Use the eraser to remove some.');return;}
-      pour(point);
     } else if (tool === 'soil') {
       if (mounds.length+loose.marks.length >= maxMounds) {feedback.textContent = wording('土丘已满，可用橡皮擦移除。','Soil limit reached. Use the eraser to remove a mound.');return;}
       if (vessel.type==='bowl') {
@@ -680,7 +708,7 @@ export async function openPebbleEditor(scene, glass, shadows, loadPlantedModel, 
     commit(before);
   }
   scene.onPointerObservable.add(() => {
-    if (!active) return;
+    if (!active || tool==='pebbles') return;
     if (selected?.deskProp) {
       const hit = scene.pick(scene.pointerX,scene.pointerY,m => m.isEnabled() && m.isVisible &&
         (m===table || grounds.has(m) || m.isPickable || lamp.meshes.includes(m) || books.meshes.includes(m)));
@@ -700,6 +728,7 @@ export async function openPebbleEditor(scene, glass, shadows, loadPlantedModel, 
     if (event.key === 'Escape') {select(null);return;}
     if (event.key !== 'Enter' || event.repeat) return;
     event.preventDefault();
+    if (tool==='pebbles') {pour(new Vector3(0,heightAt(0,0),0));return;}
     const centerPlant = tool === 'erase' && [...plants.planted.keys()].reverse().find(mesh => Math.hypot(mesh.position.x,mesh.position.z)<.12);
     const centerAnimal = (tool==='move' || tool==='erase') && [...animals.placed.keys()].reverse().find(mesh => Math.hypot(mesh.position.x,mesh.position.z)<.35);
     const centerRock = (tool==='move' || tool==='erase') && [...rocks.placed.keys()].reverse().find(mesh => Math.hypot(mesh.position.x,mesh.position.z)<.18);
@@ -711,6 +740,7 @@ export async function openPebbleEditor(scene, glass, shadows, loadPlantedModel, 
   document.getElementById('editor-tools').hidden = false;
   return {setActive(value) {
     if (active && !value) {save();deskSoil.sync();}
+    cancelPour();
     active = value;
     closeSceneMenu();
     books.positionAt(value ? bookPosition : undefined);
@@ -719,6 +749,7 @@ export async function openPebbleEditor(scene, glass, shadows, loadPlantedModel, 
     select(null);
     for (const palette of palettes) palette.close();
     canvas.setAttribute('aria-label',value ? editLabel : viewLabel);
+    reflectPourHint();
     if (!value) canvas.style.removeProperty('--tool-cursor');
   }};
 }

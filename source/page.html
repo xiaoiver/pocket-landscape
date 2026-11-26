@@ -79,6 +79,12 @@ body:not(.editing) .dock :is([data-editor-tool],#vessel-trigger,#editor-tools,#h
 @media(max-width:380px){#editor-tools button{width:42px}}
 
 #history-tools{flex:none}
+#pour-preview{position:fixed;pointer-events:none;transform:translate(-50%,-50%);width:40px;height:23px;color:var(--paper)}
+#pour-preview span{display:block;position:relative;height:100%;border:1px solid #fff1ca;border-radius:50%;background:#28372380;box-shadow:0 0 0 1px #33462e80}
+#pour-preview i{position:absolute;width:4px;height:3px;transform:translate(-50%,-50%) rotate(-20deg);border-radius:55% 45% 50% 40%;background:#f1dfb9}
+#pour-preview b{position:absolute;bottom:calc(100% + 5px);left:50%;transform:translateX(-50%);padding:2px 7px;background:var(--fern);border:1px solid #f8f6edb3;border-radius:12px;font:600 12px/1.3 system-ui;font-variant-numeric:tabular-nums}
+#pour-hint{position:absolute;bottom:calc(100% + 8px);left:50%;transform:translateX(-50%);width:max-content;max-width:calc(100vw - 24px);padding:6px 12px;text-align:center;background:var(--paper);border:1px solid var(--line);border-radius:12px;font-size:13px;pointer-events:none}
+.dock:has(.sheet:not([hidden]),#editor-feedback:not(:empty)) #pour-hint{display:none}
 #editor-feedback:empty{display:none}
 #editor-feedback:not(:empty){left:50%;transform:translateX(-50%);width:max-content;max-width:calc(100vw - 32px);position:absolute;bottom:calc(100% + 8px);padding:6px 12px;background:var(--paper);border-radius:8px;font-size:13px}
 #preset-sheet form{display:flex;gap:6px}
@@ -92,6 +98,7 @@ body:not(.editing) .dock :is([data-editor-tool],#vessel-trigger,#editor-tools,#h
 </head>
 <body>
 <canvas id="garden" aria-label="玻璃微景观与陶土狐狸。拖动环绕，滚轮或双指缩放。" data-en="Glass terrarium with a clay fox. Drag to orbit and scroll or pinch to zoom." tabindex="0"></canvas>
+<div id="pour-preview" hidden aria-hidden="true"><span></span><b></b></div>
 <div id="placement-ring" hidden aria-hidden="true"></div>
 <header>
   <div class="controls" id="controls" hidden>
@@ -104,6 +111,7 @@ body:not(.editing) .dock :is([data-editor-tool],#vessel-trigger,#editor-tools,#h
         <button id="return-to-preview" aria-label="返回初始场景预览" data-en="Return to the original scene preview"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg></button>
         <button id="open-blank" aria-label="打开空瓶造景台" data-en="Open blank-jar workspace"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 10v7c0 2 4 4 9 4s9-2 9-4v-5M3 10c0 2 4 4 9 4 2 0 4-.3 5.5-.9M3 10c0-1.6 3-3.2 7-3.7M17 2v8m-4-4h8"/></svg></button>
         <button id="new-fern-path" aria-label="从蕨间小径原景新建" data-en="Start from the original Fern Path"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9v9c0 3 16 3 16 0v-6M3 8c2 2 7 3 11 2M8 8C6 4 9 2 14 2c0 4-2 6-6 6zm9-2h5m-2.5-2.5v5"/></svg></button>
+        <button id="new-pebble-slope" aria-label="从卵石坡新建" data-en="Start from Pebble Slope"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M2 10c5 0 6 8 13 8h7M18 3v6m-3-3h6"/><ellipse cx="7" cy="8" rx="2.5" ry="2"/><path d="m16 16 2-3 3 1 1 3"/></svg></button>
         <form><input id="preset-name" maxlength="64" aria-label="副本名称" data-en="Copy name"><button type="submit" aria-label="创建并编辑副本" data-en="Create and edit copy"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v16M4 12h16"/></svg></button></form>
         <div id="preset-copies"></div>
       </section>
@@ -153,6 +161,7 @@ body:not(.editing) .dock :is([data-editor-tool],#vessel-trigger,#editor-tools,#h
         <button data-vessel="bottle" aria-label="软木塞收肩瓶" data-en="Corked shoulder bottle" aria-pressed="false"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M8.5 3h7v3h-7zM9 6v3c0 2-5 3-5 6v4c0 2.5 16 2.5 16 0v-4c0-3-5-4-5-6V6"/></svg></button>
         <button id="cork-toggle" aria-label="盖上软木塞" data-en="Seal the bottle" aria-pressed="false" hidden><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4h14l-2 6H7zM12 12v6m-3-3 3 3 3-3M5 21h14"/></svg></button>
       </div>
+      <span id="pour-hint" hidden data-en="Tap for 8 pebbles. Hold for more, then release.">轻点撒 8 颗，按住增加，松手撒下。</span>
       <span class="notice" id="move-notice" role="status"></span>
       <span id="editor-feedback" role="status"></span>
       <section class="sheet" id="animal-sheet" aria-labelledby="animal-trigger" hidden>

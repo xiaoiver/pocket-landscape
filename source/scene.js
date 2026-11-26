@@ -1,4 +1,5 @@
 import {readModelBytes} from './embedded-model.js';
+import {presetKey} from './preset-library.js';
 import {installPresetEditorMode} from './preset-editor-mode.js';
 import {openPebbleEditor} from './pebble-editor.js';
 import {localizeInterface, wording} from './interface-language.js';
@@ -123,7 +124,9 @@ async function start(){
     camera.beta = 1.02;
     camera.radius = fit();
     glass = installGlass(scene,camera,hdr,[ground,...casement.meshes,...books.meshes,...lamp.meshes],{forceLightweight,sunlight:sun,layers});
-    await openPebbleEditor(scene,glass,shadows,loadPlantedModel,desk);
+    const slope = query.get('preset')==='pebble-slope';
+    const key = slope ? presetKey(query.get('copy'),'pebble-slope') || presetKey('draft','pebble-slope') : undefined;
+    await openPebbleEditor(scene,glass,shadows,loadPlantedModel,desk,{storageKey:key,slope});
     engine.runRenderLoop(() => {glass.update();scene.render();});
     await scene.whenReadyAsync();
     document.getElementById('controls').hidden = false;
