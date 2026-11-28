@@ -10,6 +10,8 @@ import {createEditorRocks, maxRocks, rockModelNames} from './editor-rocks.js';
 import {createEditorMoss} from './editor-moss.js';
 import {editFernPath} from './fern-path-preset.js';
 import {createPresetMoss} from './preset-moss.js';
+import {measureRoute,readRoute} from './path-route.js';
+import {installPathTool} from './path-tool.js';
 import {samplePresetGround} from './preset-ground.js';
 import {installPresetLibrary} from './preset-library.js';
 import {createSoilInclusions} from './soil-inclusions.js';
@@ -42,7 +44,7 @@ function readLayout(storageKey,slope) {
     const saved = JSON.parse(localStorage.getItem(storageKey));
     if (saved && typeof saved === 'object') {
       return {
-        drainage:saved.drainage, name:saved.name, looseSoil:saved.looseSoil, lamp:saved.lamp, books:saved.books, rocks:saved.rocks, edits:saved.edits, animals:saved.animals, erasedMoss:saved.erasedMoss,
+        drainage:saved.drainage, name:saved.name, route:readRoute(saved.route), looseSoil:saved.looseSoil, lamp:saved.lamp, books:saved.books, rocks:saved.rocks, edits:saved.edits, animals:saved.animals, erasedMoss:saved.erasedMoss,
         vessel:Object.hasOwn(vesselWalls,saved.vessel) ? saved.vessel : 'open', sealed:saved.sealed === true,
         plants:readPlants(saved.plants), mounds:readPoints(saved.mounds,maxMounds), patches:readPoints(saved.patches,maxPatches),
         stones:(Array.isArray(saved.stones) ? saved.stones : []).filter(s => tuple(s?.p,3) && Math.hypot(s.p[0],s.p[2])<1.38 &&
@@ -80,9 +82,12 @@ export async function openPebbleEditor(scene, glass, shadows, loadPlantedModel, 
   }
   if (preset && !layout.name) layout.name = wording('蕨间小径','Fern Path');
   const {mounds, patches, stones:saved} = layout;
+  let route=preset && layout.route;
+  let curve=route && measureRoute(route);
   const restHeight = preset && samplePresetGround(preset.grounds);
-  const originalMoss = preset?.moss && createPresetMoss(preset.moss,layout.erasedMoss);
-  let groundHeight = originalMoss && layout.erasedMoss?.length ? samplePresetGround(preset.grounds) : restHeight;
+  if (curve) preset.pathSoil?.setEnabled(false);
+  const originalMoss = preset?.moss && createPresetMoss(preset.moss,layout.erasedMoss,curve);
+  let groundHeight = originalMoss && (curve || layout.erasedMoss?.length) ? samplePresetGround(preset.grounds) : restHeight;
   let bankBody;
   function rebuildBank() {
     bankBody?.dispose();
@@ -121,7 +126,7 @@ export async function openPebbleEditor(scene, glass, shadows, loadPlantedModel, 
     }
   }
 
-  const moss = createEditorMoss(scene,patches,heightAt);
+  const moss = createEditorMoss(scene,patches,heightAt,originalMoss && {...originalMoss,edited:()=>Boolean(route)});
   glass.addContents?.([soil.mesh,moss.mesh]);
   shadows.addShadowCaster(moss.mesh);
   shadows.addShadowCaster(soil.mesh);
@@ -132,7 +137,7 @@ export async function openPebbleEditor(scene, glass, shadows, loadPlantedModel, 
   const foliage = [...specimens,...base.filter(mesh => basePlantNames.includes(mesh.name))];
   const plants = createEditorPlants(scene,foliage,glass,shadows,heightAt,vessel,layout.plants,Boolean(preset));
   const rocks = createEditorRocks({scene,glass,shadows,heightAt,vessel,preset,sources:base,saved:layout.rocks});
-  const authored = preset && editFernPath(preset,heightAt,restHeight,layout.edits,vessel);
+  const authored = preset && editFernPath(preset,heightAt,restHeight,layout.edits,vessel,curve);
   const fox = preset?.base.find(mesh => mesh.name.startsWith('Fox ·'));
   const animals = await createEditorAnimals({scene,glass,shadows,loadPlantedModel,fox,heightAt,restHeight,vessel,layout});
   const palette = tones.map(hex => {
@@ -245,7 +250,7 @@ export async function openPebbleEditor(scene, glass, shadows, loadPlantedModel, 
       p:mesh.position.asArray(),q:mesh.rotationQuaternion.asArray(),r:s.r,t:s.t,support:keys.get(s.support),
       ...(withMotion && !s.support ? {velocity:s.physics.body.getLinearVelocity().asArray(),spin:s.physics.body.getAngularVelocity().asArray()} : {}),
     }));
-    return {drainage:preset ? undefined : true,name:layout.name,looseSoil:loose.serialize(),lamp:lampPosition,books:bookPosition,rocks:[...rocks.placed.values()],erasedMoss:originalMoss?.serialize(),animals:[...animals.placed.values()],edits:authored?.serialize(),vessel:vessel.type,sealed:vessel.sealed,mounds,patches,plants:[...plants.planted.values()],stones:pieces};
+    return {drainage:preset ? undefined : true,name:layout.name,route,looseSoil:loose.serialize(),lamp:lampPosition,books:bookPosition,rocks:[...rocks.placed.values()],erasedMoss:originalMoss?.serialize(),animals:[...animals.placed.values()],edits:authored?.serialize(),vessel:vessel.type,sealed:vessel.sealed,mounds,patches,plants:[...plants.planted.values()],stones:pieces};
   }
   let deleted = false;
   const closeSceneMenu = installPresetLibrary(preset || slope ? snapshot : undefined,slope ? 'pebble-slope' : 'fern-path',key => {
@@ -277,6 +282,13 @@ export async function openPebbleEditor(scene, glass, shadows, loadPlantedModel, 
     mesh.dispose();
   }
   const capture = () => JSON.stringify(snapshot(true));
+  function updateRoute(points) {
+    route=points;
+    curve=route && measureRoute(route);
+    authored.setRoute(curve);
+    originalMoss?.reroute(curve);
+    preset.pathSoil?.setEnabled(!curve);
+  }
   const history = installEditHistory(capture,serialized => {
     select(null);
     const next = JSON.parse(serialized);
@@ -289,9 +301,11 @@ export async function openPebbleEditor(scene, glass, shadows, loadPlantedModel, 
     if (vesselChanged) vessel.setType(next.vessel,next.sealed);
     else if (next.sealed !== vessel.sealed) vessel.setSealed(next.sealed);
     else if (!vessel.sealed) vessel.parkCork();
+    const routeChanged=authored && JSON.stringify(route)!==JSON.stringify(next.route);
+    if (routeChanged) updateRoute(next.route);
     const mossCutChanged = originalMoss && JSON.stringify(originalMoss.serialize())!==JSON.stringify(next.erasedMoss);
-    if (mossCutChanged) {
-      originalMoss.restore(next.erasedMoss);
+    if (originalMoss && (mossCutChanged || routeChanged)) {
+      if (mossCutChanged) originalMoss.restore(next.erasedMoss);
       rebuildBank();
     }
     const looseChanged=JSON.stringify(loose.serialize())!==JSON.stringify(next.looseSoil);
@@ -299,7 +313,7 @@ export async function openPebbleEditor(scene, glass, shadows, loadPlantedModel, 
       loose.restore(next.looseSoil);
       deskSoil.sync();
     }
-    const groundChanged = looseChanged || mossCutChanged || JSON.stringify(mounds)!==JSON.stringify(next.mounds);
+    const groundChanged = routeChanged || looseChanged || mossCutChanged || JSON.stringify(mounds)!==JSON.stringify(next.mounds);
     if (groundChanged) {
       mounds.splice(0,mounds.length,...next.mounds);
       soil.rebuild();
@@ -464,6 +478,19 @@ export async function openPebbleEditor(scene, glass, shadows, loadPlantedModel, 
   }
   const buttons = [...document.querySelectorAll('[data-editor-tool]')];
   const canvas = scene.getEngine().getRenderingCanvas();
+  document.querySelector('[data-editor-tool=path]').hidden=!authored;
+  function finishPath() {
+    setTool('move');
+    canvas.focus({preventScroll:true});
+  }
+  const pathTool=authored && installPathTool(scene,canvas,heightAt,()=>route,points=>{
+    const before=capture();
+    shapeSoil(()=>{
+      updateRoute(points);
+      if (originalMoss) rebuildBank();
+    });
+    commit(before);
+  },finishPath);
   const cancelPour = installPebblePour(scene,canvas,{
     enabled:() => active && tool==='pebbles',
     pick:(x,y) => scene.pick(x,y,m => m.isEnabled() && (grounds.has(m) || stones.has(m)))?.pickedPoint,
@@ -512,6 +539,7 @@ export async function openPebbleEditor(scene, glass, shadows, loadPlantedModel, 
   function setTool(next) {
     cancelPour();
     tool = next;
+    pathTool?.show(active && tool==='path');
     reflectPourHint();
     updateCursor(tool,Boolean(selected));
     for (const button of buttons) button.setAttribute('aria-pressed',String(button.dataset.editorTool===tool));
@@ -716,8 +744,14 @@ export async function openPebbleEditor(scene, glass, shadows, loadPlantedModel, 
     }
     commit(before);
   }
-  scene.onPointerObservable.add(() => {
+  scene.onPointerObservable.add(({event}) => {
     if (!active || tool==='pebbles') return;
+    if (tool==='path') {
+      // Path strokes consume their pointer events. Babylon reports a tap here
+      // only for the remaining canvas gestures, after rejecting orbit drags.
+      if (event.button===0 && event.isPrimary!==false) finishPath();
+      return;
+    }
     if (selected?.deskProp) {
       const hit = scene.pick(scene.pointerX,scene.pointerY,m => m.isEnabled() && m.isVisible &&
         (m===table || grounds.has(m) || m.isPickable || lamp.meshes.includes(m) || books.meshes.includes(m)));
@@ -735,7 +769,7 @@ export async function openPebbleEditor(scene, glass, shadows, loadPlantedModel, 
   canvas.addEventListener('keydown',event => {
     if (!active) return;
     if (event.key === 'Escape') {select(null);return;}
-    if (event.key !== 'Enter' || event.repeat) return;
+    if (event.key !== 'Enter' || event.repeat || tool==='path') return;
     event.preventDefault();
     if (tool==='pebbles') {pour(new Vector3(0,heightAt(0,0),0));return;}
     const centerPlant = tool === 'erase' && [...plants.planted.keys()].reverse().find(mesh => Math.hypot(mesh.position.x,mesh.position.z)<.12);
@@ -751,6 +785,8 @@ export async function openPebbleEditor(scene, glass, shadows, loadPlantedModel, 
     if (active && !value) {save();deskSoil.sync();}
     cancelPour();
     active = value;
+    pathTool?.show(active && tool==='path');
+    preset?.pathSoil?.setEnabled(!active || !route);
     closeSceneMenu();
     books.positionAt(value ? bookPosition : undefined);
     lamp.positionAt(value ? lampPosition : undefined);

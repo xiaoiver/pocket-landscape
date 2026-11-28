@@ -2,14 +2,32 @@ import {PhysicsAggregate, PhysicsShapeType} from '@babylonjs/core';
 import {enableLeafPicking} from './leaf-picking.js';
 import {glassInnerRadiusAt, vesselWalls} from './glass.js';
 import {fitBowlFoliage} from './slant-bowl.js';
+import {originalCurve,nearestOnRoute,stoneOnRoute} from './path-route.js';
 import {indexPath} from './preset-path.js';
 
 // Keep original geometry and material assignments. Saved copies store only
 // changes from the authored positions, so an untouched copy opens identically.
-export function editFernPath({base,specimens,pathMesh}, heightAt, restHeight, saved, vessel) {
+export function editFernPath({base,specimens,pathMesh}, heightAt, restHeight, saved, vessel, route) {
   const objects=new Map(), byMesh=new Map(), changes=new Map(), atlases=new Map();
   const path=indexPath(pathMesh);
-  for (const piece of path.pieces) objects.set(piece.id,piece);
+  const routed = new Map(), omitted=new Set();
+  for (const piece of path.pieces) {
+    piece.station=nearestOnRoute(originalCurve,piece.x,piece.z);
+    objects.set(piece.id,piece);
+  }
+  function setRoute(curve) {
+    routed.clear();
+    omitted.clear();
+    if (!curve) return;
+    // A shorter trail uses a proportional slice of the original stone bed.
+    // Preserve each chip's size and spacing instead of compressing the entire path.
+    const fraction=Math.min(1,curve.length/originalCurve.length);
+    for (const piece of path.pieces) {
+      if (piece.station.t>fraction) {omitted.add(piece.id);continue;}
+      routed.set(piece.id,stoneOnRoute(curve,{...piece.station,t:piece.station.t/fraction},piece.radius));
+    }
+  }
+  setRoute(route);
   const staticOptions={mass:0,friction:.65,restitution:.12};
   function collider(mesh) {
     return new PhysicsAggregate(mesh,PhysicsShapeType.MESH,staticOptions,mesh.getScene());
@@ -82,9 +100,9 @@ export function editFernPath({base,specimens,pathMesh}, heightAt, restHeight, sa
   }
   function settle(item) {
     const pose=changes.get(item.id);
-    const [x,z]=pose || [item.x,item.z];
+    const [x,z]=pose || routed.get(item.id) || [item.x,item.z];
     const dy=heightAt(x,z)-restHeight(item.x,item.z);
-    item.place(x-item.x,dy,z-item.z,pose===null);
+    item.place(x-item.x,dy,z-item.z,pose===null || (!pose && omitted.has(item.id)));
   }
   function settleAll() {
     for (const item of objects.values()) settle(item);
@@ -102,10 +120,10 @@ export function editFernPath({base,specimens,pathMesh}, heightAt, restHeight, sa
       for (const [id,pose] of Object.entries(edits)) changes.set(id,pose);
       settleAll();
     },
-    settleAll, fitVessel() {for (const id of foliage) settle(objects.get(id));},
+    setRoute, settleAll, fitVessel() {for (const id of foliage) settle(objects.get(id));},
     serialize:()=>Object.fromEntries(changes),
     pickable:mesh=>mesh.isEnabled() && mesh.isPickable && (mesh===pathMesh || byMesh.has(mesh)),
-    location:item=>changes.get(item.id) || [item.x,item.z],
+    location:item=>changes.get(item.id) || routed.get(item.id) || [item.x,item.z],
     picked:hit=>objects.get(hit.pickedMesh===pathMesh ? path.faceKeys[hit.faceId] : byMesh.get(hit.pickedMesh)),
     remove:item=>change(item,null),
     move(item,x,z) {
