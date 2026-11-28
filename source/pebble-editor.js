@@ -7,7 +7,8 @@ import {installEditHistory} from './edit-history.js';
 import {createEditorAnimals,maxAnimals} from './editor-animals.js';
 import {basePlantNames, createEditorPlants, isPlantTool, maxPlants, readPlants} from './editor-plants.js';
 import {createEditorRocks, maxRocks, rockModelNames} from './editor-rocks.js';
-import {createEditorMoss} from './editor-moss.js';
+import {createRockMoss,isOutcrop,originalTrail} from './rock-moss.js';
+import {createEditorMoss,readMossPatches} from './editor-moss.js';
 import {editFernPath} from './fern-path-preset.js';
 import {createPresetMoss} from './preset-moss.js';
 import {measureRoute,readRoute} from './path-route.js';
@@ -46,7 +47,7 @@ function readLayout(storageKey,slope) {
       return {
         drainage:saved.drainage, name:saved.name, route:readRoute(saved.route), looseSoil:saved.looseSoil, lamp:saved.lamp, books:saved.books, rocks:saved.rocks, edits:saved.edits, animals:saved.animals, erasedMoss:saved.erasedMoss,
         vessel:Object.hasOwn(vesselWalls,saved.vessel) ? saved.vessel : 'open', sealed:saved.sealed === true,
-        plants:readPlants(saved.plants), mounds:readPoints(saved.mounds,maxMounds), patches:readPoints(saved.patches,maxPatches),
+        plants:readPlants(saved.plants), mounds:readPoints(saved.mounds,maxMounds), patches:readMossPatches(saved.patches,maxPatches),
         stones:(Array.isArray(saved.stones) ? saved.stones : []).filter(s => tuple(s?.p,3) && Math.hypot(s.p[0],s.p[2])<1.38 &&
           s.p[1]>0 && s.p[1]<(saved.drainage ? 2+blankDrainageLift : 2) && tuple(s.q,4) && tuple(s.r,3) && s.r.every(n=>n>=.004 && n<=.1) &&
           Number.isInteger(s.t) && s.t>=0 && s.t<tones.length),
@@ -84,7 +85,7 @@ export async function openPebbleEditor(scene, glass, shadows, loadPlantedModel, 
   const {mounds, patches, stones:saved} = layout;
   let route=preset && layout.route;
   let curve=route && measureRoute(route);
-  const restHeight = preset && samplePresetGround(preset.grounds);
+  const restHeight = preset?.restHeight;
   if (curve) preset.pathSoil?.setEnabled(false);
   const originalMoss = preset?.moss && createPresetMoss(preset.moss,layout.erasedMoss,curve);
   let groundHeight = originalMoss && (curve || layout.erasedMoss?.length) ? samplePresetGround(preset.grounds) : restHeight;
@@ -127,8 +128,8 @@ export async function openPebbleEditor(scene, glass, shadows, loadPlantedModel, 
   }
 
   const moss = createEditorMoss(scene,patches,heightAt,originalMoss && {...originalMoss,edited:()=>Boolean(route)});
-  glass.addContents?.([soil.mesh,moss.mesh]);
-  shadows.addShadowCaster(moss.mesh);
+  glass.addContents?.([soil.mesh,...moss.meshes]);
+  for (const mesh of moss.meshes) shadows.addShadowCaster(mesh);
   shadows.addShadowCaster(soil.mesh);
   const vessel = createEditorVessel(scene,glass,shadows,layout.vessel,layout.sealed,lamp,books);
   const [specimens,base] = preset ? [preset.specimens,preset.base] : await Promise.all([
@@ -138,6 +139,16 @@ export async function openPebbleEditor(scene, glass, shadows, loadPlantedModel, 
   const plants = createEditorPlants(scene,foliage,glass,shadows,heightAt,vessel,layout.plants,Boolean(preset));
   const rocks = createEditorRocks({scene,glass,shadows,heightAt,vessel,preset,sources:base,saved:layout.rocks});
   const authored = preset && editFernPath(preset,heightAt,restHeight,layout.edits,vessel,curve);
+  const authoredRocks=preset?.base.filter(isOutcrop) ?? [];
+  const rockMoss=createRockMoss(scene,desk.windowRay);
+  glass.addContents?.([rockMoss.mesh]);
+  shadows.addShadowCaster(rockMoss.mesh);
+  function refreshRockMoss() {
+    const outcrops=authoredRocks.filter(mesh=>mesh.isEnabled(false)).concat([...rocks.placed.keys()]);
+    rockMoss.rebuild(outcrops,heightAt,preset && ((x,z)=>originalMoss?.erasedAt(x,z) ||
+      (route ? originalMoss?.onPath(x,z) : originalTrail(x,z))));
+  }
+  refreshRockMoss();
   const fox = preset?.base.find(mesh => mesh.name.startsWith('Fox ·'));
   const animals = await createEditorAnimals({scene,glass,shadows,loadPlantedModel,fox,heightAt,restHeight,vessel,layout});
   const palette = tones.map(hex => {
@@ -336,6 +347,7 @@ export async function openPebbleEditor(scene, glass, shadows, loadPlantedModel, 
     } else if (groundChanged || vesselChanged) animals.settleAll();
     if (JSON.stringify([...rocks.placed.values()])!==JSON.stringify(next.rocks)) rocks.restore(next.rocks);
     else if (groundChanged || vesselChanged) rocks.settleAll();
+    refreshRockMoss();
     restoreStones(next.stones);
     reflectVessel();
     save();
@@ -389,6 +401,7 @@ export async function openPebbleEditor(scene, glass, shadows, loadPlantedModel, 
     plants.settleAll();
     animals.settleAll();
     rocks.settleAll();
+    refreshRockMoss();
     // Stones already falling above the shoulder must fit the newly selected profile.
     for (const [mesh,s] of stones) {
       const p = mesh.position;
@@ -416,6 +429,7 @@ export async function openPebbleEditor(scene, glass, shadows, loadPlantedModel, 
     plants.settleAll();
     animals.settleAll();
     rocks.settleAll();
+    refreshRockMoss();
     for (const [mesh,s] of stones) {
       const {x,z} = mesh.position;
       const lift = heightAt(x,z)-previous.get(mesh);
@@ -610,12 +624,14 @@ export async function openPebbleEditor(scene, glass, shadows, loadPlantedModel, 
     commit(before);
   }
   function removeObject(item,mesh) {
+    const rock=rocks.placed.has(mesh) || authoredRocks.includes(mesh);
     if (animals.placed.has(mesh)) animals.remove(mesh);
     else if (item) authored.remove(item);
     else if (rocks.placed.has(mesh)) rocks.remove(mesh);
     else if (plants.planted.has(mesh)) plants.remove(mesh);
     else if (stones.has(mesh)) removeStone(mesh);
     else return false;
+    if (rock) refreshRockMoss();
     return true;
   }
   document.addEventListener('keydown',event => {
@@ -639,7 +655,7 @@ export async function openPebbleEditor(scene, glass, shadows, loadPlantedModel, 
   });
   document.getElementById('animal-left').addEventListener('click',() => rotateAnimal(1));
   document.getElementById('animal-right').addEventListener('click',() => rotateAnimal(-1));
-  async function apply(point, mesh, item) {
+  async function apply(point, mesh, item, faceId) {
     feedback.textContent = '';
     if (tool === 'move' && !selected) {
       if (lamp.meshes.includes(mesh)) select({deskProp:lamp});
@@ -672,11 +688,14 @@ export async function openPebbleEditor(scene, glass, shadows, loadPlantedModel, 
         if (selected.deskProp===books) bookPosition=position;
         else lampPosition=position;
         selected.deskProp.positionAt(position);
-      } else if (selected.item) authored.move(selected.item,point.x,point.z);
-      else if (rocks.placed.has(selected.mesh)) {
+      } else if (selected.item) {
+        authored.move(selected.item,point.x,point.z);
+        if (authoredRocks.includes(selected.mesh)) refreshRockMoss();
+      } else if (rocks.placed.has(selected.mesh)) {
         const pose = rocks.placed.get(selected.mesh);
         Object.assign(pose,{x:point.x,z:point.z});
         rocks.settle(selected.mesh,pose);
+        refreshRockMoss();
       } else if (animals.placed.has(selected.mesh)) {
         const pose=animals.placed.get(selected.mesh);
         Object.assign(pose,{x:point.x,z:point.z});
@@ -702,6 +721,7 @@ export async function openPebbleEditor(scene, glass, shadows, loadPlantedModel, 
     } else if (tool === 'rock') {
       if (rocks.placed.size >= maxRocks) {feedback.textContent = wording('景石已满，可用橡皮擦移除。','Rock limit reached. Use the eraser to remove one.');return;}
       rocks.place(point.x,point.z);
+      refreshRockMoss();
     } else if (tool === 'soil') {
       if (mounds.length+loose.marks.length >= maxMounds) {feedback.textContent = wording('土丘已满，可用橡皮擦移除。','Soil limit reached. Use the eraser to remove a mound.');return;}
       if (vessel.type==='bowl') {
@@ -715,17 +735,18 @@ export async function openPebbleEditor(scene, glass, shadows, loadPlantedModel, 
         return;
       }
       plants.add({kind:tool,x:point.x,z:point.z,yaw:Math.random()*2*Math.PI});
-    } else if (tool === 'moss') {
+    } else if (tool === 'moss' || tool === 'cushion') {
       if (patches.length >= maxPatches) {
         feedback.textContent = wording('苔团已满，可用橡皮擦移除。','Moss limit reached. Use the eraser to remove a patch.');
         return;
       }
-      patches.push([point.x,point.z]);
+      const factor=Math.min(1,1.30/(Math.hypot(point.x,point.z) || 1));
+      patches.push([point.x*factor,point.z*factor,tool==='moss' ? 'carpet' : 'cushion']);
       moss.rebuild();
     } else if (tool==='erase' && mesh===deskSoil.mesh) {
       deskSoil.erase(point);
     } else if (!removeObject(item,mesh)) {
-      const patch = nearestPoint(patches,point,.21);
+      const patch = mesh===moss.bed ? moss.patchForFace(faceId) : nearestPoint(patches,point,.21);
       if (patch>=0) {
         patches.splice(patch,1);
         moss.rebuild();
@@ -759,12 +780,12 @@ export async function openPebbleEditor(scene, glass, shadows, loadPlantedModel, 
       return;
     }
     const objects = tool === 'erase' || (tool === 'move' && !selected);
-    const planting = tool === 'rock' || isPlantTool(tool) || tool === 'animal';
+    const planting = tool === 'moss' || tool === 'cushion' || tool === 'rock' || isPlantTool(tool) || tool === 'animal';
     const hit = scene.pick(scene.pointerX,scene.pointerY,m => m.isEnabled() && (
-      grounds.has(m) || (tool==='erase' && m===deskSoil.mesh) || (tool==='move' && !selected && (lamp.meshes.includes(m) || books.meshes.includes(m))) || (tool==='erase' && originalMoss?.layers.includes(m)) || (!planting && !selected && stones.has(m)) ||
+      grounds.has(m) || (tool==='erase' && (m===deskSoil.mesh || m===moss.bed)) || (tool==='move' && !selected && (lamp.meshes.includes(m) || books.meshes.includes(m))) || (tool==='erase' && originalMoss?.layers.includes(m)) || (!planting && !selected && stones.has(m)) ||
       (objects && (rocks.placed.has(m) || animals.placed.has(m) || (m.isPickable && plants.planted.has(m)) || authored?.pickable(m)))
     ));
-    if (hit?.pickedPoint) apply(hit.pickedPoint,hit.pickedMesh,authored?.picked(hit));
+    if (hit?.pickedPoint) apply(hit.pickedPoint,hit.pickedMesh,authored?.picked(hit),hit.faceId);
   }, PointerEventTypes.POINTERTAP | PointerEventTypes.POINTERDOUBLETAP);
   canvas.addEventListener('keydown',event => {
     if (!active) return;

@@ -41,6 +41,7 @@ async function buildViewer() {
   const bookLicense = fs.readFileSync(path.join(__dirname,'assets/irma-book-LICENSE.txt'),'utf8');
   const content = ['<!-- irma-book binding geometry\n'+bookLicense+'-->', '<!-- @babylonjs/havok\n' + havokLicense + '-->', embeddedData('studio-data', studio),
     embeddedData('havok-wasm',fs.readFileSync(havokWasm)),
+    embeddedData('moss-bed',figurine('moss-bed','jpg')),
     embeddedData('window-view', fs.readFileSync(path.join(__dirname, 'assets/window-morning.jpg'))),
     embeddedData('window-detail', fs.readFileSync(path.join(__dirname, 'assets/window-refraction.jpg'))),
     embeddedData('drop-atlas', fs.readFileSync(path.join(__dirname, 'assets/window-drop-atlas.png'))),

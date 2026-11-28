@@ -20,6 +20,8 @@ import {prepareSubstrate} from './substrate.js';
 import {prepareClay,prepareFoliage} from './foliage.js';
 import {installMossBranchlets} from './moss-branchlets.js';
 import {prepareMossCushions} from './moss-cushions.js';
+import {createRockMoss,isOutcrop,originalTrail} from './rock-moss.js';
+import {samplePresetGround} from './preset-ground.js';
 import {prepareMossPad} from './moss-pad.js';
 import {prepareGroundContacts} from './ground-contacts.js';
 import {preparePathSoil} from './path-soil.js';
@@ -73,7 +75,7 @@ async function start(){
   };
   for (const book of books.meshes) shadows.addShadowCaster(book,false);
   const ground=MeshBuilder.CreateGround('Paper tabletop',{width:350,height:350},scene);ground.receiveShadows=true;
-  const desk = {lamp,books,table:ground};
+  const desk = {lamp,books,table:ground,windowRay:ray};
   const floorMat=new StandardMaterial('Warm stone',scene);floorMat.specularColor=Color3.Black();floorMat.disableLighting=false;
   // Leave headroom for the sunlit surface and its PCF shadows.
   floorMat.diffuseColor.setAll(.66);
@@ -200,7 +202,13 @@ async function start(){
   const shoots = prepareMossCushions(scene, bank, rosettes, {
     lightweight: forceLightweight, settled: drainage?.gravel.isEnabled(),
   });
-  if (shoots) { base.push(shoots.mesh); shadows.addShadowCaster(shoots.mesh); }
+  for (const batch of shoots) { base.push(batch.mesh); shadows.addShadowCaster(batch.mesh); }
+  const grounds=[earth,bank].filter(Boolean);
+  const restHeight=samplePresetGround(grounds);
+  const rockMoss=createRockMoss(scene,ray);
+  rockMoss.rebuild(base.filter(isOutcrop),restHeight,originalTrail);
+  base.push(rockMoss.mesh);
+  shadows.addShadowCaster(rockMoss.mesh);
   const hasModelledMoss = Boolean(rosettes);
   const mossPad=!hasModelledMoss && prepareMossPad(scene,earth,base);
   if(mossPad)mossPad.setEnabled(true);
@@ -248,8 +256,9 @@ async function start(){
     texture.update();
   }
   await installPresetEditorMode({scene,glass,shadows,loadPlantedModel,desk,
-    preset:{base,specimens,fragmentMaterial,pathSoil,moss:bank && {bank,rosettes,shoots},pathMesh:pathStones[0],grounds:[earth,bank].filter(Boolean)},
+    preset:{base,specimens,fragmentMaterial,pathSoil,moss:bank && {bank,rosettes,shoots},pathMesh:pathStones[0],grounds,restHeight},
     onModeChange(editing) {
+      rockMoss.mesh.isVisible=!editing;
       life.setPlants?.(!editing);
       life.setMotes?.(!editing);
       contacts.setEnabled(!editing);

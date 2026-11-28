@@ -1,4 +1,5 @@
 import {Matrix, Mesh, PBRMaterial, Quaternion, Vector3, VertexBuffer, VertexData} from '@babylonjs/core';
+import {createMossDetails} from './moss-details.js';
 import {settleSoilShoulder, soilHeight} from './substrate.js';
 
 function hash(x, z, seed) {
@@ -90,7 +91,9 @@ export function createMossTuft(scene) {
 }
 
 export function prepareMossCushions(scene, bank, rosettes, {lightweight, settled}) {
-  if (!bank || !rosettes) return;
+  if (!bank || !rosettes) return [];
+  const mesh=createMossTuft(scene);
+  const details=createMossDetails(scene,mesh.material);
   const shootDensity = lightweight ? 950 : 2150;
   const bed = liftBed(bank, false, settled);
   liftBed(rosettes, true, settled);
@@ -109,17 +112,29 @@ export function prepareMossCushions(scene, bank, rosettes, {lightweight, settled
     if (at.y < soilHeight(at.x, at.z) + .018 || Math.hypot(at.x, at.z) > 1.30) continue;
     const crown = colony(at.x, at.z), variation = hash(k, 0, 12);
     const s = .56 + .53 * variation + .45 * crown;
+    const warm = .5 + .5 * Math.sin(7 * at.x + 1.3 * Math.sin(6 * at.z));
+    const yaw=6.283*hash(k,0,14);
+    // Let feathered tips follow the local slope in colonies, with just a few
+    // fertile stems poking through taller hummocks.
+    const spread=.5+.5*Math.sin(9*at.x+3*Math.sin(4*at.z));
+    if (spread>.56 && variation<.43 && Math.hypot(at.x,at.z)<1.24) {
+      const by=bed[b+1]-bed[a+1],cy=bed[c+1]-bed[a+1],det=dx*ez-ex*dz;
+      const slope=((by*ez-cy*dz)*Math.sin(yaw)+(dx*cy-ex*by)*Math.cos(yaw))/det;
+      details.runners.add(at.x,at.y+.008,at.z,.054+.035*warm,yaw,-Math.atan(slope),warm);
+      continue;
+    }
+    if (crown>.62 && warm>.70 && variation>.975 && Math.hypot(at.x,at.z)<1.26) {
+      details.capsules.add(at.x,at.y+.006,at.z,.073+.040*warm,yaw,.09*Math.cos(yaw),warm);
+    }
     scale.set(s, s * (.81 + .36 * hash(k, 0, 13)), s);
     Quaternion.RotationYawPitchRollToRef(6.283 * hash(k, 0, 14), .21 * Math.sin(11 * at.x), .19 * Math.cos(9 * at.z), spin);
     Matrix.ComposeToRef(scale, spin, at, transform);
     matrices.push(...transform.m);
-    const warm = .5 + .5 * Math.sin(7 * at.x + 1.3 * Math.sin(6 * at.z));
     const tint = .56 + .31 * variation + .24 * crown;
     tints.push(tint * (.74 + .29 * warm + .18 * crown), tint, tint * (.7 + .32 * (1 - warm)), 1);
   }
-  const mesh = createMossTuft(scene);
   const transforms = Float32Array.from(matrices), colors = Float32Array.from(tints);
   mesh.thinInstanceSetBuffer('matrix',transforms,16,true);
   mesh.thinInstanceSetBuffer('color',colors,4,true);
-  return {mesh,matrices:transforms,colors};
+  return [{mesh,matrices:transforms,colors},details.runners.flush(),details.capsules.flush()].filter(batch=>batch.matrices.length);
 }
