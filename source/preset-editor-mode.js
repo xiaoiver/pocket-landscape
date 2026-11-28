@@ -64,7 +64,7 @@ export function installPresetEditorMode({scene, glass, shadows, loadPlantedModel
       if (preset.moss) {
         const {bank,rosettes,shoots} = preset.moss;
         editable.moss = {bank:clone(bank,true),rosettes:rosettes && clone(rosettes,true),
-          shoots:shoots && {...shoots,mesh:clone(shoots.mesh,true)}};
+          shoots:shoots.map(batch=>({...batch,mesh:clone(batch.mesh,true)}))};
         editable.grounds = [preset.grounds[0],editable.moss.bank];
       }
       const editor = await openPebbleEditor(scene,editGlass,shadows,loadPlantedModel,desk,{preset:editable,storageKey:presetKey(copyId)});

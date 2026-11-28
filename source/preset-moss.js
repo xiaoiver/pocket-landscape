@@ -82,8 +82,10 @@ export function createPresetMoss({bank,rosettes,shoots}, saved, route) {
   function rebuild() {
     const hidden = new Set([...erased,...cleared]);
     for (const apply of masks) apply(hidden,rerouted);
-    if (!shoots) return;
-    const {mesh,matrices,colors} = shoots, transforms=[], tints=[];
+    for (const batch of shoots) trimShoots(batch,hidden);
+  }
+  function trimShoots({mesh,matrices,colors},hidden) {
+    const transforms=[],tints=[];
     for (let i=0; i<matrices.length; i+=16) {
       if (hidden.has(cellAt(matrices[i+12],matrices[i+14]))) continue;
       transforms.push(...matrices.subarray(i,i+16));

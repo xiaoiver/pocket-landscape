@@ -2,7 +2,7 @@ import {Scene} from '@babylonjs/core';
 
 // Hotspots are in the toolbar icons' 24 × 24 viewBox.
 const hotspots = {
-  soil:[4,21], pebbles:[8,19], rock:[10,19], moss:[4,20], fern:[4,21],
+  soil:[4,21], pebbles:[8,19], rock:[10,19], moss:[12,17], cushion:[12,18], fern:[4,21],
   fernC:[12,21], fittonia:[12,21], ivory:[12,21], rose:[12,21], canopy:[12,21], animal:[12,19], erase:[9,21],
 };
 

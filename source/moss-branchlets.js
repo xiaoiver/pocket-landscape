@@ -68,7 +68,7 @@ function sampler(meshes, random) {
   }};
 }
 
-function branchletShape() {
+export function branchletShape() {
   const positions=[],uvs=[],indices=[];
   const leaf=(root,tip,width,pigment,arch=.026)=>{
     const dx=tip[0]-root[0],dz=tip[2]-root[2],mag=Math.hypot(dx,dz);
