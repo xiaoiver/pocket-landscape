@@ -13,7 +13,7 @@ function smooth(lo, hi, value) {
 }
 
 // Overlapping irregular cushions share a height field with their folded leaf tips.
-function colony(x, z) {
+export function colony(x, z) {
   const u = x * 4.6 + .22 * Math.sin(8 * z + 2 * x);
   const v = z * 5.1 + .23 * Math.sin(6 * x - 3 * z);
   let crown = 0;

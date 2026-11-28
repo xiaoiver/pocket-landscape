@@ -248,7 +248,7 @@ async function start(){
     texture.update();
   }
   await installPresetEditorMode({scene,glass,shadows,loadPlantedModel,desk,
-    preset:{base,specimens,fragmentMaterial,moss:bank && {bank,rosettes,shoots},pathMesh:pathStones[0],grounds:[earth,bank].filter(Boolean)},
+    preset:{base,specimens,fragmentMaterial,pathSoil,moss:bank && {bank,rosettes,shoots},pathMesh:pathStones[0],grounds:[earth,bank].filter(Boolean)},
     onModeChange(editing) {
       life.setPlants?.(!editing);
       life.setMotes?.(!editing);
